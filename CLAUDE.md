@@ -8,9 +8,9 @@ Tributum is currently an empty project in its initial setup phase. The project n
 
 ## Project Status
 
-- **Current State**: Empty repository with no source code
-- **Technology Stack**: FastAPI (Python 3.12+)
-- **Build System**: Not yet configured
+- **Current State**: Python project initialized with uv
+- **Technology Stack**: Python 3.13
+- **Build System**: uv (Python package manager)
 
 ## Development Setup
 
