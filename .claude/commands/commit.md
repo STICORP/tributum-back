@@ -41,6 +41,7 @@ When analyzing changes:
    - Describe the problem being solved
    - Mention any trade-offs or alternatives considered
    - Never mention AI assistance or automated generation
+   - Never include references to Claude Code, Anthropic, or AI tools
 
 6. **Multiple file handling**:
    - If changes span multiple files but serve one purpose, commit together
