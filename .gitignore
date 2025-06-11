@@ -70,3 +70,6 @@ logs/
 .terraform.lock.hcl
 terraform.tfvars
 !terraform.tfvars.example
+# Bootstrap state should use remote backend instead
+terraform/bootstrap/terraform.tfstate
+terraform/bootstrap/terraform.tfstate.*
