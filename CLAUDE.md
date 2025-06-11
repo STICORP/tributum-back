@@ -8,13 +8,37 @@ Tributum is currently an empty project in its initial setup phase. The project n
 
 ## Project Status
 
-- **Current State**: Python project initialized with uv
-- **Technology Stack**: Python 3.13
+- **Current State**: Python project initialized with uv, Terraform infrastructure setup complete
+- **Technology Stack**: 
+  - Backend: Python 3.13
+  - Infrastructure: Terraform with GCP
 - **Build System**: uv (Python package manager)
 
 ## Development Setup
 
-As this project is not yet initialized, the first step will be to choose and set up the appropriate technology stack based on the requirements.
+### Infrastructure (Terraform)
+
+- **GCP Project**: tributum-new
+- **Service Account Key**: Located at `.keys/tributum-new-infrastructure-as-code-ce93f5144008.json`
+- **Terraform State**: Stored remotely in GCS bucket `tributum-new-terraform-state`
+- **Directory Structure**:
+  - `terraform/` - Main infrastructure configuration
+  - `terraform/bootstrap/` - Bootstrap configuration for state bucket (one-time setup)
+
+### Terraform Commands
+
+```bash
+# Initialize Terraform (from terraform/ directory)
+terraform init
+
+# Plan infrastructure changes
+terraform plan
+
+# Apply infrastructure changes
+terraform apply
+```
+
+**Note**: The service account key path is hardcoded in both the backend configuration and as a variable. This is necessary because Terraform backends cannot use variables.
 
 ## Development Guidelines
 
