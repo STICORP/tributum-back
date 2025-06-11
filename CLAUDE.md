@@ -53,7 +53,9 @@ terraform apply
 - Do not include "Co-Authored-By: Claude" or any AI authorship
 - Follow the conventional commit format without any AI mentions
 
-## FastAPI Project Structure
+## FastAPI Project Structure (Future Reference)
+
+**Note**: The following FastAPI project structure is documented here for future reference when we begin developing the application. This structure does not currently exist in the codebase but represents the preferred organization pattern for when development begins.
 
 Follow domain-driven design with domain-centric organization:
 

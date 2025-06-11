@@ -1,0 +1,6 @@
+project_id = "tributum-new"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# Staging environment
+environment = "staging"
