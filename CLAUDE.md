@@ -16,6 +16,13 @@ Tributum is currently an empty project in its initial setup phase. The project n
 
 As this project is not yet initialized, the first step will be to choose and set up the appropriate technology stack based on the requirements.
 
+## Development Guidelines
+
+### Library Version Policy
+- **ALWAYS use the absolutely latest version of any library** when adding dependencies
+- Only use older versions if there are compatibility issues with other project dependencies
+- This policy ensures we have the latest features, performance improvements, and security patches
+
 ## Notes
 
 This file should be updated as the project develops to include:
