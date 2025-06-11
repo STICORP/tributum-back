@@ -23,6 +23,12 @@ As this project is not yet initialized, the first step will be to choose and set
 - Only use older versions if there are compatibility issues with other project dependencies
 - This policy ensures we have the latest features, performance improvements, and security patches
 
+### Git Commit Policy
+- **NEVER include AI tool references in commit messages**
+- Do not add "Generated with Claude Code" or similar attributions
+- Do not include "Co-Authored-By: Claude" or any AI authorship
+- Follow the conventional commit format without any AI mentions
+
 ## Notes
 
 This file should be updated as the project develops to include:
