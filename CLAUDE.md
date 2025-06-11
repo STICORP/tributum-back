@@ -53,6 +53,32 @@ terraform apply
 - Do not include "Co-Authored-By: Claude" or any AI authorship
 - Follow the conventional commit format without any AI mentions
 
+## FastAPI Project Structure
+
+Follow domain-driven design with consistent module organization:
+
+```
+src/
+├── auth/
+│   ├── router.py       # Endpoints
+│   ├── schemas.py      # Pydantic models
+│   ├── models.py       # Database models
+│   ├── service.py      # Business logic
+│   ├── dependencies.py # Route dependencies
+│   ├── constants.py    # Module constants
+│   ├── config.py       # Module config
+│   └── exceptions.py   # Custom exceptions
+├── [other_modules]/
+│   └── (same structure as above)
+└── core/
+    ├── config.py       # Global configuration
+    ├── database.py     # Database connection
+    ├── dependencies.py # Common dependencies
+    └── exceptions.py   # Base exceptions
+```
+
+Each module is self-contained with its own router, schemas, models, and business logic.
+
 ## Notes
 
 This file should be updated as the project develops to include:
