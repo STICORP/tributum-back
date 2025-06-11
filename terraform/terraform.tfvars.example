@@ -1,0 +1,9 @@
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# Path to your GCP service account credentials JSON file
+gcp_credentials_file = "../.keys/your-service-account-key.json"
+
+# Environment name
+environment = "dev"
