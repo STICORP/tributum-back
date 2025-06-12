@@ -16,9 +16,9 @@ When analyzing changes:
 3. **Use conventional commit format**:
    ```
    <type>(<scope>): <subject>
-   
+
    <body>
-   
+
    <footer>
    ```
 
@@ -51,15 +51,15 @@ When analyzing changes:
 7. **Example commit message**:
    ```
    feat(auth): implement JWT authentication system
-   
+
    Added JWT-based authentication to secure API endpoints. Chose JWT over
    session-based auth for stateless operation and better scalability.
-   
+
    Key decisions:
    - Used RS256 algorithm for enhanced security
    - Token expiry set to 24 hours with refresh token support
    - Implemented middleware for route protection
-   
+
    This establishes the foundation for user authentication across
    the application and enables secure API access.
    ```

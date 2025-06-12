@@ -1,6 +1,6 @@
 terraform {
   required_version = ">= 1.10.0"
-  
+
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -26,20 +26,20 @@ resource "google_storage_bucket" "terraform_state" {
   name          = "${var.project_id}-terraform-state"
   location      = var.region
   force_destroy = false
-  
+
   # Enable versioning for state file history
   versioning {
     enabled = true
   }
-  
+
   # Prevent accidental deletion
   lifecycle {
     prevent_destroy = true
   }
-  
+
   # Uniform bucket-level access
   uniform_bucket_level_access = true
-  
+
   depends_on = [google_project_service.storage_api]
 }
 
@@ -48,8 +48,8 @@ resource "google_storage_bucket" "terraform_locks" {
   name          = "${var.project_id}-terraform-locks"
   location      = var.region
   force_destroy = false
-  
+
   uniform_bucket_level_access = true
-  
+
   depends_on = [google_project_service.storage_api]
 }
