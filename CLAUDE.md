@@ -16,6 +16,26 @@ Tributum is currently an empty project in its initial setup phase. The project n
 
 ## Development Setup
 
+### Python Development
+
+#### Linting and Formatting
+
+The project uses Ruff for code quality:
+
+```bash
+# Run linter
+uv run ruff check .
+
+# Fix linting issues automatically
+uv run ruff check --fix .
+
+# Format code
+uv run ruff format .
+
+# Check formatting without making changes
+uv run ruff format --check .
+```
+
 ### Infrastructure (Terraform)
 
 - **GCP Project**: tributum-new
