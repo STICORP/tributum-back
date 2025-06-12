@@ -10,6 +10,7 @@ dependencies = []
 dev = [
     "ruff>=0.11.13",
     "pre-commit>=4.2.0",
+    "mypy>=1.16.0",
 ]
 
 [tool.ruff]
@@ -59,3 +60,43 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+# Be permissive with third-party libraries
+ignore_missing_imports = true
+follow_imports = "silent"
+follow_imports_for_stubs = true
+
+# Project-specific strictness
+[[tool.mypy.overrides]]
+module = "tributum.*"
+ignore_missing_imports = false
+disallow_any_generics = true
+disallow_subclassing_any = true
+disallow_untyped_calls = true
+disallow_any_unimported = true
+disallow_any_expr = false
+disallow_any_decorated = false
+disallow_any_explicit = false
+
+# Per-module options for specific third-party libraries if needed
+[[tool.mypy.overrides]]
+module = "tests.*"
+# Allow more flexibility in tests
+disallow_untyped_decorators = false
+disallow_any_generics = false

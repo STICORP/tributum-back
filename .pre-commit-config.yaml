@@ -20,6 +20,15 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.16.0
+    hooks:
+      - id: mypy
+        additional_dependencies: []
+        args: [--config-file, pyproject.toml]
+        pass_filenames: true
+        exclude: ^(docs/|migrations/|scripts/)
+
 ci:
   autofix_commit_msg: "style: auto fixes from pre-commit.com hooks"
   autofix_prs: true
