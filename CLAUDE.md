@@ -36,6 +36,29 @@ uv run ruff format .
 uv run ruff format --check .
 ```
 
+#### Type Checking
+
+The project uses mypy for static type checking with strict settings:
+
+```bash
+# Run type checking on all files
+uv run mypy .
+
+# Run type checking on specific file/directory
+uv run mypy src/
+
+# Run with more verbose output
+uv run mypy . --show-error-codes
+
+# Ignore specific error codes temporarily
+uv run mypy . --ignore-missing-imports
+```
+
+Type checking configuration:
+- Strict mode enabled for all project code (`tributum.*`)
+- Permissive mode for third-party libraries
+- More relaxed rules for test files
+
 #### Pre-commit Hooks
 
 The project uses pre-commit to automatically run checks before commits:
@@ -54,6 +77,7 @@ git commit --no-verify
 Pre-commit runs:
 - Basic file checks (trailing whitespace, file endings, etc.)
 - Ruff linting and formatting
+- Mypy type checking
 
 ### Infrastructure (Terraform)
 
