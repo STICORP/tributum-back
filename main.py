@@ -1,4 +1,5 @@
-def main():
+def main() -> None:
+    """Main entry point for the Tributum application."""
     print("Hello from tributum!")
 
 
