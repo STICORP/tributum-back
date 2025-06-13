@@ -75,9 +75,44 @@ git commit --no-verify
 ```
 
 Pre-commit runs:
-- Basic file checks (trailing whitespace, file endings, etc.)
+- Basic file checks (trailing whitespace, file endings, YAML/TOML/JSON validation)
+- Python syntax verification (AST check)
+- Debug statement detection
+- Docstring position verification
+- Test file naming conventions
 - Ruff linting and formatting
 - Mypy type checking
+- Bandit security scanning
+- Safety dependency vulnerability checks
+- pip-audit vulnerability scanning
+- Semgrep advanced static analysis
+
+#### Security Scanning
+
+The project uses multiple security tools to ensure code and dependency safety:
+
+```bash
+# Run Bandit security scan
+uv run bandit -r . -c pyproject.toml
+
+# Check for vulnerable dependencies
+uv run safety check
+
+# Audit dependencies (more comprehensive)
+uv run pip-audit
+
+# Run Semgrep for advanced security analysis
+uv run semgrep --config=auto .
+
+# Run all security checks at once
+uv run bandit -r . && uv run safety check && uv run pip-audit
+```
+
+Security tools:
+- **Bandit**: Finds common security issues in Python code (hardcoded passwords, SQL injection, etc.)
+- **Safety**: Checks dependencies against known vulnerabilities database
+- **pip-audit**: Audits packages against OSV vulnerability database
+- **Semgrep**: Static analysis for security patterns and anti-patterns
 
 ### Infrastructure (Terraform)
 
