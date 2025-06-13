@@ -86,6 +86,8 @@ src/
 - **Git Hooks**: [pre-commit](https://pre-commit.com/) 4.2.0
 - **Build Tool**: GNU Make
 - **Version Control**: Git with conventional commits
+- **Dead Code Detection**: [Vulture](https://github.com/jendrikseipp/vulture) 2.14
+- **Docstring Coverage**: [Interrogate](https://interrogate.readthedocs.io/) 1.7.0
 
 ### Testing Tools
 - **Test Framework**: [pytest](https://pytest.org/) 8.4.0
@@ -214,17 +216,21 @@ make security-deps  # Dependency vulnerability scan
 The project includes a Makefile for common tasks:
 
 ```bash
-make help          # Show all available commands
-make install       # Install dependencies and setup
-make run           # Run the FastAPI server
-make dev           # Run FastAPI with auto-reload
-make lint          # Run linting
-make format        # Format code
-make type-check    # Run type checking
-make test          # Run all tests
-make test-coverage # Run tests with coverage report
-make security      # Run all security checks
-make all-checks    # Run all quality checks
+make help               # Show all available commands
+make install            # Install dependencies and setup
+make run                # Run the FastAPI server
+make dev                # Run FastAPI with auto-reload
+make lint               # Run linting
+make format             # Format code
+make type-check         # Run type checking
+make test               # Run all tests
+make test-coverage      # Run tests with coverage report
+make security           # Run all security checks
+make dead-code          # Check for dead code using vulture
+make dead-code-report   # Generate detailed dead code report
+make docstring-coverage # Check docstring coverage
+make docstring-badge    # Generate docstring coverage badge
+make all-checks         # Run all quality checks
 ```
 
 ## Development

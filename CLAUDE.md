@@ -114,6 +114,44 @@ Security tools:
 - **pip-audit**: Audits packages against OSV vulnerability database
 - **Semgrep**: Static analysis for security patterns and anti-patterns
 
+#### Code Quality Tools
+
+The project uses additional tools to maintain high code quality:
+
+```bash
+# Check for dead code
+uv run vulture .
+
+# Generate dead code report
+uv run vulture . --sort-by-size > dead-code-report.txt
+
+# Check docstring coverage
+uv run interrogate -v .
+
+# Generate docstring badge
+uv run interrogate --generate-badge . --badge-format svg
+```
+
+Code quality tools:
+- **Vulture**: Detects unused code (imports, variables, functions, classes)
+- **Interrogate**: Measures docstring coverage to ensure code is well-documented
+
+##### Dead Code Detection Policy
+
+When vulture reports potentially unused code:
+1. **Verify the finding** - Some code may be used dynamically (e.g., FastAPI routes, pytest fixtures)
+2. **If truly unused** - Remove the code to keep the codebase clean
+3. **If false positive** - Add to `vulture_whitelist.py` with a comment explaining why it's needed
+4. **Regular cleanup** - Run `make dead-code` periodically to prevent accumulation
+
+##### Docstring Coverage Policy
+
+Maintain high docstring coverage (80% minimum) by:
+1. **Document all public APIs** - Functions, classes, and methods exposed to users
+2. **Use Google-style docstrings** - Consistent with project's Ruff configuration
+3. **Include examples** - For complex functions, include usage examples
+4. **Run checks regularly** - Use `make docstring-coverage` before commits
+
 ### Infrastructure (Terraform)
 
 - **GCP Project**: tributum-new
