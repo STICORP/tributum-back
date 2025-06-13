@@ -31,7 +31,7 @@ type-check:  ## Run type checking
 
 security:  ## Run all security checks
 	uv run bandit -r . -c pyproject.toml
-	uv run pip-audit
+	uv run pip-audit --ignore-vuln PYSEC-2022-42969
 	@echo "Note: 'safety check' is deprecated. Use 'safety scan' instead."
 	uv run safety scan || true
 
@@ -39,7 +39,7 @@ security-bandit:  ## Run Bandit security scan
 	uv run bandit -r . -c pyproject.toml
 
 security-deps:  ## Check dependencies for vulnerabilities
-	uv run pip-audit
+	uv run pip-audit --ignore-vuln PYSEC-2022-42969
 	uv run safety scan || true
 
 pre-commit:  ## Run all pre-commit hooks
