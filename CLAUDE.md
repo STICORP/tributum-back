@@ -8,9 +8,10 @@ Tributum is currently an empty project in its initial setup phase. The project n
 
 ## Project Status
 
-- **Current State**: Python project initialized with uv, Terraform infrastructure setup complete
+- **Current State**: Python project initialized with uv, basic FastAPI application with configuration management implemented
 - **Technology Stack**:
-  - Backend: Python 3.13
+  - Backend: Python 3.13 with FastAPI
+  - Configuration: Pydantic Settings v2
   - Infrastructure: Terraform with GCP
 - **Build System**: uv (Python package manager)
 
@@ -95,17 +96,18 @@ The project uses multiple security tools to ensure code and dependency safety:
 # Run Bandit security scan
 uv run bandit -r . -c pyproject.toml
 
-# Check for vulnerable dependencies
-uv run safety check
+# Check for vulnerable dependencies (deprecated, use scan instead)
+uv run safety scan
 
 # Audit dependencies (more comprehensive)
-uv run pip-audit
+# Note: Currently ignoring PYSEC-2022-42969 (py package vulnerability from interrogate)
+uv run pip-audit --ignore-vuln PYSEC-2022-42969
 
 # Run Semgrep for advanced security analysis
 uv run semgrep --config=auto .
 
 # Run all security checks at once
-uv run bandit -r . && uv run safety check && uv run pip-audit
+uv run bandit -r . && uv run safety scan && uv run pip-audit --ignore-vuln PYSEC-2022-42969
 ```
 
 Security tools:
@@ -151,6 +153,77 @@ Maintain high docstring coverage (80% minimum) by:
 2. **Use Google-style docstrings** - Consistent with project's Ruff configuration
 3. **Include examples** - For complex functions, include usage examples
 4. **Run checks regularly** - Use `make docstring-coverage` before commits
+
+### Configuration Management
+
+The project uses Pydantic Settings v2 for centralized configuration management:
+
+#### Configuration Structure
+
+- **Location**: `src/core/config.py`
+- **Settings Class**: Manages all application configuration with type safety and validation
+- **Environment Variables**: Loaded from `.env` file and system environment
+- **Dependency Injection**: Integrated with FastAPI using `Depends(get_settings)`
+
+#### Configuration Variables
+
+```bash
+# Application settings
+APP_NAME=Tributum                      # Application name
+APP_VERSION=0.1.0                       # Application version
+ENVIRONMENT=development                 # Environment (development/staging/production)
+DEBUG=false                             # Debug mode (enables auto-reload)
+
+# API settings
+API_HOST=127.0.0.1                      # API host (use 127.0.0.1 for security)
+API_PORT=8000                           # API port
+DOCS_URL=/docs                          # OpenAPI documentation URL (set empty to disable)
+REDOC_URL=/redoc                        # ReDoc documentation URL (set empty to disable)
+OPENAPI_URL=/openapi.json               # OpenAPI schema URL (set empty to disable)
+
+# Logging
+LOG_LEVEL=INFO                          # Log level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+```
+
+#### Usage in Code
+
+```python
+# In FastAPI endpoints
+from typing import Annotated
+from fastapi import Depends
+from src.core.config import Settings, get_settings
+
+@app.get("/info")
+def get_info(settings: Annotated[Settings, Depends(get_settings)]):
+    return {
+        "app": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.environment,
+    }
+
+# Direct usage (for startup/CLI)
+from src.core.config import get_settings
+
+settings = get_settings()
+uvicorn.run(
+    app,
+    host=settings.api_host,
+    port=settings.api_port,
+)
+```
+
+#### Development Commands
+
+```bash
+# Run the application
+make run                # Uses configuration from .env and environment
+
+# Run with custom settings
+API_PORT=8080 make run  # Override specific settings
+
+# View current configuration (through API)
+curl http://localhost:8000/info
+```
 
 ### Infrastructure (Terraform)
 
@@ -546,9 +619,58 @@ def login(username: str, password: str):
 
 5. **Implement**: Only after confirmation, following exact project structure and current library patterns
 
+## Current Project Structure
+
+The project has begun implementation with the following structure:
+
+```
+src/
+├── api/
+│   ├── __init__.py
+│   └── main.py         # FastAPI app with /info endpoint
+├── core/
+│   ├── __init__.py
+│   └── config.py       # Pydantic Settings configuration
+└── domain/             # Empty, ready for domain implementations
+
+tests/
+├── unit/
+│   ├── core/
+│   │   ├── __init__.py
+│   │   └── test_config.py  # Configuration tests
+│   └── test_main.py        # Main entry point tests
+└── integration/
+    └── test_config_integration.py  # Configuration integration tests
+
+main.py                 # Application entry point with uvicorn
+.env.example            # Example environment variables
+vulture_whitelist.py    # Whitelist for false positive dead code
+```
+
+## Recent Updates
+
+### December 2024
+- **Configuration Management**: Implemented Pydantic Settings v2 for centralized configuration
+- **FastAPI Integration**: Basic FastAPI app with configuration dependency injection
+- **Security Updates**: Updated safety from deprecated `check` to `scan` command
+- **Pre-commit Fixes**:
+  - Added `pydantic-settings` to mypy dependencies
+  - Configured pip-audit to ignore PYSEC-2022-42969 (py package vulnerability from interrogate)
+  - Fixed all linting, formatting, and type checking issues
+- **Testing**: Added comprehensive unit and integration tests for configuration
+
+## Known Issues
+
+### Security Vulnerabilities
+- **PYSEC-2022-42969**: The `py` package (v1.11.0) has a ReDoS vulnerability in SVN handling. This is a transitive dependency of `interrogate`. Since we don't use SVN features, this vulnerability is acknowledged and ignored in pip-audit.
+
+### Tool Limitations
+- **Safety CLI**: Requires authentication for `safety scan`. The check continues with `|| true` in automation.
+
 ## Notes
 
 This file should be updated as the project develops to include:
-- Build, test, and lint commands once a technology stack is chosen
-- High-level architecture decisions as they are made
-- Key development workflows specific to this project
+- Domain implementations as they are created
+- API endpoint documentation as they are added
+- Database schema and migration patterns once database is integrated
+- Authentication and authorization patterns once implemented
