@@ -1,11 +1,13 @@
 # Tributum
 
 [![Python Version](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/downloads/release/python-3130/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.12-009688.svg)](https://fastapi.tiangolo.com)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 [![Type checked: mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
+[![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 [![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
-A modern Python backend project built with FastAPI, designed for financial and tax-related operations.
+A modern Python backend API built with FastAPI, designed for financial and tax-related operations.
 
 ## Table of Contents
 
@@ -26,14 +28,17 @@ A modern Python backend project built with FastAPI, designed for financial and t
 
 ## Overview
 
-Tributum is a backend API system currently in its initial development phase. The project is designed to handle financial, tax, or payment-related operations (as suggested by the name "tributum" - Latin for "tribute" or "tax").
+Tributum is a backend API system built with FastAPI, currently in its initial development phase. The project is designed to handle financial, tax, or payment-related operations (as suggested by the name "tributum" - Latin for "tribute" or "tax").
 
 ### Current Status
 
 - [x] Development environment setup complete
 - [x] Infrastructure as Code (Terraform) configured
-- [x] Code quality tooling integrated
-- [x] FastAPI application scaffold implemented
+- [x] Comprehensive code quality tooling integrated
+- [x] Security scanning tools configured (Bandit, Safety, pip-audit, Semgrep)
+- [x] FastAPI application scaffold implemented with hello world endpoint
+- [ ] Database integration pending
+- [ ] Authentication system pending
 - [ ] Business logic development not started
 
 ## Architecture
@@ -43,12 +48,16 @@ The project follows Domain-Driven Design (DDD) principles with a domain-centric 
 ```
 src/
 ├── api/                    # API layer (FastAPI endpoints)
-├── domain/                 # Business domains
+│   ├── __init__.py
+│   └── main.py            # FastAPI app with hello world endpoint
+├── core/                  # Application-wide shared code
+│   ├── __init__.py
+│   └── config.py          # Configuration management (placeholder)
+├── domain/                # Business domains (planned)
 │   ├── auth/              # Authentication domain
 │   ├── users/             # Users domain
 │   └── [other_domains]/   # Additional business domains
-├── infrastructure/         # Technical infrastructure
-└── core/                  # Shared utilities
+└── infrastructure/        # Technical infrastructure (planned)
 ```
 
 ### Key Architectural Decisions
@@ -62,7 +71,8 @@ src/
 
 ### Backend
 - **Language**: Python 3.13
-- **Framework**: FastAPI 0.115.12
+- **Framework**: [FastAPI](https://fastapi.tiangolo.com/) 0.115.12
+- **ASGI Server**: [Uvicorn](https://www.uvicorn.org/) 0.34.3
 - **Package Manager**: [uv](https://github.com/astral-sh/uv) - Fast Python package installer and resolver
 
 ### Infrastructure
@@ -74,6 +84,7 @@ src/
 - **Linting & Formatting**: [Ruff](https://github.com/astral-sh/ruff) 0.11.13
 - **Type Checking**: [mypy](http://mypy-lang.org/) 1.16.0 (strict mode)
 - **Git Hooks**: [pre-commit](https://pre-commit.com/) 4.2.0
+- **Build Tool**: GNU Make
 - **Version Control**: Git with conventional commits
 
 ### Security Tools
@@ -311,16 +322,24 @@ tributum-back/
 ├── .claude/                    # AI assistant custom commands
 │   └── commands/              # Slash commands for development
 ├── .keys/                     # GCP service account keys (git-ignored)
-├── src/                       # Application source code (planned)
+├── src/                       # Application source code
+│   ├── api/                  # API layer
+│   │   ├── __init__.py
+│   │   └── main.py          # FastAPI application
+│   └── core/                # Core utilities
+│       ├── __init__.py
+│       └── config.py        # Configuration module
 ├── tests/                     # Test files (planned)
 ├── terraform/                 # Infrastructure as Code
 │   ├── bootstrap/            # State bucket setup
 │   ├── environments/         # Environment configs
 │   └── modules/             # Reusable modules
+├── .bandit                   # Bandit security configuration
 ├── .gitignore                # Git ignore patterns
-├── .pre-commit-config.yaml   # Pre-commit hooks
+├── .pre-commit-config.yaml   # Pre-commit hooks configuration
 ├── CLAUDE.md                 # AI assistant guidelines
-├── main.py                   # Temporary entry point
+├── main.py                   # Application entry point
+├── Makefile                  # Build automation
 ├── pyproject.toml           # Project configuration
 ├── README.md                # This file
 └── uv.lock                  # Locked dependencies
@@ -378,7 +397,7 @@ tributum-back/
 
 <!-- README-METADATA
 Last Updated: 2025-06-13
-Last Commit: f192fcc
-Update Count: 3
+Last Commit: d3c4bec
+Update Count: 4
 Generated By: /readme command
 -->
