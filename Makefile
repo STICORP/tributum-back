@@ -78,4 +78,18 @@ clean:  ## Clean up temporary files
 	find . -type d -name "htmlcov" -exec rm -rf {} +
 	find . -type f -name ".coverage" -delete
 
-all-checks: lint format-check type-check security  ## Run all checks (lint, format, type, security)
+dead-code:  ## Check for dead code using vulture
+	uv run vulture .
+
+dead-code-report:  ## Generate detailed dead code report
+	uv run vulture . --sort-by-size > dead-code-report.txt
+	@echo "Dead code report saved to dead-code-report.txt"
+
+docstring-coverage:  ## Check docstring coverage
+	uv run interrogate -v .
+
+docstring-badge:  ## Generate docstring coverage badge
+	uv run interrogate --generate-badge . --badge-format svg
+	@echo "Badge generated as interrogate_badge.svg"
+
+all-checks: lint format-check type-check security dead-code docstring-coverage  ## Run all checks including dead code and docstring coverage

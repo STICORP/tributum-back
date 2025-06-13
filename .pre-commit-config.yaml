@@ -69,6 +69,19 @@ repos:
         args: ['--config=auto', '--error']
         exclude: ^tests/
 
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.14
+    hooks:
+      - id: vulture
+        args: [--config=pyproject.toml]
+
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
+    hooks:
+      - id: interrogate
+        args: [--config=pyproject.toml, --verbose]
+        exclude: ^(tests/|htmlcov/)
+
   - repo: local
     hooks:
       - id: pytest

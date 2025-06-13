@@ -25,6 +25,8 @@ dev = [
     "pytest-xdist>=3.6.1",
     "pytest-timeout>=2.4.0",
     "pytest-rich>=0.2.0",
+    "vulture>=2.14",
+    "interrogate>=1.7.0",
 ]
 
 [tool.ruff]
@@ -163,3 +165,34 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
 ]
+
+[tool.vulture]
+paths = ["src", "tests", "main.py"]
+exclude = ["htmlcov/", "*.egg-info/", "build/", "dist/", ".venv/", "venv/"]
+min_confidence = 80
+ignore_decorators = ["@app.route", "@pytest.fixture", "@pytest.mark.*"]
+ignore_names = ["test_*", "_*"]
+sort_by_size = true
+
+[tool.interrogate]
+ignore-init-method = false
+ignore-init-module = true
+ignore-magic = false
+ignore-semiprivate = false
+ignore-private = false
+ignore-property-decorators = false
+ignore-module = true
+ignore-nested-functions = false
+ignore-nested-classes = true
+ignore-setters = false
+fail-under = 80
+exclude = ["setup.py", "docs", "build", "htmlcov", "tests"]
+ignore-regex = ["^get$", "^mock_.*", ".*BaseClass.*"]
+style = "google"  # Matches your Ruff pydocstyle convention
+verbose = 1
+quiet = false
+whitelist-regex = []
+color = true
+omit-covered-files = false
+generate-badge = "."
+badge-format = "svg"

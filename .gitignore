@@ -45,6 +45,10 @@ htmlcov/
 .hypothesis/
 *.pyc
 
+# Code quality
+interrogate_badge.svg
+dead-code-report.txt
+
 # Environment variables
 .env
 .env.local
