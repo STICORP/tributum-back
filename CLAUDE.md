@@ -222,6 +222,56 @@ Examples of what NOT to do:
 
 This applies to ALL checks: mypy, ruff, bandit, safety, pip-audit, semgrep, or any future tool. These checks exist to maintain code quality, security, and consistency. Bypassing them defeats their purpose and compromises the project's standards.
 
+### CRITICAL: Library Documentation Research
+
+**MANDATORY**: Before writing ANY code that uses external libraries, you MUST use the context7 MCP server to fetch up-to-date documentation.
+
+#### Why This Is Critical
+- As an LLM, I have a knowledge cutoff and may not be aware of newer library versions
+- Libraries frequently update their APIs, deprecate features, and introduce new patterns
+- Using outdated patterns leads to technical debt and potential security vulnerabilities
+- The context7 MCP server provides real-time, accurate documentation
+
+#### How to Use context7 MCP Server
+
+1. **Before writing code with any library**, research its current documentation:
+   ```
+   # Example workflow for using Pydantic:
+   1. Use mcp__context7__resolve-library-id with "pydantic"
+   2. Use mcp__context7__get-library-docs with the resolved ID
+   3. Focus on specific topics if needed (e.g., "validators", "models", "settings")
+   ```
+
+2. **Common libraries to research**:
+   - **FastAPI**: API routes, dependencies, middleware, security
+   - **Pydantic**: Models, validators, settings management
+   - **SQLAlchemy**: ORM models, queries, sessions, migrations
+   - **Alembic**: Migration patterns, configuration
+   - **pytest**: Fixtures, parametrization, async testing
+   - Any other library before first use
+
+3. **Research workflow**:
+   ```python
+   # WRONG: Writing code based on potentially outdated knowledge
+   from pydantic import BaseModel
+   class User(BaseModel):
+       # Using patterns from memory that might be outdated
+       ...
+
+   # RIGHT: First research current best practices
+   # 1. Use context7 to get Pydantic docs
+   # 2. Check current model definition patterns
+   # 3. Look for new features or deprecations
+   # 4. Then implement using up-to-date patterns
+   ```
+
+4. **When to research**:
+   - First time using a library in the project
+   - Implementing new features with existing libraries
+   - When encountering deprecation warnings
+   - Before major refactoring
+   - When adding new dependencies
+
 ### CRITICAL: Pre-Implementation Analysis Framework
 
 **THIS IS MANDATORY FOR EVERY SINGLE LINE OF CODE YOU WRITE**
@@ -307,7 +357,13 @@ cat pyproject.toml | grep -A 20 "dependencies"
 
 **EVERY implementation MUST follow this workflow:**
 
-1. **Analyze First**
+1. **Research Library Documentation FIRST**
+   - Use context7 MCP server to get current docs for any libraries you'll use
+   - This MUST happen before writing any code
+   - Example: Before using FastAPI, research current routing patterns
+   - Example: Before using Pydantic, research current model validation
+
+2. **Analyze Project Patterns**
    ```bash
    # Search for existing patterns
    uv run rg "pattern|keyword" --type py
@@ -321,18 +377,18 @@ cat pyproject.toml | grep -A 20 "dependencies"
    find . -name "*util*" -o -name "*helper*" -o -name "*base*" | grep -v __pycache__
    ```
 
-2. **Document Your Findings**
+3. **Document Your Findings**
    - State what patterns you found
    - Explain which conventions you'll follow
    - If no patterns exist, ASK before proceeding
 
-3. **Implement Following Project Patterns**
+4. **Implement Following Project Patterns**
    - Use exact same error handling as found
    - Follow same logging approach
    - Match file organization
    - Use consistent naming
 
-4. **Verify Consistency**
+5. **Verify Consistency**
    - Your code should look like it belongs in THIS codebase
    - It should follow ALL discovered patterns
    - Generic solutions are NEVER acceptable
@@ -469,20 +525,26 @@ def login(username: str, password: str):
 ```
 
 **RIGHT Approach**:
-1. **Analyze**: "Let me check how this project handles authentication"
+1. **Research Current Library Docs**: "First, let me get up-to-date FastAPI documentation for authentication patterns"
+   - Use context7 to research FastAPI authentication
+   - Use context7 to research JWT libraries (python-jose, pyjwt)
+   - Check current best practices for password hashing
+
+2. **Analyze**: "Now let me check how this project handles authentication"
    - Check `src/domain/auth/` structure
    - Look for existing auth patterns
    - Search for security utilities
 
-2. **Findings**: "I found that the project structure shows auth should go in `domain/auth/` with specific files for schemas, models, repository, and service. However, no implementation exists yet."
+3. **Findings**: "I found that the project structure shows auth should go in `domain/auth/` with specific files for schemas, models, repository, and service. However, no implementation exists yet. Based on current FastAPI docs, the recommended approach is..."
 
-3. **Ask**: "I see the project has a planned structure for authentication in `domain/auth/`. Should I implement following the documented domain-driven design pattern with:
-   - Schemas in `domain/auth/schemas.py`
+4. **Ask**: "I see the project has a planned structure for authentication in `domain/auth/`. Should I implement following the documented domain-driven design pattern with:
+   - Schemas in `domain/auth/schemas.py` using Pydantic v2 patterns
    - Business logic in `domain/auth/service.py`
    - Repository pattern in `domain/auth/repository.py`
+   - JWT handling using python-jose (current version: X.X.X)
    Or would you prefer a different approach?"
 
-4. **Implement**: Only after confirmation, following exact project structure
+5. **Implement**: Only after confirmation, following exact project structure and current library patterns
 
 ## Notes
 
