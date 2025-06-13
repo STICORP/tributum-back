@@ -37,3 +37,11 @@ class _VultureWhitelist:
 
     def updated_at(self) -> None:
         """SQLAlchemy updated_at timestamp."""
+
+    # Pydantic field validator cls parameter
+    def cls(self) -> None:
+        """Pydantic field validator class parameter."""
+
+    # Pydantic validators
+    def empty_str_to_none(self) -> None:
+        """Pydantic field validator method."""
