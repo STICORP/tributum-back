@@ -1,4 +1,4 @@
-.PHONY: help install run dev lint format type-check security test clean
+.PHONY: help install run dev lint format type-check security test test-unit test-integration test-coverage test-fast test-verbose test-failed clean
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -44,6 +44,28 @@ security-deps:  ## Check dependencies for vulnerabilities
 
 pre-commit:  ## Run all pre-commit hooks
 	uv run pre-commit run --all-files
+
+test:  ## Run all tests
+	uv run pytest
+
+test-unit:  ## Run unit tests only
+	uv run pytest -m unit
+
+test-integration:  ## Run integration tests only
+	uv run pytest -m integration
+
+test-coverage:  ## Run tests with coverage report
+	uv run pytest --cov-report=html
+	@echo "Coverage report generated in htmlcov/index.html"
+
+test-fast:  ## Run tests in parallel
+	uv run pytest -n auto
+
+test-verbose:  ## Run tests with verbose output
+	uv run pytest -vv
+
+test-failed:  ## Re-run only failed tests
+	uv run pytest --lf
 
 clean:  ## Clean up temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} +

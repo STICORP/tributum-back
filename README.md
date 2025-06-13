@@ -212,6 +212,8 @@ make dev           # Run FastAPI with auto-reload
 make lint          # Run linting
 make format        # Format code
 make type-check    # Run type checking
+make test          # Run all tests
+make test-coverage # Run tests with coverage report
 make security      # Run all security checks
 make all-checks    # Run all quality checks
 ```
@@ -268,21 +270,56 @@ chore: update dependencies
 
 ## Testing
 
-Testing structure is planned but not yet implemented:
+The project uses pytest for testing with comprehensive coverage requirements.
+
+### Test Structure
 
 ```
 tests/
-├── unit/           # Unit tests
-├── integration/    # Integration tests
-├── conftest.py     # Pytest fixtures
-└── factories.py    # Test data factories
+├── unit/                    # Unit tests
+│   ├── test_main.py        # Tests for main.py entry point
+│   └── api/
+│       └── test_main.py    # Tests for FastAPI app
+├── integration/            # Integration tests
+│   └── test_api.py        # Tests for API endpoints
+└── conftest.py            # Shared fixtures and configuration
 ```
 
-Run tests (when implemented):
+### Running Tests
+
 ```bash
-uv run pytest
-uv run pytest --cov=src
+# Run all tests
+make test
+
+# Run unit tests only
+make test-unit
+
+# Run integration tests only
+make test-integration
+
+# Run tests with coverage report
+make test-coverage
+
+# Run tests in parallel for speed
+make test-fast
+
+# Run tests with verbose output
+make test-verbose
+
+# Re-run only failed tests
+make test-failed
 ```
+
+### Coverage Requirements
+
+- Minimum coverage: 80%
+- Coverage reports are generated in `htmlcov/` directory
+- Pre-commit hooks run tests automatically (without coverage for speed)
+
+### Test Categories
+
+- **Unit tests** (`@pytest.mark.unit`): Test individual components in isolation
+- **Integration tests** (`@pytest.mark.integration`): Test API endpoints and integrations
 
 ## Deployment
 
