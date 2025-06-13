@@ -1,0 +1,30 @@
+# Bandit config file
+# This file is in addition to pyproject.toml configuration
+
+# Additional patterns to exclude
+exclude_dirs:
+  - /tests/
+  - /.venv/
+  - /venv/
+  - /.tox/
+  - /dist/
+  - /build/
+  - /.git/
+  - /__pycache__/
+  - /.mypy_cache/
+  - /.pytest_cache/
+  - /.ruff_cache/
+
+# Test IDs to skip
+# B101: assert_used - We use assert in tests
+# B601: paramiko_calls - We might use paramiko for SSH
+# B602: subprocess_popen_with_shell_equals_true - Sometimes needed
+skips: []
+
+# Test IDs to run
+# Leave empty to run all tests
+tests: []
+
+# Plugin settings
+# hardcoded_password:
+#   word_list: "password,passwd,pass,pwd,secret,token,key"

@@ -12,6 +12,11 @@ repos:
       - id: detect-private-key
       - id: mixed-line-ending
         args: [--fix=lf]
+      - id: check-ast  # Verify Python syntax
+      - id: check-docstring-first  # Ensure docstring comes first
+      - id: debug-statements  # Check for debugger imports and breakpoints
+      - id: name-tests-test  # Ensure test files are named correctly
+        args: [--pytest-test-first]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.13
@@ -28,6 +33,37 @@ repos:
         args: [--config-file, pyproject.toml]
         pass_filenames: true
         exclude: ^(docs/|migrations/|scripts/)
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml]
+        additional_dependencies: ["bandit[toml]"]
+        exclude: ^tests/
+
+  - repo: local
+    hooks:
+      - id: safety-check
+        name: safety check
+        entry: uv run safety check
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|uv\.lock)$
+
+      - id: pip-audit
+        name: pip audit
+        entry: uv run pip-audit
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|uv\.lock)$
+
+  - repo: https://github.com/semgrep/semgrep
+    rev: v1.125.0
+    hooks:
+      - id: semgrep
+        args: ['--config=auto', '--error']
+        exclude: ^tests/
 
 ci:
   autofix_commit_msg: "style: auto fixes from pre-commit.com hooks"

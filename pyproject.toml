@@ -11,6 +11,10 @@ dev = [
     "ruff>=0.11.13",
     "pre-commit>=4.2.0",
     "mypy>=1.16.0",
+    "bandit[toml]>=1.8.3",
+    "safety>=3.5.2",
+    "pip-audit>=2.9.0",
+    "semgrep>=1.125.0",
 ]
 
 [tool.ruff]
@@ -100,3 +104,18 @@ module = "tests.*"
 # Allow more flexibility in tests
 disallow_untyped_decorators = false
 disallow_any_generics = false
+
+[tool.bandit]
+targets = ["src", "main.py"]
+exclude_dirs = ["tests", "venv", ".venv"]
+skips = []
+# Severity: LOW, MEDIUM, HIGH
+severity = "LOW"
+# Confidence: LOW, MEDIUM, HIGH
+confidence = "LOW"
+# Maximum number of lines to show for each issue
+max-lines = 5
+# Format: json, csv, txt, yaml, html, xml
+format = "txt"
+# Verbose output
+verbose = true
