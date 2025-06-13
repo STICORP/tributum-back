@@ -167,7 +167,7 @@ exclude_lines = [
 ]
 
 [tool.vulture]
-paths = ["src", "tests", "main.py"]
+paths = ["src", "tests", "main.py", "vulture_whitelist.py"]
 exclude = ["htmlcov/", "*.egg-info/", "build/", "dist/", ".venv/", "venv/"]
 min_confidence = 80
 ignore_decorators = ["@app.route", "@pytest.fixture", "@pytest.mark.*"]
