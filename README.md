@@ -7,7 +7,7 @@
 [![Security: bandit](https://img.shields.io/badge/security-bandit-yellow.svg)](https://github.com/PyCQA/bandit)
 [![Pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
-A modern Python backend API built with FastAPI, designed for financial and tax-related operations.
+A modern Python backend API built with FastAPI, designed for financial and tax-related operations with centralized configuration management and comprehensive development tooling.
 
 ## Table of Contents
 
@@ -36,7 +36,9 @@ Tributum is a backend API system built with FastAPI, currently in its initial de
 - [x] Infrastructure as Code (Terraform) configured
 - [x] Comprehensive code quality tooling integrated
 - [x] Security scanning tools configured (Bandit, Safety, pip-audit, Semgrep)
-- [x] FastAPI application scaffold implemented with hello world endpoint
+- [x] FastAPI application scaffold implemented
+- [x] Centralized configuration management with Pydantic Settings v2
+- [x] API endpoints: `/` (hello world) and `/info` (application information)
 - [ ] Database integration pending
 - [ ] Authentication system pending
 - [ ] Business logic development not started
@@ -49,10 +51,10 @@ The project follows Domain-Driven Design (DDD) principles with a domain-centric 
 src/
 ├── api/                    # API layer (FastAPI endpoints)
 │   ├── __init__.py
-│   └── main.py            # FastAPI app with hello world endpoint
+│   └── main.py            # FastAPI app with / and /info endpoints
 ├── core/                  # Application-wide shared code
 │   ├── __init__.py
-│   └── config.py          # Configuration management (placeholder)
+│   └── config.py          # Centralized configuration with Pydantic Settings v2
 ├── domain/                # Business domains (planned)
 │   ├── auth/              # Authentication domain
 │   ├── users/             # Users domain
@@ -72,6 +74,7 @@ src/
 ### Backend
 - **Language**: Python 3.13
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/) 0.115.12
+- **Configuration**: [Pydantic Settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) 2.9.1
 - **ASGI Server**: [Uvicorn](https://www.uvicorn.org/) 0.34.3
 - **Package Manager**: [uv](https://github.com/astral-sh/uv) - Fast Python package installer and resolver
 
@@ -143,21 +146,46 @@ src/
 
 ## Configuration
 
+The project uses Pydantic Settings v2 for centralized configuration management with type safety and validation.
+
 ### Environment Variables
 
-Create a `.env` file in the project root (see `.env.example` when available):
+Create a `.env` file in the project root based on `.env.example`:
 
 ```bash
 # Application settings
-ENVIRONMENT=development
-DEBUG=true
+APP_NAME=Tributum                      # Application name
+APP_VERSION=0.1.0                       # Application version
+ENVIRONMENT=development                 # Environment (development/staging/production)
+DEBUG=false                             # Debug mode (enables auto-reload)
 
-# Database settings (when implemented)
-DATABASE_URL=postgresql://user:password@localhost/tributum
+# API settings
+API_HOST=127.0.0.1                      # API host (use 127.0.0.1 for security)
+API_PORT=8000                           # API port
+DOCS_URL=/docs                          # OpenAPI documentation URL (set empty to disable)
+REDOC_URL=/redoc                        # ReDoc documentation URL (set empty to disable)
+OPENAPI_URL=/openapi.json               # OpenAPI schema URL (set empty to disable)
 
-# GCP settings (for deployment)
-GCP_PROJECT_ID=tributum-new
-GCP_REGION=us-central1
+# Logging
+LOG_LEVEL=INFO                          # Log level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+```
+
+### Configuration Usage
+
+The configuration is accessible through dependency injection in FastAPI endpoints:
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from src.core.config import Settings, get_settings
+
+@app.get("/info")
+def get_info(settings: Annotated[Settings, Depends(get_settings)]):
+    return {
+        "app": settings.app_name,
+        "version": settings.app_version,
+        "environment": settings.environment,
+    }
 ```
 
 ### Infrastructure Configuration
@@ -179,12 +207,21 @@ GCP_REGION=us-central1
 The FastAPI application can be started with:
 
 ```bash
-# Run the development server
+# Run the production server
+make run
+# Or directly:
 uv run python main.py
 
-# The API will be available at:
-# - http://localhost:8000 - Hello world endpoint
-# - http://localhost:8000/docs - Auto-generated API documentation
+# Run development server with auto-reload
+make dev
+# Or with custom settings:
+DEBUG=true API_PORT=8080 uv run python main.py
+
+# The API endpoints are:
+# - GET  / - Hello world endpoint
+# - GET  /info - Application information (name, version, environment)
+# - GET  /docs - Interactive API documentation (if DOCS_URL is set)
+# - GET  /redoc - Alternative API documentation (if REDOC_URL is set)
 ```
 
 ### Development Commands
@@ -209,6 +246,10 @@ uv run pre-commit run --all-files
 make security  # Run all security scans
 make security-bandit  # Code security scan
 make security-deps  # Dependency vulnerability scan
+
+# Code quality checks
+make dead-code  # Check for unused code
+make docstring-coverage  # Check documentation coverage
 ```
 
 ### Using Make Commands
@@ -293,10 +334,14 @@ The project uses pytest for testing with comprehensive coverage requirements and
 tests/
 ├── unit/                    # Unit tests
 │   ├── test_main.py        # Tests for main.py entry point
-│   └── api/
-│       └── test_main.py    # Tests for FastAPI app
+│   ├── api/
+│   │   └── test_main.py    # Tests for FastAPI app
+│   └── core/
+│       ├── __init__.py
+│       └── test_config.py  # Configuration tests
 ├── integration/            # Integration tests
-│   └── test_api.py        # Tests for API endpoints
+│   ├── test_api.py        # Tests for API endpoints
+│   └── test_config_integration.py  # Configuration integration tests
 └── conftest.py            # Shared fixtures and configuration
 ```
 
@@ -435,11 +480,13 @@ tributum-back/
 
 ## Roadmap
 
-### Phase 1: Foundation (Current)
+### Phase 1: Foundation (Complete)
 - [x] Project setup
 - [x] Development tooling
 - [x] Infrastructure configuration
 - [x] FastAPI application scaffold
+- [x] Centralized configuration management
+- [x] Basic API endpoints with documentation
 
 ### Phase 2: Core Features
 - [ ] User authentication system
@@ -459,9 +506,19 @@ tributum-back/
 - [ ] Security hardening
 - [ ] Documentation completion
 
+### Recent Updates
+
+#### December 2024
+- Implemented centralized configuration management with Pydantic Settings v2
+- Added `/info` endpoint for application information
+- Updated security scanning commands for latest tool versions
+- Added comprehensive configuration tests
+- Improved documentation with context7 MCP server usage guidelines
+
 ### Known Issues
 
-- **py package vulnerability**: The `py` package (v1.11.0) used by interrogate has a disputed ReDoS vulnerability (CVE-2022-42969). This is a low-risk issue for a development-only tool and will be resolved when interrogate updates its dependencies.
+- **PYSEC-2022-42969**: The `py` package (v1.11.0) has a ReDoS vulnerability in SVN handling. This is a transitive dependency of `interrogate`. Since we don't use SVN features, this vulnerability is acknowledged and ignored in pip-audit.
+- **Safety CLI**: Requires authentication for `safety scan`. The check continues with `|| true` in automation.
 
 ## License
 
@@ -472,8 +529,8 @@ tributum-back/
 **Note**: This project is currently in active development. Features and documentation will be updated as development progresses.
 
 <!-- README-METADATA
-Last Updated: 2025-06-13
-Last Commit: 3c257bf
-Update Count: 6
+Last Updated: 2025-13-06
+Last Commit: f068f9b
+Update Count: 7
 Generated By: /readme command
 -->
