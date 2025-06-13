@@ -250,6 +250,13 @@ Analyze these aspects:
 - Keep line length reasonable for readability
 - Use tables for structured information
 - Include code blocks with proper language tags
+- **IMPORTANT: Avoid Unicode symbols** - Use ASCII alternatives:
+  - Instead of ✅ use [x]
+  - Instead of ❌ use [ ]
+  - Instead of 🚧 use [WIP]
+  - Instead of → use ->
+  - Instead of smart quotes use regular quotes
+- Ensure file is pure ASCII or UTF-8 without BOM
 
 ### 5. **Maintenance**
 
