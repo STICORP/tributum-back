@@ -33,7 +33,7 @@ Tributum is a backend API system currently in its initial development phase. The
 - [x] Development environment setup complete
 - [x] Infrastructure as Code (Terraform) configured
 - [x] Code quality tooling integrated
-- [ ] FastAPI application implementation pending
+- [x] FastAPI application scaffold implemented
 - [ ] Business logic development not started
 
 ## Architecture
@@ -62,7 +62,7 @@ src/
 
 ### Backend
 - **Language**: Python 3.13
-- **Framework**: FastAPI (planned)
+- **Framework**: FastAPI 0.115.12
 - **Package Manager**: [uv](https://github.com/astral-sh/uv) - Fast Python package installer and resolver
 
 ### Infrastructure
@@ -116,7 +116,7 @@ src/
 5. **Verify installation**
    ```bash
    uv run python main.py
-   # Output: Hello from tributum!
+   # FastAPI server will start on http://localhost:8000
    ```
 
 ## Configuration
@@ -154,14 +154,15 @@ GCP_REGION=us-central1
 
 ### Running the Application
 
-Currently, only a placeholder main.py exists:
+The FastAPI application can be started with:
 
 ```bash
-# Run directly
+# Run the development server
 uv run python main.py
 
-# Or through uv
-uv run main.py
+# The API will be available at:
+# - http://localhost:8000 - Hello world endpoint
+# - http://localhost:8000/docs - Auto-generated API documentation
 ```
 
 ### Development Commands
@@ -195,6 +196,8 @@ The project includes a Makefile for common tasks:
 ```bash
 make help          # Show all available commands
 make install       # Install dependencies and setup
+make run           # Run the FastAPI server
+make dev           # Run FastAPI with auto-reload
 make lint          # Run linting
 make format        # Format code
 make type-check    # Run type checking
@@ -345,7 +348,7 @@ tributum-back/
 - [x] Project setup
 - [x] Development tooling
 - [x] Infrastructure configuration
-- [ ] FastAPI application scaffold
+- [x] FastAPI application scaffold
 
 ### Phase 2: Core Features
 - [ ] User authentication system

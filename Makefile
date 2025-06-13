@@ -1,4 +1,4 @@
-.PHONY: help install lint format type-check security test clean
+.PHONY: help install run dev lint format type-check security test clean
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -7,6 +7,12 @@ help:  ## Show this help message
 install:  ## Install all dependencies
 	uv sync
 	uv run pre-commit install
+
+run:  ## Run the FastAPI application
+	uv run python main.py
+
+dev:  ## Run FastAPI in development mode with auto-reload
+	uv run uvicorn src.api.main:app --reload --host 127.0.0.1 --port 8000
 
 lint:  ## Run linting checks
 	uv run ruff check .
