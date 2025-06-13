@@ -140,6 +140,20 @@ terraform apply
 
 ## Development Guidelines
 
+### FUNDAMENTAL PRINCIPLE: Write Quality Code From the Start
+
+**PRIMARY RULE**: Write code that conforms to ALL configured quality standards from the beginning. Pre-commit hooks are a safety net, not a crutch.
+
+Before writing ANY code:
+1. **Read the project's configuration files** to understand the quality standards:
+   - `pyproject.toml` - Ruff, mypy, and other tool configurations
+   - `.pre-commit-config.yaml` - All configured checks
+   - Any other tool-specific configs
+2. **Write code that conforms to these configurations** from the start
+3. **Aim for zero pre-commit failures** - Multiple commit attempts indicate poor attention to quality
+
+The standards are already defined in the configuration files. Read them, understand them, and follow them. Don't guess or assume - the project tells you exactly what it expects.
+
 ### FUNDAMENTAL PRINCIPLE: Never Bypass Quality Checks
 
 **ABSOLUTE RULE**: If ANY configured check fails (pre-commit hook, linter, type checker, security scanner, etc.), you MUST fix the root cause. NEVER bypass, ignore, or disable the check.
