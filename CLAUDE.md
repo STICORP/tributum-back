@@ -208,6 +208,41 @@ except Exception as e:
 4. **Read project context** - Review CLAUDE.md and existing configs to understand project-specific choices
 5. **Validate compatibility** - Ensure new additions are compatible with existing tools and Python version
 
+### CRITICAL: Adding Dependencies - Type Checking Configuration
+
+**NEVER use `# type: ignore` to bypass failing type checks!**
+
+When adding a new library to the project, you MUST update TWO places:
+
+1. **`pyproject.toml`** - Add the dependency itself
+2. **`.pre-commit-config.yaml`** - Add to mypy's `additional_dependencies` if the library:
+   - Has type annotations or type stubs
+   - Uses decorators that affect typing
+   - Is imported in your code and affects type checking
+
+Example pattern when mypy fails with decorator or import errors:
+```yaml
+- repo: https://github.com/pre-commit/mirrors-mypy
+  hooks:
+    - id: mypy
+      additional_dependencies: [
+        fastapi>=0.115.12,
+        sqlalchemy>=2.0.0,
+        pydantic>=2.0.0,
+        # Add new libraries here when they affect type checking
+      ]
+```
+
+Common libraries that MUST be added to mypy's additional_dependencies:
+- Web frameworks: FastAPI, Django, Flask, Starlette
+- ORMs: SQLAlchemy, Tortoise-ORM, Django ORM
+- Data validation: Pydantic, marshmallow, attrs
+- Testing: pytest and its plugins
+- Async libraries: httpx, aiofiles
+- Any library with decorators or complex type behaviors
+
+**The Principle**: If mypy fails, fix the configuration - never ignore the check.
+
 **Example verification commands**:
 ```bash
 # Check latest version of a package
