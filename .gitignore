@@ -42,6 +42,8 @@ env/
 .pytest_cache/
 .tox/
 htmlcov/
+.hypothesis/
+*.pyc
 
 # Environment variables
 .env

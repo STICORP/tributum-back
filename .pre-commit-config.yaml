@@ -29,7 +29,11 @@ repos:
     rev: v1.16.0
     hooks:
       - id: mypy
-        additional_dependencies: [fastapi>=0.115.12]
+        additional_dependencies: [
+            fastapi>=0.115.12,
+            pytest>=8.4.0,
+            httpx>=0.28.1,
+        ]
         args: [--config-file, pyproject.toml]
         pass_filenames: true
         exclude: ^(docs/|migrations/|scripts/)
@@ -64,6 +68,20 @@ repos:
       - id: semgrep
         args: ['--config=auto', '--error']
         exclude: ^tests/
+
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        args: [
+          "-x",  # Stop on first failure
+          "--tb=short",  # Short traceback
+          "--no-cov",  # Disable coverage for speed in pre-commit
+        ]
 
 ci:
   autofix_commit_msg: "style: auto fixes from pre-commit.com hooks"
