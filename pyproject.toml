@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "fastapi>=0.115.12",
+]
 
 [dependency-groups]
 dev = [
@@ -15,6 +17,7 @@ dev = [
     "safety>=3.5.2",
     "pip-audit>=2.9.0",
     "semgrep>=1.125.0",
+    "uvicorn>=0.34.3",
 ]
 
 [tool.ruff]
@@ -106,7 +109,7 @@ disallow_untyped_decorators = false
 disallow_any_generics = false
 
 [tool.bandit]
-targets = ["src", "main.py"]
+targets = ["src/", "main.py"]
 exclude_dirs = ["tests", "venv", ".venv"]
 skips = []
 # Severity: LOW, MEDIUM, HIGH

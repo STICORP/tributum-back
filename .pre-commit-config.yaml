@@ -29,7 +29,7 @@ repos:
     rev: v1.16.0
     hooks:
       - id: mypy
-        additional_dependencies: []
+        additional_dependencies: [fastapi>=0.115.12]
         args: [--config-file, pyproject.toml]
         pass_filenames: true
         exclude: ^(docs/|migrations/|scripts/)
