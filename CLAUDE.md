@@ -140,6 +140,25 @@ terraform apply
 
 ## Development Guidelines
 
+### FUNDAMENTAL PRINCIPLE: Never Bypass Quality Checks
+
+**ABSOLUTE RULE**: If ANY configured check fails (pre-commit hook, linter, type checker, security scanner, etc.), you MUST fix the root cause. NEVER bypass, ignore, or disable the check.
+
+Examples of what NOT to do:
+- `# type: ignore` - NO! Fix the type checking configuration
+- `# noqa` - NO! Fix the linting issue
+- `# nosec` - NO! Fix the security concern
+- `--no-verify` - NO! Fix the pre-commit failures
+- Disabling rules in config - NO! Fix the code to comply
+
+**The Correct Approach**:
+1. Understand WHY the check is failing
+2. Research the proper solution
+3. Fix the root cause (configuration, code, or dependencies)
+4. If you can't fix it, ASK for guidance - don't bypass
+
+This applies to ALL checks: mypy, ruff, bandit, safety, pip-audit, semgrep, or any future tool. These checks exist to maintain code quality, security, and consistency. Bypassing them defeats their purpose and compromises the project's standards.
+
 ### CRITICAL: Pre-Implementation Analysis Framework
 
 **THIS IS MANDATORY FOR EVERY SINGLE LINE OF CODE YOU WRITE**
@@ -207,41 +226,7 @@ except Exception as e:
 3. **Check latest versions** - Use PyPI API or official repos to get the LATEST version of any library
 4. **Read project context** - Review CLAUDE.md and existing configs to understand project-specific choices
 5. **Validate compatibility** - Ensure new additions are compatible with existing tools and Python version
-
-### CRITICAL: Adding Dependencies - Type Checking Configuration
-
-**NEVER use `# type: ignore` to bypass failing type checks!**
-
-When adding a new library to the project, you MUST update TWO places:
-
-1. **`pyproject.toml`** - Add the dependency itself
-2. **`.pre-commit-config.yaml`** - Add to mypy's `additional_dependencies` if the library:
-   - Has type annotations or type stubs
-   - Uses decorators that affect typing
-   - Is imported in your code and affects type checking
-
-Example pattern when mypy fails with decorator or import errors:
-```yaml
-- repo: https://github.com/pre-commit/mirrors-mypy
-  hooks:
-    - id: mypy
-      additional_dependencies: [
-        fastapi>=0.115.12,
-        sqlalchemy>=2.0.0,
-        pydantic>=2.0.0,
-        # Add new libraries here when they affect type checking
-      ]
-```
-
-Common libraries that MUST be added to mypy's additional_dependencies:
-- Web frameworks: FastAPI, Django, Flask, Starlette
-- ORMs: SQLAlchemy, Tortoise-ORM, Django ORM
-- Data validation: Pydantic, marshmallow, attrs
-- Testing: pytest and its plugins
-- Async libraries: httpx, aiofiles
-- Any library with decorators or complex type behaviors
-
-**The Principle**: If mypy fails, fix the configuration - never ignore the check.
+6. **Update ALL necessary configurations** - When adding dependencies, check if pre-commit hooks or other tools need updates
 
 **Example verification commands**:
 ```bash
