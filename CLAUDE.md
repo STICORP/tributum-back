@@ -140,6 +140,17 @@ terraform apply
 
 ## Development Guidelines
 
+### MANDATORY: Re-read This Section Before Every Task
+
+**YOU MUST re-read the Development Guidelines section of CLAUDE.md:**
+- Before writing ANY code
+- Before making ANY commits
+- Before implementing ANY feature
+- After every 10-15 minutes of work
+- Whenever switching between different types of tasks
+
+This is not optional. Your track record shows you forget these guidelines during long sessions. The only solution is frequent re-reading to keep them fresh in memory.
+
 ### FUNDAMENTAL PRINCIPLE: Write Quality Code From the Start
 
 **PRIMARY RULE**: Write code that conforms to ALL configured quality standards from the beginning. Pre-commit hooks are a safety net, not a crutch.
