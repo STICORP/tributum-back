@@ -295,6 +295,35 @@ Examples of what NOT to do:
 
 This applies to ALL checks: mypy, ruff, bandit, safety, pip-audit, semgrep, or any future tool. These checks exist to maintain code quality, security, and consistency. Bypassing them defeats their purpose and compromises the project's standards.
 
+### FUNDAMENTAL PRINCIPLE: Always Read Complete Files
+
+**MANDATORY RULE**: When using the Read tool, you MUST ALWAYS read the ENTIRE file. NEVER read only partial files or limit lines unless the file is genuinely too large (>2000 lines).
+
+**ABSOLUTE REQUIREMENTS**:
+- **ALWAYS read FULL files** - Do NOT use `limit` or `offset` parameters unless absolutely necessary
+- **NEVER assume file contents** - Read the complete file to understand full context
+- **NO partial reads for normal files** - Files under 2000 lines must be read completely
+- **FULL context is required** - Partial reads lead to missed patterns, incorrect assumptions, and bugs
+
+Examples of what NOT to do:
+- Reading only first 50 lines to "get an idea" - NO! Read the entire file
+- Using `limit=100` on a 500-line file - NO! Read all 500 lines
+- Skipping to specific sections without full context - NO! Read everything
+- Assuming the rest of the file based on the beginning - NO! Read it all
+
+**The ONLY exceptions**:
+1. Files genuinely larger than 2000 lines (use pagination thoughtfully)
+2. Binary files or generated files that cannot be fully displayed
+3. When explicitly searching for a specific line number from an error message
+
+**Why this is CRITICAL**:
+- Partial reads miss important patterns and conventions
+- File endings often contain crucial exports, configurations, or cleanup code
+- Middle sections may override or modify earlier definitions
+- Complete context prevents incorrect assumptions and implementation errors
+
+This rule is NON-NEGOTIABLE. Every partial read is a potential bug waiting to happen.
+
 ### CRITICAL: Library Documentation Research
 
 **MANDATORY**: Use the context7 MCP server strategically to fetch documentation ONLY when needed to avoid context window overload.
