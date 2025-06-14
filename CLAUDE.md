@@ -721,20 +721,52 @@ The project uses a centralized exception handling approach with:
      - `NOT_FOUND`: Resource not found errors
      - `UNAUTHORIZED`: Authentication/authorization failures
 
+3. **Specialized Exception Classes**: Pre-built exceptions for common scenarios
+   - `ValidationError`: Input validation failures (defaults to VALIDATION_ERROR)
+   - `NotFoundError`: Missing resources (defaults to NOT_FOUND)
+   - `UnauthorizedError`: Auth failures (defaults to UNAUTHORIZED)
+   - `BusinessRuleError`: Business logic violations (defaults to INTERNAL_ERROR)
+
 ### Exception Usage Examples
 
 ```python
-from src.core.exceptions import TributumError, ErrorCode
+from src.core.exceptions import (
+    TributumError, ErrorCode, ValidationError,
+    NotFoundError, UnauthorizedError, BusinessRuleError
+)
 
-# Using with ErrorCode enum (preferred)
+# Using base exception with ErrorCode enum
 raise TributumError(ErrorCode.NOT_FOUND, "User with ID 123 not found")
 
-# Using with string error code (for backwards compatibility)
-raise TributumError("CUSTOM_ERROR", "Something went wrong")
+# Using specialized exceptions (preferred for common cases)
+raise ValidationError("Email must be a valid format")
+raise NotFoundError("User with ID 123 not found")
+raise UnauthorizedError("Invalid API key")
+raise BusinessRuleError("Order cannot be processed with zero items")
+
+# Specialized exceptions with custom error codes
+raise ValidationError("Invalid format", "CUSTOM_VALIDATION_ERROR")
 
 # Exception will format as: "[ERROR_CODE] message"
 # Example: "[NOT_FOUND] User with ID 123 not found"
 ```
+
+### Exception Design Patterns
+
+1. **Message-First API**: Specialized exceptions take message as first parameter
+   - More ergonomic: `ValidationError("Invalid email")`
+   - Matches Python's built-in exception patterns
+
+2. **Default Error Codes**: Each specialized exception has a sensible default
+   - Reduces boilerplate while maintaining flexibility
+   - Can still override with custom codes when needed
+
+3. **When to Use Each Exception**:
+   - `ValidationError`: User input doesn't meet format/type requirements
+   - `NotFoundError`: Database queries return no results, missing files, etc.
+   - `UnauthorizedError`: Failed authentication or insufficient permissions
+   - `BusinessRuleError`: Valid input but violates business logic
+   - `TributumError`: Base class for custom/unusual error scenarios
 
 ### Testing Patterns for Exceptions
 
@@ -766,7 +798,9 @@ When testing exceptions:
 - **Exception Infrastructure**:
   - Implemented `TributumError` base exception class with error codes
   - Added `ErrorCode` enum for standardized error identification
+  - Created specialized exceptions: ValidationError, NotFoundError, UnauthorizedError, BusinessRuleError
   - Established exception naming convention (Error suffix, not Exception)
+  - Implemented message-first API design for better ergonomics
 - **Security Updates**: Updated safety from deprecated `check` to `scan` command
 - **Pre-commit Optimizations**:
   - Reordered hooks to run ruff-format before other checks for efficiency
