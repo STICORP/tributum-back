@@ -1,5 +1,13 @@
 # Cross-Cutting Concerns Implementation Plan
 
+## Revision Notes (Granular Approach)
+
+This plan has been revised to use a more granular task structure that eliminates forward dependencies:
+- Tasks that previously assumed future components are now split into basic and enhancement versions
+- HTTP-specific features moved to after middleware implementation
+- Correlation ID features moved to after context infrastructure
+- Each task is now truly self-contained and implementable in sequence
+
 ## Context and Important Instructions
 
 This plan was created to implement robust cross-cutting concerns for the Tributum backend project. Key decisions and constraints:
@@ -9,7 +17,7 @@ This plan was created to implement robust cross-cutting concerns for the Tributu
 2. **Technology Stack Decisions**:
    - Database: PostgreSQL with SQLAlchemy 2.0 (async) and Alembic for migrations
    - Observability: OpenTelemetry with GCP integration (Cloud Trace, Cloud Monitoring)
-   - Logging: Structured JSON logging with correlation ID support
+   - Logging: structlog for structured logging with correlation ID support
    - API Framework: FastAPI with Pydantic v2
 
 3. **Architecture Decisions**:
@@ -33,14 +41,62 @@ This plan was created to implement robust cross-cutting concerns for the Tributu
 ## Implementation Order and Dependencies
 
 The tasks are organized in phases with clear dependencies:
-- Phase 1 (Exceptions) → Foundation for all error handling
-- Phase 2 (Logging) → Required by middleware and services
-- Phase 3 (Context) → Required for correlation IDs
-- Phase 4 (API Middleware) → Depends on 1, 2, 3
-- Phase 5 (OpenTelemetry) → Can be done after context setup
-- Phase 6 (Database) → Independent but needed before integration
+- Phase 1 (Exceptions) → Foundation for all error handling (Tasks 1.1-1.4 complete, 1.5a-1.8 next)
+- Phase 2 (Basic Logging) → Basic structlog without correlation IDs (Tasks 2.1-2.5)
+- Phase 3 (Context) → Required for correlation IDs (Tasks 3.1-3.4)
+- Phase 3.5 (Logging Enhancement) → Add correlation ID support (Tasks 2.2b, 2.3b, 3.5b)
+- Phase 4 (API Middleware) → Depends on 1, 2, 3 (Tasks 4.1-4.4)
+- Phase 4.5 (Exception Enhancement) → Add HTTP context capture (Tasks 1.6b, 1.7c, 4.5c)
+- Phase 5 (OpenTelemetry) → After context setup with error integration (Tasks 5.1-5.5)
+- Phase 6 (Database) → Independent but needed before integration (Tasks 6.1-6.11)
 - Phase 7 (Integration) → Requires all previous phases
-- Phase 8 (Documentation) → Final phase
+- Phase 8 (Error Aggregators) → Requires enhanced exceptions and middleware (Tasks 8.1-8.5)
+- Phase 9 (Final Review) → Documentation consolidation (Task 9.1)
+
+Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md current. The granular approach ensures no forward dependencies.
+
+## Standard Pre-Implementation Checklist for EVERY Task
+
+**MANDATORY**: Before implementing ANY task, you MUST complete these steps IN ORDER:
+
+1. **Read CLAUDE.md Completely**
+   - Re-read the ENTIRE Development Guidelines section
+   - Pay special attention to:
+     - "FUNDAMENTAL PRINCIPLE: Never Bypass Quality Checks"
+     - "CRITICAL: Pre-Implementation Analysis Framework"
+     - Exception and API patterns sections
+     - Any patterns documented for the feature you're implementing
+
+2. **Understand the Current Task**
+   - Read the task description carefully
+   - Identify all files to be created/modified
+   - Review the acceptance criteria
+   - Note any dependencies on previous tasks
+
+3. **Analyze Existing Project Code**
+   ```bash
+   # Search for related patterns
+   uv run rg "pattern|keyword" --type py
+
+   # Check for existing similar implementations
+   ls -la src/core/ src/api/ src/domain/
+
+   # Read any files mentioned in the task
+   # Read related test files
+   ```
+
+4. **Verify Configuration**
+   - Check `pyproject.toml` for linting/typing rules
+   - Review `.pre-commit-config.yaml` for quality checks
+   - Ensure you understand what the tools expect
+
+5. **Plan Your Implementation**
+   - How will this follow existing patterns?
+   - What naming conventions apply?
+   - Are there any utilities to reuse?
+   - What tests are needed?
+
+**Only proceed with implementation AFTER completing all 5 steps above.**
 
 ## Detailed Implementation Plan
 
@@ -97,63 +153,175 @@ The tasks are organized in phases with clear dependencies:
 - Model validates required fields
 - Can serialize to JSON with correct structure
 
-### Phase 2: Logging Infrastructure
-
-#### Task 2.1: Create Logging Configuration
-**File**: `src/core/config.py`
+#### Task 1.5a: Add Severity and Context to Base Exception
+**Pre-Implementation**: Complete the Standard Pre-Implementation Checklist (especially read CLAUDE.md)
+**File**: `src/core/exceptions.py`
 **Implementation**:
+- Add `Severity` enum (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- Add `severity` attribute to TributumError (default to ERROR)
+- Add `context` dict attribute for capturing business context
+- Add method to add context items incrementally
+**Tests**: Update `tests/unit/core/test_exceptions.py`
+- Test severity enum values
+- Test default severity
+- Test context initialization and updates
+**Acceptance Criteria**:
+- Severity enum has all levels
+- Context is empty dict by default
+- Can add context after exception creation
+
+#### Task 1.5b: Add Stack Trace and Exception Chaining
+**File**: `src/core/exceptions.py`
+**Implementation**:
+- Add `stack_trace` attribute to capture traceback at creation
+- Add `cause` attribute for exception chaining
+- Add `fingerprint` for error grouping (based on type + location)
+- Implement `__cause__` property for proper exception chaining
+**Tests**: Update `tests/unit/core/test_exceptions.py`
+- Test stack trace capture
+- Test exception chaining with cause
+- Test fingerprint generation
+**Acceptance Criteria**:
+- Stack trace captured automatically
+- Exception chains properly with Python's exception handling
+- Fingerprint is consistent for same error location
+
+#### Task 1.6a: Create Generic Context Utilities
+**File**: `src/core/error_context.py`
+**Implementation**:
+- Create `sanitize_context()` to remove sensitive data patterns
+- Create `enrich_error()` to add context to TributumError instances
+- Define SENSITIVE_FIELD_PATTERNS (password, token, secret, key, etc.)
+- Support nested dict sanitization
+**Tests**: `tests/unit/core/test_error_context.py`
+- Test sensitive field removal
+- Test nested dict sanitization
+- Test error enrichment
+**Acceptance Criteria**:
+- Common sensitive fields removed
+- Nested structures handled
+- Original context not modified
+
+#### Task 1.7a: Add Basic Production Fields to Error Response
+**File**: `src/api/schemas/errors.py`
+**Implementation**:
+- Add `timestamp` field with timezone (datetime)
+- Add `severity` field (str)
+- Import datetime and configure proper serialization
+**Tests**: Update `tests/unit/api/schemas/test_errors.py`
+- Test timestamp serialization
+- Test severity field
+- Test JSON output format
+**Acceptance Criteria**:
+- Timestamp includes timezone info
+- Serializes to ISO format
+- Severity field is optional
+
+#### Task 1.7b: Add Service Info to Error Response
+**File**: `src/api/schemas/errors.py`
+**Implementation**:
+- Create `ServiceInfo` nested model (name, version, environment)
+- Add `service_info` field to ErrorResponse
+- Make service_info optional
+**Tests**: Update `tests/unit/api/schemas/test_errors.py`
+- Test ServiceInfo model
+- Test nested model serialization
+- Test with and without service info
+**Acceptance Criteria**:
+- ServiceInfo validates fields
+- Properly nested in JSON output
+- Optional field handling correct
+
+#### Task 1.8: Document Enhanced Exception Features
+**File**: `CLAUDE.md`
+**Implementation**:
+- Document severity levels and their usage
+- Add examples of using context with exceptions
+- Document stack trace capture behavior
+- Add examples of exception chaining
+- Document the enhanced ErrorResponse fields
+**Acceptance Criteria**:
+- Clear examples for each new feature
+- Guidelines on when to use each severity level
+- Context usage best practices documented
+
+### Phase 2: Logging Infrastructure (with structlog)
+
+#### Task 2.1: Add structlog Dependencies and Configuration
+**File**: `pyproject.toml` and `src/core/config.py`
+**Implementation**:
+- Add structlog dependency to pyproject.toml
 - Add `LogConfig` nested class in Settings
-- Add fields: log_format (json/text), log_handlers, log_file_path
-- Add environment variable support
+- Add fields: log_level, log_format (json/console), render_json_logs
+- Add structlog-specific settings (add_timestamp, timestamper format)
 **Tests**: Update `tests/unit/core/test_config.py`
 - Test default values
 - Test environment override
 **Acceptance Criteria**:
-- Can configure JSON or text format
-- File path is optional
+- structlog installed with correct version
+- Configuration supports both development and production modes
 
-#### Task 2.2: Create JSON Log Formatter
+#### Task 2.2a: Create Basic structlog Setup
 **File**: `src/core/logging.py`
 **Implementation**:
-- Create `JsonFormatter` class
-- Include timestamp, level, logger_name, message, extra fields
-- Handle exception formatting
+- Create `configure_structlog()` function with basic processors
+- Add processors: add_log_level, add_timestamp, add_logger_name
+- Add CallsiteParameterAdder for file/function/line info
+- Configure different pipelines for dev (console) vs prod (JSON)
+- Integrate with stdlib logging for third-party libraries
 **Tests**: `tests/unit/core/test_logging.py`
 - Test JSON output structure
-- Test exception formatting
-- Test extra fields inclusion
+- Test console output format
+- Test processor pipeline
 **Acceptance Criteria**:
-- Outputs valid JSON
-- Includes all required fields
-- Handles exceptions without crashing
+- Outputs structured logs in configured format
+- Basic processors work correctly
+- Console vs JSON format switching works
 
-#### Task 2.3: Create Logger Factory
+#### Task 2.3a: Create Basic Logger Factory
 **File**: `src/core/logging.py`
 **Implementation**:
-- Create `setup_logging()` function
-- Create `get_logger(name)` function
-- Support both JSON and text formats based on config
+- Create `get_logger(name)` function returning bound structlog logger
+- Create `log_context()` context manager for temporary bindings
+- Support lazy evaluation of expensive log data
+- Basic context binding without contextvars
 **Tests**: Update `tests/unit/core/test_logging.py`
 - Test logger creation
-- Test format switching
-- Test multiple logger instances
+- Test temporary context bindings
+- Test lazy evaluation
 **Acceptance Criteria**:
-- Returns configured logger instances
-- Respects format configuration
-- Loggers are cached
+- Logger factory creates named loggers
+- Temporary bindings work in context manager
+- Lazy evaluation improves performance
 
-#### Task 2.4: Create Logging Context Utilities
+#### Task 2.4: Create Exception Logging Utilities
 **File**: `src/core/logging.py`
 **Implementation**:
-- Create `LoggingContext` class for adding context fields
-- Create context manager for temporary logging context
+- Create `log_exception()` helper with full context
+- Add exception processor to capture stack traces
+- Add error fingerprinting for log aggregation
+- Support exception chain logging
 **Tests**: Update `tests/unit/core/test_logging.py`
-- Test context addition/removal
-- Test nested contexts
+- Test exception logging with context
+- Test stack trace formatting
+- Test exception chain handling
 **Acceptance Criteria**:
-- Can add/remove context fields
-- Context is thread-safe
-- Supports nesting
+- Exceptions logged with full stack trace
+- Context from TributumError included
+- Exception chains preserved
+
+#### Task 2.5: Document Basic Logging Setup
+**File**: `CLAUDE.md`
+**Implementation**:
+- Document structlog configuration approach
+- Add examples of basic logger usage
+- Document log levels and when to use them
+- Add guidelines for structured logging fields
+- Document exception logging patterns
+**Acceptance Criteria**:
+- Clear examples of logger usage
+- Best practices for structured data
+- Performance considerations noted
 
 ### Phase 3: Request Context Infrastructure
 
@@ -199,6 +367,62 @@ The tasks are organized in phases with clear dependencies:
 - Generates new ID if missing
 - Adds ID to response headers
 
+#### Task 3.4: Document Context Infrastructure
+**File**: `CLAUDE.md`
+**Implementation**:
+- Document correlation ID pattern and usage
+- Add examples of context propagation
+- Document RequestContext usage
+- Add middleware integration examples
+**Acceptance Criteria**:
+- Clear explanation of correlation ID flow
+- Examples show async context propagation
+- Best practices for context usage
+
+### Phase 3.5: Logging Enhancement (After Context Infrastructure)
+
+#### Task 2.2b: Add Correlation ID Support to structlog
+**File**: `src/core/logging.py`
+**Implementation**:
+- Add `bind_contextvars` processor to structlog configuration
+- Update processor pipeline to include correlation ID from context
+- Ensure correlation ID appears in all log entries when available
+**Tests**: Update `tests/unit/core/test_logging.py`
+- Test correlation ID inclusion in logs
+- Test logs without correlation ID
+- Test context isolation
+**Acceptance Criteria**:
+- Correlation ID automatically included when set
+- No errors when correlation ID missing
+- Context properly isolated between requests
+
+#### Task 2.3b: Enhance Logger Factory with Contextvars
+**File**: `src/core/logging.py`
+**Implementation**:
+- Update `get_logger()` to use contextvars for automatic context binding
+- Ensure correlation ID propagates through async calls
+- Add helper to bind additional request context
+**Tests**: Update `tests/unit/core/test_logging.py`
+- Test async context propagation
+- Test multiple concurrent contexts
+- Test context cleanup
+**Acceptance Criteria**:
+- Context propagates through async boundaries
+- Multiple requests maintain separate contexts
+- No context leakage between requests
+
+#### Task 3.5b: Document Enhanced Logging
+**File**: `CLAUDE.md`
+**Implementation**:
+- Update logging documentation with correlation ID integration
+- Add examples of logs with correlation IDs
+- Document async context propagation in logging
+- Show how to trace requests across log entries
+**Acceptance Criteria**:
+- Examples show correlation ID in logs
+- Async logging patterns documented
+- Request tracing explained
+
 ### Phase 4: API Middleware
 
 #### Task 4.1: Create Security Headers Middleware
@@ -235,18 +459,86 @@ The tasks are organized in phases with clear dependencies:
 #### Task 4.3: Create Global Exception Handler
 **File**: `src/api/middleware/error_handler.py`
 **Implementation**:
-- Create exception handler for `TributumError`
-- Create handler for `RequestValidationError`
-- Create handler for generic `Exception`
-- Include correlation ID in error responses
+- Create exception handler for `TributumError` with full context capture
+- Extract stack trace, error context, and severity from enhanced exceptions
+- Create handler for `RequestValidationError` with field-level details
+- Create handler for generic `Exception` with safe error messages
+- Include correlation ID, timestamp, and service info in all responses
+- Log exceptions with full context using structlog
+- Sanitize error details before sending to client
+- Different response detail levels for dev vs production
 **Tests**: `tests/integration/api/test_error_handling.py`
 - Test each exception type handling
-- Test error response format
+- Test error response format with all new fields
 - Test correlation ID inclusion
+- Test debug info only shown in development
+- Test sensitive data sanitization
+- Test stack trace capture and logging
 **Acceptance Criteria**:
-- Returns correct HTTP status codes
-- Error format matches ErrorResponse model
-- No sensitive data in responses
+- Returns correct HTTP status codes based on error type
+- Error format matches enhanced ErrorResponse model
+- Stack traces logged but not exposed to clients in production
+- Debug information only available in development
+- All errors logged with full context for monitoring
+
+#### Task 4.4: Document Middleware Patterns
+**File**: `CLAUDE.md`
+**Implementation**:
+- Document middleware ordering and why it matters
+- Add security headers best practices
+- Document request logging patterns
+- Add error handling middleware examples
+- Show complete middleware integration
+**Acceptance Criteria**:
+- Middleware order clearly explained
+- Security implications documented
+- Error handling patterns shown
+
+### Phase 4.5: Exception Enhancement (After Middleware)
+
+#### Task 1.6b: Add HTTP Context Capture
+**File**: `src/core/error_context.py`
+**Implementation**:
+- Create `capture_request_context()` to extract HTTP request info
+- Extract method, path, headers, query params from FastAPI Request
+- Filter out sensitive headers (Authorization, Cookie, etc.)
+- Support for custom context providers
+**Tests**: Update `tests/unit/core/test_error_context.py`
+- Test request context extraction
+- Test sensitive header filtering
+- Test with missing request object
+**Acceptance Criteria**:
+- Captures all relevant HTTP info
+- Sensitive headers removed
+- Handles missing request gracefully
+
+#### Task 1.7c: Add Debug Info and Request ID to Error Response
+**File**: `src/api/schemas/errors.py`
+**Implementation**:
+- Add `debug_info` optional field for development environments
+- Add `request_id` field (separate from correlation_id)
+- Debug info should include stack trace and error context
+**Tests**: Update `tests/unit/api/schemas/test_errors.py`
+- Test debug_info structure
+- Test conditional debug info based on environment
+- Test request_id field
+**Acceptance Criteria**:
+- Debug info only populated in development
+- Request ID is separate from correlation ID
+- Stack trace properly formatted in debug info
+
+#### Task 4.5c: Document Complete Error Handling
+**File**: `CLAUDE.md`
+**Implementation**:
+- Document complete error handling flow with HTTP context
+- Add examples of errors with full context capture
+- Document debug info usage in development
+- Show error aggregation patterns
+- Add production vs development error responses
+**Acceptance Criteria**:
+- Complete error flow documented
+- HTTP context capture explained
+- Debug mode usage clear
 
 ### Phase 5: OpenTelemetry Setup
 
@@ -282,13 +574,20 @@ The tasks are organized in phases with clear dependencies:
 - Configure GCP trace exporter
 - Set up trace provider with sampling
 - Create `get_tracer()` function
+- Add custom span processor for error tracking
+- Integrate with TributumError context capture
+- Add error severity to span attributes
 **Tests**: `tests/unit/core/test_observability.py`
 - Test setup with tracing disabled
 - Test tracer creation
+- Test error context in spans
+- Test span attributes for errors
 **Acceptance Criteria**:
 - Tracing can be disabled
 - Returns configured tracer
 - No errors when GCP not available
+- Errors include full context in spans
+- Severity properly mapped to span status
 
 #### Task 5.4: Instrument FastAPI
 **File**: `src/api/main.py`
@@ -303,6 +602,19 @@ The tasks are organized in phases with clear dependencies:
 - Each request creates a span
 - Spans include correlation ID
 - Parent-child relationships correct
+
+#### Task 5.5: Document Observability Setup
+**File**: `CLAUDE.md`
+**Implementation**:
+- Document OpenTelemetry integration
+- Add tracing examples
+- Document span attributes and error tracking
+- Show GCP integration setup
+- Add performance monitoring guidelines
+**Acceptance Criteria**:
+- Tracing setup clearly explained
+- Error tracking in spans documented
+- GCP integration steps included
 
 ### Phase 6: Database Infrastructure
 
@@ -440,6 +752,19 @@ The tasks are organized in phases with clear dependencies:
 - Migration runs without errors
 - Can upgrade and downgrade
 
+#### Task 6.11: Document Database Patterns
+**File**: `CLAUDE.md`
+**Implementation**:
+- Document repository pattern implementation
+- Add async database examples
+- Document transaction patterns
+- Add migration workflow and commands
+- Show testing strategies with async DB
+**Acceptance Criteria**:
+- Repository pattern clearly explained
+- Async patterns documented
+- Migration workflow complete
+
 ### Phase 7: Integration
 
 #### Task 7.1: Wire Middleware in Correct Order
@@ -494,49 +819,102 @@ The tasks are organized in phases with clear dependencies:
 - All components integrate
 - Performance acceptable
 
-### Phase 8: Documentation
+### Phase 8: Error Aggregator Integration
 
-#### Task 8.1: Document Exception Handling
+#### Task 8.1: Add Sentry SDK Dependencies
+**File**: `pyproject.toml` and `src/core/config.py`
+**Implementation**:
+- Add sentry-sdk[fastapi] dependency
+- Add `ErrorAggregatorConfig` to Settings
+- Add fields: sentry_dsn (optional), environment, release, sample_rate
+- Support disabling in development/testing
+**Tests**: Update `tests/unit/core/test_config.py`
+- Test configuration loading
+- Test DSN validation
+**Acceptance Criteria**:
+- Sentry SDK installed
+- Configuration supports enable/disable
+- DSN only required when enabled
+
+#### Task 8.2: Create Sentry Integration
+**File**: `src/core/error_aggregator.py`
+**Implementation**:
+- Create `setup_sentry()` function
+- Configure Sentry with enhanced error context
+- Add custom before_send hook to include TributumError context
+- Integrate with structlog for breadcrumbs
+- Map severity levels appropriately
+- Filter sensitive data from context
+**Tests**: `tests/unit/core/test_error_aggregator.py`
+- Test setup with Sentry disabled
+- Test context enrichment
+- Test sensitive data filtering
+**Acceptance Criteria**:
+- Sentry can be disabled
+- TributumError context included in reports
+- Stack traces properly captured
+- Sensitive data filtered
+
+#### Task 8.3: Create GCP Error Reporting Integration
+**File**: `src/core/error_aggregator.py`
+**Implementation**:
+- Add GCP Error Reporting client setup
+- Create `report_error_to_gcp()` function
+- Map TributumError to GCP error format
+- Include service context and labels
+- Support both Sentry and GCP simultaneously
+**Tests**: Update `tests/unit/core/test_error_aggregator.py`
+- Test GCP client setup
+- Test error format mapping
+- Test with GCP disabled
+**Acceptance Criteria**:
+- GCP Error Reporting can be disabled
+- Errors include proper service context
+- Works alongside Sentry
+
+#### Task 8.4: Integrate Error Aggregators with Middleware
+**File**: `src/api/middleware/error_handler.py`
+**Implementation**:
+- Call error aggregator reporting in exception handlers
+- Ensure errors are reported before response is sent
+- Add request context to error reports
+- Handle aggregator failures gracefully
+**Tests**: `tests/integration/api/test_error_aggregator_integration.py`
+- Test error reporting flow
+- Test aggregator failure handling
+- Test context inclusion
+**Acceptance Criteria**:
+- All unhandled errors reported
+- TributumError context preserved
+- Aggregator failures don't break response
+
+#### Task 8.5: Document Error Aggregator Integration
 **File**: `CLAUDE.md`
 **Implementation**:
-- Document exception hierarchy
-- Add examples of raising exceptions
-- Document error response format
+- Document Sentry and GCP Error Reporting setup
+- Add configuration examples
+- Document error filtering and sanitization
+- Show how errors flow to aggregators
+- Add monitoring best practices
 **Acceptance Criteria**:
-- Clear examples provided
-- All exception types documented
+- Both Sentry and GCP setup documented
+- Configuration clearly explained
+- Error flow diagram or explanation
 
-#### Task 8.2: Document Logging Standards
+### Phase 9: Final Documentation Review
+
+#### Task 9.1: Review and Consolidate Documentation
 **File**: `CLAUDE.md`
 **Implementation**:
-- Document log format
-- Add logging best practices
-- Show context usage examples
+- Review all documentation added throughout phases
+- Ensure consistency and completeness
+- Add any missing cross-references
+- Create a quick reference section
+- Verify all examples work with current code
 **Acceptance Criteria**:
-- Format clearly explained
-- Examples for common cases
-
-#### Task 8.3: Document Database Patterns
-**File**: `CLAUDE.md`
-**Implementation**:
-- Document repository pattern usage
-- Add transaction examples
-- Document migration workflow
-**Acceptance Criteria**:
-- Clear repository examples
-- Transaction patterns shown
-- Migration commands documented
-
-#### Task 8.4: Document Testing Patterns
-**File**: `CLAUDE.md`
-**Implementation**:
-- Document test database setup
-- Add async testing examples
-- Document fixture usage
-**Acceptance Criteria**:
-- Test patterns clear
-- Async examples work
-- Fixture usage explained
+- Documentation is cohesive
+- No contradictions or outdated info
+- Quick reference helps developers
 
 ## Implementation Notes
 
@@ -566,13 +944,19 @@ The tasks are organized in phases with clear dependencies:
 
 ## Success Criteria for Complete Implementation
 
-- [ ] All exceptions inherit from TributumError
-- [ ] All logs include correlation ID when in request context
+- [ ] All exceptions inherit from TributumError with enhanced context
+- [ ] Exception stack traces captured and logged but not exposed to clients
+- [ ] All logs use structlog with correlation ID when in request context
+- [ ] Error responses include timestamp, severity, and service info
+- [ ] Debug information only available in development environment
 - [ ] All API responses include security headers
 - [ ] Database operations use repository pattern
-- [ ] OpenTelemetry traces show full request flow
+- [ ] OpenTelemetry traces show full request flow with error context
+- [ ] Sentry/GCP Error Reporting integration captures all unhandled errors
+- [ ] Sensitive data properly sanitized in logs and error reports
 - [ ] All components have >80% test coverage
 - [ ] Documentation is complete and accurate
 - [ ] No hardcoded configuration values
 - [ ] Clean startup/shutdown with no warnings
 - [ ] Integration tests pass with real PostgreSQL
+- [ ] Error aggregators properly configured for production use
