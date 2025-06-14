@@ -702,17 +702,78 @@ main.py                 # Application entry point with uvicorn
 vulture_whitelist.py    # Whitelist for false positive dead code
 ```
 
+## Exception Handling Patterns
+
+### Base Exception Architecture
+
+The project uses a centralized exception handling approach with:
+
+1. **Base Exception Class**: `TributumError` in `src/core/exceptions.py`
+   - All custom exceptions inherit from `TributumError`
+   - Includes `error_code` and `message` attributes
+   - Supports both string error codes and `ErrorCode` enum values
+
+2. **Error Code Enum**: `ErrorCode` in `src/core/exceptions.py`
+   - Standardized error codes using UPPER_SNAKE_CASE naming
+   - Currently defined codes:
+     - `INTERNAL_ERROR`: System-level unexpected errors
+     - `VALIDATION_ERROR`: Input validation failures
+     - `NOT_FOUND`: Resource not found errors
+     - `UNAUTHORIZED`: Authentication/authorization failures
+
+### Exception Usage Examples
+
+```python
+from src.core.exceptions import TributumError, ErrorCode
+
+# Using with ErrorCode enum (preferred)
+raise TributumError(ErrorCode.NOT_FOUND, "User with ID 123 not found")
+
+# Using with string error code (for backwards compatibility)
+raise TributumError("CUSTOM_ERROR", "Something went wrong")
+
+# Exception will format as: "[ERROR_CODE] message"
+# Example: "[NOT_FOUND] User with ID 123 not found"
+```
+
+### Testing Patterns for Exceptions
+
+When testing exceptions:
+- Always test both the error code and message
+- Use `pytest.raises` context manager
+- Example:
+  ```python
+  with pytest.raises(TributumError) as exc_info:
+      raise TributumError(ErrorCode.VALIDATION_ERROR, "Invalid input")
+
+  assert exc_info.value.error_code == ErrorCode.VALIDATION_ERROR.value
+  assert exc_info.value.message == "Invalid input"
+  ```
+
+### Naming Conventions
+
+- **Exception Classes**: Use "Error" suffix (e.g., `TributumError`, `ValidationError`)
+  - This follows Ruff's N818 linting rule
+  - Do NOT use "Exception" suffix
+- **Error Codes**: Use UPPER_SNAKE_CASE (e.g., `NOT_FOUND`, `VALIDATION_ERROR`)
+- **Error Messages**: Use clear, user-friendly language without technical jargon
+
 ## Recent Updates
 
 ### December 2024
 - **Configuration Management**: Implemented Pydantic Settings v2 for centralized configuration
 - **FastAPI Integration**: Basic FastAPI app with configuration dependency injection
+- **Exception Infrastructure**:
+  - Implemented `TributumError` base exception class with error codes
+  - Added `ErrorCode` enum for standardized error identification
+  - Established exception naming convention (Error suffix, not Exception)
 - **Security Updates**: Updated safety from deprecated `check` to `scan` command
-- **Pre-commit Fixes**:
+- **Pre-commit Optimizations**:
+  - Reordered hooks to run ruff-format before other checks for efficiency
   - Added `pydantic-settings` to mypy dependencies
   - Configured pip-audit to ignore PYSEC-2022-42969 (py package vulnerability from interrogate)
   - Fixed all linting, formatting, and type checking issues
-- **Testing**: Added comprehensive unit and integration tests for configuration
+- **Testing**: Added comprehensive unit and integration tests for configuration and exceptions
 
 ## Known Issues
 
