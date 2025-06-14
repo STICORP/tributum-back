@@ -71,3 +71,79 @@ class TributumError(Exception):
         """
         class_name = self.__class__.__name__
         return f"{class_name}(error_code='{self.error_code}', message='{self.message}')"
+
+
+class ValidationError(TributumError):
+    """Exception raised when input validation fails.
+
+    This exception should be used when user input or data doesn't meet
+    the expected format, type, or business validation rules.
+    """
+
+    def __init__(
+        self, message: str, error_code: str | ErrorCode = ErrorCode.VALIDATION_ERROR
+    ) -> None:
+        """Initialize validation error with message and optional error code.
+
+        Args:
+            message: Description of the validation failure
+            error_code: Error code (defaults to VALIDATION_ERROR)
+        """
+        super().__init__(error_code, message)
+
+
+class NotFoundError(TributumError):
+    """Exception raised when a requested resource cannot be found.
+
+    This exception should be used when attempting to access a resource
+    (user, document, configuration, etc.) that doesn't exist.
+    """
+
+    def __init__(
+        self, message: str, error_code: str | ErrorCode = ErrorCode.NOT_FOUND
+    ) -> None:
+        """Initialize not found error with message and optional error code.
+
+        Args:
+            message: Description of what resource was not found
+            error_code: Error code (defaults to NOT_FOUND)
+        """
+        super().__init__(error_code, message)
+
+
+class UnauthorizedError(TributumError):
+    """Exception raised when authentication or authorization fails.
+
+    This exception should be used when a user is not authenticated
+    or lacks the necessary permissions to perform an action.
+    """
+
+    def __init__(
+        self, message: str, error_code: str | ErrorCode = ErrorCode.UNAUTHORIZED
+    ) -> None:
+        """Initialize unauthorized error with message and optional error code.
+
+        Args:
+            message: Description of the authorization failure
+            error_code: Error code (defaults to UNAUTHORIZED)
+        """
+        super().__init__(error_code, message)
+
+
+class BusinessRuleError(TributumError):
+    """Exception raised when a business rule violation occurs.
+
+    This exception should be used when an operation violates business
+    logic constraints that aren't simple validation errors.
+    """
+
+    def __init__(
+        self, message: str, error_code: str | ErrorCode = ErrorCode.INTERNAL_ERROR
+    ) -> None:
+        """Initialize business rule error with message and optional error code.
+
+        Args:
+            message: Description of the business rule violation
+            error_code: Error code (defaults to INTERNAL_ERROR)
+        """
+        super().__init__(error_code, message)

@@ -2,7 +2,14 @@
 
 import pytest
 
-from src.core.exceptions import ErrorCode, TributumError
+from src.core.exceptions import (
+    BusinessRuleError,
+    ErrorCode,
+    NotFoundError,
+    TributumError,
+    UnauthorizedError,
+    ValidationError,
+)
 
 
 class TestErrorCode:
@@ -145,3 +152,131 @@ class TestTributumError:
         assert exception.error_code == error_code.value
         assert exception.message == message
         assert str(exception) == f"[{error_code.value}] {message}"
+
+
+class TestSpecializedExceptions:
+    """Test cases for specialized exception classes."""
+
+    def test_validation_error_default_error_code(self) -> None:
+        """Test that ValidationError has correct default error code."""
+        message = "Invalid email format"
+        exception = ValidationError(message)
+
+        assert exception.error_code == ErrorCode.VALIDATION_ERROR.value
+        assert exception.message == message
+        assert isinstance(exception, TributumError)
+
+    def test_validation_error_custom_error_code(self) -> None:
+        """Test that ValidationError accepts custom error code."""
+        message = "Custom validation error"
+        custom_code = "CUSTOM_VALIDATION"
+        exception = ValidationError(message, custom_code)
+
+        assert exception.error_code == custom_code
+        assert exception.message == message
+
+    def test_not_found_error_default_error_code(self) -> None:
+        """Test that NotFoundError has correct default error code."""
+        message = "User not found"
+        exception = NotFoundError(message)
+
+        assert exception.error_code == ErrorCode.NOT_FOUND.value
+        assert exception.message == message
+        assert isinstance(exception, TributumError)
+
+    def test_not_found_error_custom_error_code(self) -> None:
+        """Test that NotFoundError accepts custom error code."""
+        message = "Custom resource not found"
+        custom_code = "CUSTOM_NOT_FOUND"
+        exception = NotFoundError(message, custom_code)
+
+        assert exception.error_code == custom_code
+        assert exception.message == message
+
+    def test_unauthorized_error_default_error_code(self) -> None:
+        """Test that UnauthorizedError has correct default error code."""
+        message = "Invalid credentials"
+        exception = UnauthorizedError(message)
+
+        assert exception.error_code == ErrorCode.UNAUTHORIZED.value
+        assert exception.message == message
+        assert isinstance(exception, TributumError)
+
+    def test_unauthorized_error_custom_error_code(self) -> None:
+        """Test that UnauthorizedError accepts custom error code."""
+        message = "Custom auth error"
+        custom_code = "CUSTOM_AUTH"
+        exception = UnauthorizedError(message, custom_code)
+
+        assert exception.error_code == custom_code
+        assert exception.message == message
+
+    def test_business_rule_error_default_error_code(self) -> None:
+        """Test that BusinessRuleError has correct default error code."""
+        message = "Cannot process order with zero items"
+        exception = BusinessRuleError(message)
+
+        assert exception.error_code == ErrorCode.INTERNAL_ERROR.value
+        assert exception.message == message
+        assert isinstance(exception, TributumError)
+
+    def test_business_rule_error_custom_error_code(self) -> None:
+        """Test that BusinessRuleError accepts custom error code."""
+        message = "Custom business rule violation"
+        custom_code = "BUSINESS_RULE_VIOLATION"
+        exception = BusinessRuleError(message, custom_code)
+
+        assert exception.error_code == custom_code
+        assert exception.message == message
+
+    def test_all_exceptions_inherit_from_tributum_error(self) -> None:
+        """Test that all specialized exceptions inherit from TributumError."""
+        exceptions = [
+            ValidationError("test"),
+            NotFoundError("test"),
+            UnauthorizedError("test"),
+            BusinessRuleError("test"),
+        ]
+
+        for exception in exceptions:
+            assert isinstance(exception, TributumError)
+            assert isinstance(exception, Exception)
+
+    def test_specialized_exceptions_can_be_raised_and_caught(self) -> None:
+        """Test that specialized exceptions can be raised and caught."""
+        test_cases = [
+            (ValidationError, "Validation failed"),
+            (NotFoundError, "Resource not found"),
+            (UnauthorizedError, "Access denied"),
+            (BusinessRuleError, "Business rule violated"),
+        ]
+
+        for exception_class, message in test_cases:
+            with pytest.raises(exception_class) as exc_info:
+                raise exception_class(message)
+
+            assert exc_info.value.message == message
+
+    def test_specialized_exceptions_string_representation(self) -> None:
+        """Test string representation of specialized exceptions."""
+        test_cases = [
+            (
+                ValidationError("Invalid"),
+                "ValidationError(error_code='VALIDATION_ERROR', message='Invalid')",
+            ),
+            (
+                NotFoundError("Missing"),
+                "NotFoundError(error_code='NOT_FOUND', message='Missing')",
+            ),
+            (
+                UnauthorizedError("Denied"),
+                "UnauthorizedError(error_code='UNAUTHORIZED', message='Denied')",
+            ),
+            (
+                BusinessRuleError("Rule"),
+                "BusinessRuleError(error_code='INTERNAL_ERROR', message='Rule')",
+            ),
+        ]
+
+        for exception, expected_repr in test_cases:
+            assert repr(exception) == expected_repr
