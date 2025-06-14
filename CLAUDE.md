@@ -495,17 +495,26 @@ When the project has little existing code:
 - Do not include "Co-Authored-By: Claude" or any AI authorship
 - Follow the conventional commit format without any AI mentions
 
-## FastAPI Project Structure (Future Reference)
+## FastAPI Project Structure
 
-**Note**: The following FastAPI project structure is documented here for future reference when we begin developing the application. This structure does not currently exist in the codebase but represents the preferred organization pattern for when development begins.
+**Note**: This structure represents the target architecture. Currently, only the basic structure exists with configuration management implemented.
 
-Follow domain-driven design with domain-centric organization:
+Follow domain-driven design with domain-centric organization and clear separation of cross-cutting concerns:
 
 ```
 src/
 ├── api/
 │   ├── __init__.py
 │   ├── main.py         # FastAPI app initialization
+│   ├── middleware/     # API-specific middleware
+│   │   ├── __init__.py
+│   │   ├── request_context.py   # Correlation ID injection
+│   │   ├── request_logging.py   # HTTP request/response logging
+│   │   ├── security_headers.py  # Security headers middleware
+│   │   └── error_handler.py     # Global exception handling
+│   ├── schemas/        # API-specific schemas
+│   │   ├── __init__.py
+│   │   └── errors.py   # Error response models
 │   └── v1/
 │       ├── __init__.py
 │       ├── endpoints/  # API endpoints by domain
@@ -538,9 +547,10 @@ src/
 │   ├── __init__.py
 │   ├── database/
 │   │   ├── __init__.py
-│   │   ├── session.py      # Database connection/session management
-│   │   ├── base.py         # Base model and repository classes
-│   │   └── migrations/     # Alembic migrations
+│   │   ├── base.py         # Base model and declarative base
+│   │   ├── session.py      # Async session management
+│   │   ├── repository.py   # Base repository pattern
+│   │   └── dependencies.py # Database dependency injection
 │   ├── cache/
 │   │   ├── __init__.py
 │   │   └── redis.py
@@ -550,9 +560,12 @@ src/
 │       └── storage.py
 ├── core/               # Application-wide shared code
 │   ├── __init__.py
-│   ├── config.py           # Settings management
+│   ├── config.py           # Settings management (Pydantic Settings)
+│   ├── exceptions.py       # Base exceptions and error codes
+│   ├── logging.py          # Logging setup and utilities
+│   ├── context.py          # Request context and correlation IDs
+│   ├── observability.py    # OpenTelemetry setup for GCP
 │   ├── security.py         # Security utilities
-│   ├── exceptions.py       # Base exceptions
 │   └── utils.py           # Common utilities
 └── cli/                # CLI commands
     ├── __init__.py
@@ -560,15 +573,26 @@ src/
 
 tests/                  # Mirror src structure
 ├── unit/
+│   ├── api/
+│   │   ├── middleware/
+│   │   └── schemas/
 │   ├── domain/
 │   │   ├── auth/
 │   │   └── users/
+│   ├── infrastructure/
+│   │   └── database/
 │   └── core/
 ├── integration/
 │   ├── api/
 │   └── domain/
 ├── conftest.py        # Pytest fixtures
 └── factories.py       # Test data factories
+
+alembic/               # Database migrations
+├── versions/
+├── alembic.ini
+├── env.py
+└── script.py.mako
 
 scripts/               # Development and deployment scripts
 ├── start.sh
@@ -583,13 +607,34 @@ config/                # Configuration files
 
 ### Key Design Decisions:
 
-1. **Domain-Centric Organization**: Each domain contains all its related code including models, repositories, schemas, and business logic
-2. **Cohesive Domains**: Everything needed to understand and work with a domain is in one place
-3. **Infrastructure for Technical Concerns**: Infrastructure layer only contains technical utilities (DB sessions, cache, external services)
-4. **Shared Base Classes**: Common base classes for models and repositories live in infrastructure/database
-5. **Clear Boundaries**: Each domain is self-contained but can depend on core utilities
+1. **Clear Separation of Concerns**:
+   - **API Layer**: HTTP-specific concerns (middleware, routing, request/response handling)
+   - **Core Layer**: Shared cross-cutting concerns (exceptions, logging, context)
+   - **Infrastructure Layer**: Technical implementations (database, cache, external services)
+   - **Domain Layer**: Business logic and domain models
 
-This structure promotes domain cohesion while maintaining clean separation between business logic and technical infrastructure.
+2. **Cross-Cutting Concerns Architecture**:
+   - **Exceptions**: Base exceptions in `core/exceptions.py`, domain-specific in each domain
+   - **Logging**: Centralized setup in `core/logging.py`, used throughout the application
+   - **Context**: Request context and correlation IDs in `core/context.py`
+   - **Observability**: OpenTelemetry configuration in `core/observability.py` for GCP integration
+
+3. **Middleware Organization**:
+   - API-specific middleware in `api/middleware/` (security headers, request logging)
+   - Shared utilities in `core/` that can be used by both API and service layers
+
+4. **Database Architecture**:
+   - Async-first with SQLAlchemy 2.0 and asyncpg
+   - Base repository pattern in `infrastructure/database/repository.py`
+   - Domain repositories inherit from base repository
+   - Alembic for migration management
+
+5. **Testing Strategy**:
+   - Unit tests mirror source structure
+   - Integration tests for cross-component testing
+   - Fixtures in `conftest.py` for test database and async support
+
+This structure promotes domain cohesion while maintaining clean separation between business logic, technical infrastructure, and cross-cutting concerns.
 
 ## Concrete Example: Adding a New Feature
 
