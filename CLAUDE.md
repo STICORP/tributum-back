@@ -790,6 +790,79 @@ When testing exceptions:
 - **Error Codes**: Use UPPER_SNAKE_CASE (e.g., `NOT_FOUND`, `VALIDATION_ERROR`)
 - **Error Messages**: Use clear, user-friendly language without technical jargon
 
+## API Error Response Pattern
+
+### Error Response Model
+
+The project uses a standardized `ErrorResponse` model in `src/api/schemas/errors.py` for all API errors:
+
+```python
+from src.api.schemas.errors import ErrorResponse
+
+# Basic error response
+error = ErrorResponse(
+    error_code="VALIDATION_ERROR",
+    message="Invalid email format"
+)
+
+# Error with additional details
+error = ErrorResponse(
+    error_code="VALIDATION_ERROR",
+    message="Multiple validation errors",
+    details={
+        "email": "Invalid format",
+        "password": "Too short"
+    },
+    correlation_id="550e8400-e29b-41d4-a716-446655440000"
+)
+```
+
+### Error Response Structure
+
+All API errors return JSON with this structure:
+```json
+{
+    "error_code": "NOT_FOUND",
+    "message": "User with ID 123 not found",
+    "details": null,  // Optional: Additional error context
+    "correlation_id": "550e8400-e29b-41d4-a716-446655440000"  // Optional
+}
+```
+
+### Pydantic Model Best Practices
+
+1. **Field Documentation**: Use Pydantic's `Field` for descriptions and examples
+   ```python
+   error_code: str = Field(
+       ...,
+       description="Unique error code identifying the error type",
+       examples=["VALIDATION_ERROR", "NOT_FOUND"]
+   )
+   ```
+
+2. **Model Configuration**: Include response examples in `model_config`
+   ```python
+   model_config = {
+       "json_schema_extra": {
+           "examples": [...]
+       }
+   }
+   ```
+
+3. **Testing Pydantic Validation**: Use `model_validate` for type-safe testing
+   ```python
+   # Instead of: ErrorResponse(message="test")  # type error
+   # Use: ErrorResponse.model_validate({"message": "test"})  # validation error
+   ```
+
+### Integration with Exception System
+
+The `ErrorResponse` model is designed to work seamlessly with our exception system:
+- `error_code` maps to `ErrorCode` enum values or custom codes
+- `message` comes from the exception message
+- `details` can include field-specific validation errors
+- `correlation_id` will be injected by middleware (Phase 3)
+
 ## Recent Updates
 
 ### December 2024
@@ -801,6 +874,7 @@ When testing exceptions:
   - Created specialized exceptions: ValidationError, NotFoundError, UnauthorizedError, BusinessRuleError
   - Established exception naming convention (Error suffix, not Exception)
   - Implemented message-first API design for better ergonomics
+  - Created `ErrorResponse` Pydantic model for standardized API error responses
 - **Security Updates**: Updated safety from deprecated `check` to `scan` command
 - **Pre-commit Optimizations**:
   - Reordered hooks to run ruff-format before other checks for efficiency
