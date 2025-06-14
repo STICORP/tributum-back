@@ -297,7 +297,7 @@ This applies to ALL checks: mypy, ruff, bandit, safety, pip-audit, semgrep, or a
 
 ### CRITICAL: Library Documentation Research
 
-**MANDATORY**: Before writing ANY code that uses external libraries, you MUST use the context7 MCP server to fetch up-to-date documentation.
+**MANDATORY**: Use the context7 MCP server strategically to fetch documentation ONLY when needed to avoid context window overload.
 
 #### Why This Is Critical
 - As an LLM, I have a knowledge cutoff and may not be aware of newer library versions
@@ -305,45 +305,55 @@ This applies to ALL checks: mypy, ruff, bandit, safety, pip-audit, semgrep, or a
 - Using outdated patterns leads to technical debt and potential security vulnerabilities
 - The context7 MCP server provides real-time, accurate documentation
 
-#### How to Use context7 MCP Server
+#### OPTIMIZED context7 Usage Strategy
 
-1. **Before writing code with any library**, research its current documentation:
+**IMPORTANT: To prevent context window issues, follow these strict guidelines:**
+
+1. **Use context7 ONLY when you need specific information**:
+   - DO NOT preload documentation at the start of tasks
+   - DO NOT fetch entire library docs unless absolutely necessary
+   - Request only the specific topic/feature you're implementing
+   - Use small token limits (1000-3000) for targeted queries
+
+2. **When to use context7**:
+   - When implementing a SPECIFIC feature (not general exploration)
+   - When you encounter an error that might be version-related
+   - When adding a NEW dependency (to check latest version and basic usage)
+   - When the user explicitly asks about current library features
+
+3. **How to use context7 efficiently**:
    ```
-   # Example workflow for using Pydantic:
-   1. Use mcp__context7__resolve-library-id with "pydantic"
-   2. Use mcp__context7__get-library-docs with the resolved ID
-   3. Focus on specific topics if needed (e.g., "validators", "models", "settings")
+   # WRONG: Loading everything upfront
+   - Don't: Load all FastAPI docs when starting any API work
+   - Don't: Request 10000+ tokens of general documentation
+
+   # RIGHT: Load exactly what you need, when you need it
+   - Do: "I need to implement JWT auth, let me check FastAPI's current JWT patterns"
+   - Do: Use specific topics like "jwt", "authentication", "dependencies"
+   - Do: Use token limit of 2000-3000 for specific queries
    ```
 
-2. **Common libraries to research**:
-   - **FastAPI**: API routes, dependencies, middleware, security
-   - **Pydantic**: Models, validators, settings management
-   - **SQLAlchemy**: ORM models, queries, sessions, migrations
-   - **Alembic**: Migration patterns, configuration
-   - **pytest**: Fixtures, parametrization, async testing
-   - Any other library before first use
-
-3. **Research workflow**:
+4. **Efficient research workflow**:
    ```python
-   # WRONG: Writing code based on potentially outdated knowledge
-   from pydantic import BaseModel
-   class User(BaseModel):
-       # Using patterns from memory that might be outdated
-       ...
-
-   # RIGHT: First research current best practices
-   # 1. Use context7 to get Pydantic docs
-   # 2. Check current model definition patterns
-   # 3. Look for new features or deprecations
-   # 4. Then implement using up-to-date patterns
+   # Step 1: Try to implement with existing knowledge
+   # Step 2: If unsure about specific API/pattern:
+   #   - Use context7 with specific topic and low token limit
+   #   - Example: get docs for "pydantic field validators" with 2000 tokens
+   # Step 3: Implement based on findings
    ```
 
-4. **When to research**:
-   - First time using a library in the project
-   - Implementing new features with existing libraries
-   - When encountering deprecation warnings
-   - Before major refactoring
-   - When adding new dependencies
+5. **Common scenarios and token limits**:
+   - **Checking latest version**: 500 tokens
+   - **Specific feature/API**: 1000-2000 tokens
+   - **Implementation pattern**: 2000-3000 tokens
+   - **Complex integration**: 3000-5000 tokens (only if necessary)
+   - **Never exceed 5000 tokens** unless explicitly justified
+
+6. **Before using context7, ask yourself**:
+   - Do I need this information RIGHT NOW for the current task?
+   - Can I implement with my existing knowledge and verify later?
+   - Am I being specific enough with my query?
+   - Have I set an appropriate token limit?
 
 ### CRITICAL: Pre-Implementation Analysis Framework
 
