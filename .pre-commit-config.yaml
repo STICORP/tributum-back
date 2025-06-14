@@ -1,4 +1,11 @@
 repos:
+  # Run ruff-format first to handle all Python formatting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.13
+    hooks:
+      - id: ruff-format
+
+  # Then run general pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -18,10 +25,10 @@ repos:
       - id: name-tests-test  # Ensure test files are named correctly
         args: [--pytest-test-first]
 
+  # Then run ruff linting after formatting
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.13
     hooks:
-      - id: ruff-format
       - id: ruff
         args: [--fix]
 
