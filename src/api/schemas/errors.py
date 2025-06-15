@@ -4,6 +4,7 @@ This module defines the standardized error response format used across
 all API endpoints to ensure consistent error communication to clients.
 """
 
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -40,6 +41,18 @@ class ErrorResponse(BaseModel):
         examples=["550e8400-e29b-41d4-a716-446655440000"],
     )
 
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="Timestamp when the error occurred (with timezone)",
+        examples=["2024-06-14T12:00:00+00:00"],
+    )
+
+    severity: str | None = Field(
+        default=None,
+        description="Error severity level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+        examples=["ERROR", "WARNING"],
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -51,15 +64,21 @@ class ErrorResponse(BaseModel):
                         "age": "Must be a positive integer",
                     },
                     "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
+                    "timestamp": "2024-06-14T12:00:00+00:00",
+                    "severity": "WARNING",
                 },
                 {
                     "error_code": "NOT_FOUND",
                     "message": "User with ID 123 not found",
                     "correlation_id": "550e8400-e29b-41d4-a716-446655440001",
+                    "timestamp": "2024-06-14T12:00:01+00:00",
+                    "severity": "WARNING",
                 },
                 {
                     "error_code": "UNAUTHORIZED",
                     "message": "Invalid API key",
+                    "timestamp": "2024-06-14T12:00:02+00:00",
+                    "severity": "ERROR",
                 },
             ]
         }

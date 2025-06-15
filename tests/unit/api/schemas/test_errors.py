@@ -1,6 +1,7 @@
 """Tests for error response models."""
 
 import json
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -23,6 +24,9 @@ class TestErrorResponse:
         assert error.message == "This is a test error"
         assert error.details is None
         assert error.correlation_id is None
+        assert error.severity is None
+        assert isinstance(error.timestamp, datetime)
+        assert error.timestamp.tzinfo is not None  # Ensure it has timezone info
 
     def test_error_response_with_all_fields(self) -> None:
         """Test ErrorResponse creation with all fields."""
@@ -85,15 +89,18 @@ class TestErrorResponse:
         dict_with_none = error.model_dump()
         assert "details" in dict_with_none
         assert "correlation_id" in dict_with_none
+        assert "severity" in dict_with_none
+        assert "timestamp" in dict_with_none  # Always present due to default factory
 
         # With exclude_none
         dict_without_none = error.model_dump(exclude_none=True)
         assert "details" not in dict_without_none
         assert "correlation_id" not in dict_without_none
-        assert dict_without_none == {
-            "error_code": "INTERNAL_ERROR",
-            "message": "Something went wrong",
-        }
+        assert "severity" not in dict_without_none
+        assert "timestamp" in dict_without_none  # Still present because it has a value
+        assert dict_without_none["error_code"] == "INTERNAL_ERROR"
+        assert dict_without_none["message"] == "Something went wrong"
+        assert isinstance(dict_without_none["timestamp"], datetime)
 
     def test_error_response_with_complex_details(self) -> None:
         """Test ErrorResponse with complex nested details."""
@@ -127,14 +134,20 @@ class TestErrorResponse:
         assert examples[0]["error_code"] == "VALIDATION_ERROR"
         assert "details" in examples[0]
         assert "correlation_id" in examples[0]
+        assert "timestamp" in examples[0]
+        assert "severity" in examples[0]
 
         # Check second example (not found with correlation ID)
         assert examples[1]["error_code"] == "NOT_FOUND"
         assert "correlation_id" in examples[1]
+        assert "timestamp" in examples[1]
+        assert "severity" in examples[1]
 
         # Check third example (unauthorized, minimal)
         assert examples[2]["error_code"] == "UNAUTHORIZED"
         assert "details" not in examples[2]
+        assert "timestamp" in examples[2]
+        assert "severity" in examples[2]
 
     def test_error_response_from_dict(self) -> None:
         """Test creating ErrorResponse from dictionary."""
@@ -159,7 +172,55 @@ class TestErrorResponse:
         assert "description" in properties["message"]
         assert "description" in properties["details"]
         assert "description" in properties["correlation_id"]
+        assert "description" in properties["timestamp"]
+        assert "description" in properties["severity"]
 
         # Check that examples are included
         assert "examples" in properties["error_code"]
         assert "examples" in properties["message"]
+
+    def test_error_response_timestamp_serialization(self) -> None:
+        """Test that timestamp serializes to ISO format with timezone."""
+        error = ErrorResponse(
+            error_code="TEST_ERROR",
+            message="Test message",
+        )
+
+        json_str = error.model_dump_json()
+        json_data = json.loads(json_str)
+
+        # Check timestamp format (ISO with timezone)
+        timestamp_str = json_data["timestamp"]
+        assert "T" in timestamp_str  # ISO format
+        assert "+" in timestamp_str or "Z" in timestamp_str  # Has timezone
+
+        # Verify it can be parsed back
+        parsed_timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        assert parsed_timestamp.tzinfo is not None
+
+    def test_error_response_with_severity(self) -> None:
+        """Test ErrorResponse with severity field."""
+        error = ErrorResponse(
+            error_code="CRITICAL_ERROR",
+            message="Critical system error",
+            severity="CRITICAL",
+        )
+
+        assert error.severity == "CRITICAL"
+
+        # Test JSON serialization includes severity
+        json_data = json.loads(error.model_dump_json())
+        assert json_data["severity"] == "CRITICAL"
+
+    def test_error_response_custom_timestamp(self) -> None:
+        """Test ErrorResponse with custom timestamp."""
+        custom_time = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
+        error = ErrorResponse(
+            error_code="TEST_ERROR",
+            message="Test message",
+            timestamp=custom_time,
+        )
+
+        assert error.timestamp == custom_time
+        json_str = error.model_dump_json()
+        assert "2024-01-01T12:00:00" in json_str
