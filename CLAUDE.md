@@ -81,7 +81,9 @@ terraform apply
 
 ### 6. Pre-Implementation Analysis MANDATORY
 Before ANY code:
-1. Search existing patterns: `uv run rg "pattern" --type py`
+1. Search existing patterns: ~~`uv run rg "pattern" --type py`~~ **NOTE: `uv run rg` is timing out - use Grep tool instead**
+   - Alternative: Use the Grep tool with pattern and include="*.py"
+   - Example: `Grep(pattern="contextvar", include="*.py")`
 2. Identify conventions (error handling, naming, testing)
 3. Check existing utilities
 4. If unclear: ASK, don't assume
