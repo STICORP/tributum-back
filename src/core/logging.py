@@ -155,3 +155,65 @@ def log_context(**bindings: Any) -> Iterator[Any]:
 
     # Yield the bound logger for use within the context
     yield bound_logger
+
+
+def log_exception(
+    logger: Any,
+    error: Exception,
+    message: str | None = None,
+    **extra_context: Any,
+) -> None:
+    """Log an exception with full context and stack trace.
+
+    This helper extracts context from TributumError instances and logs
+    the exception with appropriate severity and metadata.
+
+    Args:
+        logger: The structlog logger instance to use
+        error: The exception to log
+        message: Optional custom message (defaults to exception message)
+        **extra_context: Additional context to include in the log
+
+    Example:
+        try:
+            risky_operation()
+        except TributumError as e:
+            log_exception(logger, e, "Operation failed")
+    """
+    from src.core.exceptions import TributumError
+
+    # Prepare the log context
+    context = dict(extra_context)
+
+    # Extract context from TributumError instances
+    if isinstance(error, TributumError):
+        context.update(
+            {
+                "error_code": error.error_code,
+                "severity": error.severity.value,
+                "fingerprint": error.fingerprint,
+            }
+        )
+
+        # Add error context if present
+        if error.context:
+            context["error_context"] = error.context
+
+        # Use the appropriate log level based on severity
+        log_method = {
+            "LOW": logger.warning,
+            "MEDIUM": logger.error,
+            "HIGH": logger.error,
+            "CRITICAL": logger.critical,
+        }.get(error.severity.value, logger.error)
+
+        # Use custom message or error message
+        log_message = message or str(error)
+    else:
+        # For non-TributumError exceptions
+        context["error_type"] = type(error).__name__
+        log_method = logger.error
+        log_message = message or str(error)
+
+    # Log with exception info for stack trace
+    log_method(log_message, exc_info=error, **context)
