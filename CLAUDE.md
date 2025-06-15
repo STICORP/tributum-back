@@ -44,9 +44,10 @@ terraform apply
 
 ### 1. Re-read This Section MANDATORY
 - Before writing ANY code
-- Before ANY commits
+- Before ANY git operations
 - Every 10-15 minutes
 - When switching tasks
+- **ESPECIALLY: Re-read section 7 before EVER running git commands**
 
 ### 2. Write Quality Code From Start
 - Read `pyproject.toml` and `.pre-commit-config.yaml` FIRST
@@ -86,7 +87,12 @@ Before ANY code:
 ### 7. Git Commits
 - NO AI references ("Claude", "Generated with", etc.)
 - Use conventional commit format
-- NEVER commit without explicit user request
+- **NEVER commit without explicit user request**
+- **AUTHORIZATION RULE: Only commit immediately after /commit slash command in user's LAST prompt**
+  - If /commit was used: authorized to run `git commit`
+  - If ANY other interaction happened after /commit: authorization expired
+  - Must wait for new /commit command
+- When /commit is NOT in the last prompt: ONLY stage files and show commit message
 
 ### 8. Dependencies
 - ALWAYS use latest versions when adding
