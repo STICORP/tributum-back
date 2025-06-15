@@ -192,5 +192,25 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 - PYSEC-2022-42969: py package vulnerability (ignored)
 - Safety CLI requires auth
 
+### Logging
+```python
+from src.core.logging import configure_structlog
+import structlog
+
+# Configure at app startup
+configure_structlog()
+
+# Get logger
+logger = structlog.get_logger("module_name")
+
+# Log with structured data
+logger.info("user_action", user_id=123, action="login")
+logger.error("database_error", error=str(e), query=query)
+
+# Logs include: timestamp, level, logger name, filename, line number, function name
+# Dev: Colored console output
+# Prod: JSON format for log aggregation
+```
+
 ## Notes
 Update this file as project grows with new patterns and implementations.
