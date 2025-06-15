@@ -134,7 +134,8 @@ def endpoint(settings: Annotated[Settings, Depends(get_settings)]):
     return {"app": settings.app_name}
 ```
 
-Environment vars: APP_NAME, APP_VERSION, ENVIRONMENT, DEBUG, API_HOST, API_PORT, LOG_LEVEL
+Environment vars: APP_NAME, APP_VERSION, ENVIRONMENT, DEBUG, API_HOST, API_PORT
+Nested log config: LOG_CONFIG__LOG_LEVEL, LOG_CONFIG__LOG_FORMAT, LOG_CONFIG__RENDER_JSON_LOGS
 
 ### Exceptions
 ```python
