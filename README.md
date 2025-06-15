@@ -34,6 +34,7 @@ Tributum (Latin for "tribute" or "tax") is a financial backend system designed t
 ### Key Features
 
 - **Type-Safe Configuration**: Pydantic Settings v2 for robust configuration management
+- **Structured Logging**: Production-ready logging with structlog and correlation IDs
 - **Exception Handling**: Comprehensive error handling with severity levels and context
 - **API Standards**: RESTful API with OpenAPI documentation
 - **Cloud-Native**: Designed for Google Cloud Platform deployment
@@ -68,6 +69,7 @@ Tributum follows Domain-Driven Design (DDD) principles with clear separation of 
 
 - **FastAPI**: Chosen for automatic API documentation, type safety, and performance
 - **Pydantic V2**: Provides robust data validation and settings management
+- **Structlog**: Structured logging for better observability and debugging
 - **Domain-Driven Design**: Enables complex business logic organization
 - **Google Cloud Platform**: Scalable, managed cloud infrastructure
 
@@ -79,6 +81,7 @@ Tributum follows Domain-Driven Design (DDD) principles with clear separation of 
 - **Framework**: FastAPI 0.115.12
 - **ASGI Server**: Uvicorn 0.34.3
 - **Configuration**: Pydantic Settings 2.9.1
+- **Logging**: Structlog 25.4.0
 - **Package Manager**: uv (fast Python package installer)
 
 ### Infrastructure
@@ -151,15 +154,23 @@ cp .env.example .env
 
 Tributum uses environment variables for configuration. Key settings:
 
-| Variable       | Description                                    | Default     |
-|----------------|------------------------------------------------|-------------|
-| `APP_NAME`     | Application name                               | Tributum    |
-| `APP_VERSION`  | Application version                            | 0.1.0       |
-| `ENVIRONMENT`  | Environment (development/staging/production)   | development |
-| `DEBUG`        | Debug mode                                     | true        |
-| `API_HOST`     | API host                                       | 127.0.0.1   |
-| `API_PORT`     | API port                                       | 8000        |
-| `LOG_LEVEL`    | Logging level                                  | INFO        |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `APP_NAME` | Application name | Tributum |
+| `APP_VERSION` | Application version | 0.1.0 |
+| `ENVIRONMENT` | Environment (development/staging/production) | development |
+| `DEBUG` | Debug mode | true |
+| `API_HOST` | API host | 127.0.0.1 |
+| `API_PORT` | API port | 8000 |
+| `LOG_CONFIG__LOG_LEVEL` | Logging level | INFO |
+| `LOG_CONFIG__LOG_FORMAT` | Log format (console/json) | console |
+| `LOG_CONFIG__RENDER_JSON_LOGS` | Force JSON logs | false |
+
+### Logging Configuration
+
+The application uses structured logging with environment-aware defaults:
+- **Development**: Colored console output for readability
+- **Production**: JSON format for log aggregation
 
 See `.env.example` for all available configuration options.
 
@@ -242,7 +253,7 @@ uv run interrogate -v .
 
 ### Adding New Features
 
-1. Check existing patterns: `uv run rg "pattern" --type py`
+1. Check existing patterns using the Grep tool (Note: `uv run rg` may timeout)
 2. Identify conventions for error handling, naming, testing
 3. Follow the established project structure
 4. Write tests with >80% coverage
@@ -327,7 +338,10 @@ tributum-back/
 │   │       └── errors.py # Error response models
 │   ├── core/             # Core utilities
 │   │   ├── config.py     # Configuration management
-│   │   └── exceptions.py # Exception classes
+│   │   ├── context.py    # Request context and correlation IDs
+│   │   ├── error_context.py # Error context utilities
+│   │   ├── exceptions.py # Exception classes
+│   │   └── logging.py    # Structured logging setup
 │   └── domain/           # Business domains (planned)
 ├── tests/                 # Test suite
 │   ├── unit/             # Unit tests
@@ -408,6 +422,9 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 **Issue**: Test coverage below 80%
 - **Solution**: Add tests for uncovered code paths
 
+**Issue**: `uv run rg` command timing out
+- **Solution**: Use the Grep tool in the development environment instead
+
 ### Getting Help
 
 1. Check existing documentation in `docs/`
@@ -422,8 +439,9 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 - [x] Configuration management
 - [x] Exception handling
 - [x] Error response standardization
-- [ ] Structured logging with correlation IDs
-- [ ] Request context infrastructure
+- [x] Structured logging with structlog
+- [x] Correlation ID generation
+- [x] Request context infrastructure
 - [ ] API middleware (security, logging)
 - [ ] OpenTelemetry integration
 - [ ] Database setup (PostgreSQL + SQLAlchemy)
@@ -449,7 +467,7 @@ This project is licensed under the MIT License.
 ---
 
 <!-- README-METADATA
-Last Updated: 2024-12-06
-Last Commit: 4773bdd
-Update Count: 1
+Last Updated: 2025-06-15
+Last Commit: 156ee6c
+Update Count: 2
 -->
