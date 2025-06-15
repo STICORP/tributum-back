@@ -104,7 +104,8 @@ src/
 │       └── errors.py   # ErrorResponse model
 ├── core/
 │   ├── config.py       # Pydantic Settings
-│   └── exceptions.py   # Base exceptions, ErrorCode enum
+│   ├── exceptions.py   # Base exceptions, ErrorCode enum
+│   └── error_context.py # Context utilities, sanitization
 └── domain/            # Empty (planned for business domains)
 
 tests/
