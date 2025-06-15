@@ -16,7 +16,7 @@ def main() -> None:
             host=settings.api_host,
             port=settings.api_port,
             reload=True,
-            log_level=settings.log_level.lower(),
+            log_level=settings.log_config.log_level.lower(),
         )
     else:
         # In production, we can import and pass the app directly for better performance
@@ -27,7 +27,7 @@ def main() -> None:
             host=settings.api_host,
             port=settings.api_port,
             reload=False,
-            log_level=settings.log_level.lower(),
+            log_level=settings.log_config.log_level.lower(),
         )
 
 

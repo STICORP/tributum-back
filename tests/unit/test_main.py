@@ -14,7 +14,7 @@ def test_main_function_runs_uvicorn_in_debug_mode() -> None:
     mock_settings.debug = True
     mock_settings.api_host = "127.0.0.1"
     mock_settings.api_port = 8000
-    mock_settings.log_level = "INFO"
+    mock_settings.log_config.log_level = "INFO"
 
     with (
         patch("main.get_settings", return_value=mock_settings),
@@ -38,7 +38,7 @@ def test_main_function_runs_uvicorn_in_production_mode() -> None:
     mock_settings.debug = False
     mock_settings.api_host = "127.0.0.1"
     mock_settings.api_port = 8000
-    mock_settings.log_level = "INFO"
+    mock_settings.log_config.log_level = "INFO"
 
     with (
         patch("main.get_settings", return_value=mock_settings),
