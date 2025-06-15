@@ -163,7 +163,9 @@ ErrorResponse(
     error_code="VALIDATION_ERROR",
     message="Invalid input",
     details={"field": "error"},  # Optional
-    correlation_id="..."         # Optional
+    correlation_id="...",        # Optional
+    timestamp=datetime.now(UTC), # Auto-generated with timezone
+    severity="WARNING"           # Optional: DEBUG, INFO, WARNING, ERROR, CRITICAL
 )
 ```
 
