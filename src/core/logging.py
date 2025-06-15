@@ -17,6 +17,102 @@ from structlog.typing import EventDict, Processor
 from src.core.config import get_settings
 from src.core.context import RequestContext
 
+# Type alias for optional ORJSONRenderer
+ORJSONRendererType = Any
+
+try:
+    import orjson
+
+    class _ORJSONRenderer:
+        """Custom JSON renderer using orjson for better performance.
+
+        This renderer handles all types commonly used in logs including
+        datetime, UUID, and exceptions, while providing significant
+        performance improvements over the standard JSONRenderer.
+        """
+
+        def __init__(self, **options: Any) -> None:
+            """Initialize the renderer with orjson options.
+
+            Args:
+                **options: Additional options passed to orjson.dumps.
+                          Default includes OPT_SORT_KEYS for consistency.
+            """
+            # Default options for consistency
+            self._options = orjson.OPT_SORT_KEYS
+
+            # Add any additional options
+            for opt_name, opt_value in options.items():
+                if hasattr(orjson, opt_name) and opt_value:
+                    self._options |= getattr(orjson, opt_name)
+
+        def __call__(
+            self, logger: logging.Logger, name: str, event_dict: EventDict
+        ) -> str:
+            """Render the event dictionary as JSON using orjson.
+
+            Args:
+                logger: The logger instance (unused but required by interface).
+                name: The name of the logger (unused but required by interface).
+                event_dict: The event dictionary to render.
+
+            Returns:
+                JSON-encoded string of the event dictionary.
+            """
+            _ = logger, name  # Required by structlog processor interface
+
+            # Convert special types that orjson handles natively
+            # orjson handles datetime, UUID, etc. automatically
+            # but we need to handle exceptions which it doesn't
+            processed_dict = self._process_dict(event_dict)
+
+            # Use orjson for fast serialization
+            return orjson.dumps(processed_dict, option=self._options).decode("utf-8")
+
+        def _process_dict(self, d: EventDict | dict[str, Any]) -> dict[str, Any]:
+            """Process dictionary to handle types that orjson doesn't handle.
+
+            Args:
+                d: Dictionary to process.
+
+            Returns:
+                Processed dictionary safe for orjson serialization.
+            """
+            result: dict[str, Any] = {}
+            for key, value in d.items():
+                if isinstance(value, dict):
+                    # Recursively process nested dictionaries
+                    result[key] = self._process_dict(value)
+                elif isinstance(value, list | tuple):
+                    # Process lists and tuples
+                    processed_list: list[Any] = []
+                    for item in value:
+                        if isinstance(item, dict):
+                            processed_list.append(self._process_dict(item))
+                        elif isinstance(item, Exception):
+                            processed_list.append(str(item))
+                        elif isinstance(item, type):
+                            processed_list.append(item.__name__)
+                        else:
+                            processed_list.append(item)
+                    result[key] = processed_list
+                elif isinstance(value, Exception):
+                    # Convert exceptions to string representation
+                    result[key] = str(value)
+                elif isinstance(value, type):
+                    # Convert types to their string representation
+                    result[key] = value.__name__
+                else:
+                    # orjson handles datetime, UUID, str, int, float, bool, None
+                    result[key] = value
+            return result
+
+    ORJSON_AVAILABLE = True
+    ORJSONRenderer: ORJSONRendererType = _ORJSONRenderer
+except ImportError:
+    ORJSON_AVAILABLE = False
+    ORJSONRenderer = None
+
 # Context variable for storing additional logger context across async boundaries
 _logger_context_var: ContextVar[dict[str, Any] | None] = ContextVar(
     "logger_context", default=None
