@@ -202,6 +202,20 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 - PYSEC-2022-42969: py package vulnerability (ignored)
 - Safety CLI requires auth
 
+### Request Context & Correlation IDs
+```python
+from src.core.context import RequestContext, CORRELATION_ID_HEADER
+
+# RequestContextMiddleware automatically handles correlation IDs:
+# - Extracts from X-Correlation-ID header or generates UUID4
+# - Available via RequestContext.get_correlation_id()
+# - Added to response headers
+# - Context cleared after request
+
+# Access in handlers/services:
+correlation_id = RequestContext.get_correlation_id()
+```
+
 ### Logging
 ```python
 from src.core.logging import configure_structlog, get_logger, log_context, log_exception
