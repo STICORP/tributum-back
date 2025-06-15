@@ -38,6 +38,8 @@ Tributum is a backend API system built with FastAPI, currently in its initial de
 - [x] Security scanning tools configured (Bandit, Safety, pip-audit, Semgrep)
 - [x] FastAPI application scaffold implemented
 - [x] Centralized configuration management with Pydantic Settings v2
+- [x] Exception infrastructure with specialized error classes
+- [x] Standardized API error response patterns
 - [x] API endpoints: `/` (hello world) and `/info` (application information)
 - [ ] Database integration pending
 - [ ] Authentication system pending
@@ -51,10 +53,15 @@ The project follows Domain-Driven Design (DDD) principles with a domain-centric 
 src/
 ├── api/                    # API layer (FastAPI endpoints)
 │   ├── __init__.py
-│   └── main.py            # FastAPI app with / and /info endpoints
+│   ├── main.py            # FastAPI app with / and /info endpoints
+│   ├── middleware/        # API middleware (planned)
+│   └── schemas/           # API request/response models
+│       ├── __init__.py
+│       └── errors.py      # ErrorResponse model
 ├── core/                  # Application-wide shared code
 │   ├── __init__.py
-│   └── config.py          # Centralized configuration with Pydantic Settings v2
+│   ├── config.py          # Centralized configuration with Pydantic Settings v2
+│   └── exceptions.py      # Base exceptions and ErrorCode enum
 ├── domain/                # Business domains (planned)
 │   ├── auth/              # Authentication domain
 │   ├── users/             # Users domain
@@ -68,6 +75,8 @@ src/
 2. **Clean Architecture**: Clear separation between business logic and technical infrastructure
 3. **Repository Pattern**: For data access abstraction
 4. **Service Layer**: For business logic encapsulation
+5. **Structured Error Handling**: Specialized exception classes with standardized error codes
+6. **Consistent API Responses**: All errors use the same response structure
 
 ## Tech Stack
 
@@ -199,6 +208,54 @@ def get_info(settings: Annotated[Settings, Depends(get_settings)]):
 2. **Configure GCP credentials**
    - Place your service account key at `.keys/tributum-new-infrastructure-as-code-*.json`
    - Update `terraform/terraform.tfvars` based on `terraform.tfvars.example`
+
+## Core Patterns
+
+### Error Handling
+
+#### Exceptions
+```python
+from src.core.exceptions import (
+    ErrorCode, ValidationError, NotFoundError,
+    UnauthorizedError, BusinessRuleError
+)
+
+# Use specialized exceptions (preferred)
+raise ValidationError("Invalid email format")
+raise NotFoundError("User with ID 123 not found")
+raise UnauthorizedError("Invalid API key")
+raise BusinessRuleError("Insufficient balance for transaction")
+
+# Exception naming: "Error" suffix, not "Exception"
+# Error codes: INTERNAL_ERROR, VALIDATION_ERROR, NOT_FOUND, UNAUTHORIZED
+```
+
+#### API Error Responses
+```python
+from src.api.schemas.errors import ErrorResponse
+
+# Standardized error responses
+ErrorResponse(
+    error_code="VALIDATION_ERROR",
+    message="Invalid input data",
+    details={"email": "Invalid format"},  # Optional field-specific errors
+    correlation_id="550e8400-e29b-41d4-a716-446655440000"  # Optional tracing ID
+)
+```
+
+### Dependency Injection
+
+The project uses FastAPI's dependency injection system:
+
+```python
+from typing import Annotated
+from fastapi import Depends
+from src.core.config import Settings, get_settings
+
+@app.get("/endpoint")
+def endpoint(settings: Annotated[Settings, Depends(get_settings)]):
+    return {"app": settings.app_name, "version": settings.app_version}
+```
 
 ## Usage
 
@@ -335,10 +392,15 @@ tests/
 ├── unit/                    # Unit tests
 │   ├── test_main.py        # Tests for main.py entry point
 │   ├── api/
-│   │   └── test_main.py    # Tests for FastAPI app
+│   │   ├── __init__.py
+│   │   ├── test_main.py    # Tests for FastAPI app
+│   │   └── schemas/
+│   │       ├── __init__.py
+│   │       └── test_errors.py  # Tests for error response models
 │   └── core/
 │       ├── __init__.py
-│       └── test_config.py  # Configuration tests
+│       ├── test_config.py      # Configuration tests
+│       └── test_exceptions.py  # Exception classes tests
 ├── integration/            # Integration tests
 │   ├── test_api.py        # Tests for API endpoints
 │   └── test_config_integration.py  # Configuration integration tests
@@ -431,11 +493,19 @@ tributum-back/
 ├── src/                       # Application source code
 │   ├── api/                  # API layer
 │   │   ├── __init__.py
-│   │   └── main.py          # FastAPI application
+│   │   ├── main.py          # FastAPI application
+│   │   ├── middleware/      # API middleware (planned)
+│   │   └── schemas/         # API models
+│   │       ├── __init__.py
+│   │       └── errors.py    # Error response models
 │   └── core/                # Core utilities
 │       ├── __init__.py
-│       └── config.py        # Configuration module
-├── tests/                     # Test files (planned)
+│       ├── config.py        # Configuration module
+│       └── exceptions.py    # Exception classes
+├── tests/                     # Test files
+│   ├── unit/                 # Unit tests
+│   ├── integration/          # Integration tests
+│   └── conftest.py          # Test configuration
 ├── terraform/                 # Infrastructure as Code
 │   ├── bootstrap/            # State bucket setup
 │   ├── environments/         # Environment configs
@@ -514,6 +584,10 @@ tributum-back/
 - Updated security scanning commands for latest tool versions
 - Added comprehensive configuration tests
 - Improved documentation with context7 MCP server usage guidelines
+- Implemented exception infrastructure with specialized error classes
+- Added standardized API error response model (ErrorResponse)
+- Streamlined CLAUDE.md development guidelines
+- Enhanced test coverage for error handling components
 
 ### Known Issues
 
@@ -529,8 +603,8 @@ tributum-back/
 **Note**: This project is currently in active development. Features and documentation will be updated as development progresses.
 
 <!-- README-METADATA
-Last Updated: 2025-13-06
-Last Commit: f068f9b
-Update Count: 7
+Last Updated: 2025-15-06
+Last Commit: e5068e7
+Update Count: 8
 Generated By: /readme command
 -->
