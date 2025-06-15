@@ -6,6 +6,9 @@ both development (console) and production (JSON) output formats.
 
 import logging
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
 
 import structlog
 from structlog.typing import EventDict, Processor
@@ -115,3 +118,40 @@ def configure_structlog() -> None:
             foreign_pre_chain=base_processors,
         )
     )
+
+
+def get_logger(name: str | None = None) -> Any:
+    """Get a structlog logger instance.
+
+    Args:
+        name: The name of the logger. If None, uses the caller's module name.
+
+    Returns:
+        A bound structlog logger instance.
+    """
+    return structlog.get_logger(name)
+
+
+@contextmanager
+def log_context(**bindings: Any) -> Iterator[Any]:
+    """Context manager for temporary log context bindings.
+
+    This allows adding temporary context to all log messages within
+    the context manager scope without using contextvars.
+
+    Args:
+        **bindings: Key-value pairs to bind to the logger context.
+
+    Yields:
+        A bound logger with the temporary context.
+
+    Example:
+        with log_context(user_id=123, request_id="abc") as logger:
+            logger.info("User action")  # Will include user_id and request_id
+    """
+    # Get current logger and bind the context
+    logger = structlog.get_logger()
+    bound_logger = logger.bind(**bindings)
+
+    # Yield the bound logger for use within the context
+    yield bound_logger

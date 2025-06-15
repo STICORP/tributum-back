@@ -9,7 +9,12 @@ import structlog
 from structlog.testing import LogCapture
 
 from src.core.config import LogConfig, Settings
-from src.core.logging import add_log_level_upper, configure_structlog
+from src.core.logging import (
+    add_log_level_upper,
+    configure_structlog,
+    get_logger,
+    log_context,
+)
 
 
 class TestAddLogLevelUpper:
@@ -353,3 +358,138 @@ class TestConfigureStructlog:
         assert "lineno" in entry
         assert "func_name" in entry
         assert entry["func_name"] == "test_callsite_information"
+
+
+class TestGetLogger:
+    """Test the get_logger function."""
+
+    @pytest.fixture(autouse=True)
+    def setup_structlog(self) -> Generator[None]:
+        """Set up structlog for tests."""
+        configure_structlog()
+        yield
+        # Reset structlog
+        structlog.reset_defaults()
+
+    def test_get_logger_with_name(self) -> None:
+        """Test getting a logger with a specific name."""
+        logger = get_logger("test_logger")
+
+        assert logger is not None
+        # Verify it's a structlog bound logger
+        assert hasattr(logger, "bind")
+        assert hasattr(logger, "info")
+        assert hasattr(logger, "error")
+
+    def test_get_logger_without_name(self) -> None:
+        """Test getting a logger without specifying a name."""
+        logger = get_logger()
+
+        assert logger is not None
+        # Verify it's a structlog bound logger
+        assert hasattr(logger, "bind")
+
+    def test_logger_creates_log_entries(self) -> None:
+        """Test that the logger actually creates log entries."""
+        cap = LogCapture()
+        structlog.configure(processors=[cap])
+
+        logger = get_logger("test")
+        logger.info("test message", key="value")
+
+        assert len(cap.entries) == 1
+        assert cap.entries[0]["event"] == "test message"
+        assert cap.entries[0]["key"] == "value"
+
+
+class TestLogContext:
+    """Test the log_context context manager."""
+
+    @pytest.fixture(autouse=True)
+    def setup_structlog(self) -> Generator[None]:
+        """Set up structlog for tests."""
+        configure_structlog()
+        yield
+        # Reset structlog
+        structlog.reset_defaults()
+
+    def test_log_context_adds_bindings(self) -> None:
+        """Test that log_context adds temporary bindings."""
+        cap = LogCapture()
+        structlog.configure(
+            processors=[
+                structlog.stdlib.add_logger_name,
+                cap,
+            ]
+        )
+
+        with log_context(user_id=123, request_id="abc") as logger:
+            logger.info("test event")
+
+        assert len(cap.entries) == 1
+        entry = cap.entries[0]
+        assert entry["event"] == "test event"
+        assert entry["user_id"] == 123
+        assert entry["request_id"] == "abc"
+
+    def test_log_context_isolation(self) -> None:
+        """Test that context bindings are isolated."""
+        cap = LogCapture()
+        structlog.configure(processors=[cap])
+
+        # Log before context
+        logger1 = get_logger()
+        logger1.info("before context")
+
+        # Log within context
+        with log_context(temp_key="temp_value") as logger2:
+            logger2.info("within context")
+
+        # Log after context
+        logger3 = get_logger()
+        logger3.info("after context")
+
+        assert len(cap.entries) == 3
+
+        # First log should not have temp_key
+        assert "temp_key" not in cap.entries[0]
+
+        # Second log should have temp_key
+        assert cap.entries[1]["temp_key"] == "temp_value"
+
+        # Third log should not have temp_key
+        assert "temp_key" not in cap.entries[2]
+
+    def test_nested_log_contexts(self) -> None:
+        """Test nested log contexts."""
+        cap = LogCapture()
+        structlog.configure(processors=[cap])
+
+        with log_context(level1="value1") as logger1:
+            logger1.info("level 1")
+
+            # Inner context should have both bindings
+            with log_context(level2="value2") as logger2:
+                logger2.info("level 2")
+
+        assert len(cap.entries) == 2
+
+        # First entry should only have level1
+        assert cap.entries[0]["level1"] == "value1"
+        assert "level2" not in cap.entries[0]
+
+        # Second entry should have level2 but not level1
+        # (because we get a new logger in the inner context)
+        assert cap.entries[1]["level2"] == "value2"
+        assert "level1" not in cap.entries[1]
+
+    def test_log_context_with_empty_bindings(self) -> None:
+        """Test log_context with no bindings."""
+        cap = LogCapture()
+        structlog.configure(processors=[cap])
+
+        with log_context() as logger:
+            logger.info("no bindings")
+
+        assert len(cap.entries) == 1
+        assert cap.entries[0]["event"] == "no bindings"
