@@ -61,6 +61,8 @@ terraform apply
 - `--no-verify` - Fix the failures
 - Disabling rules - Fix the code
 
+**MANDATORY: Task is NOT complete until ALL checks pass. Fix EVERY failure.**
+
 ### 4. ALWAYS Read Complete Files
 - NO partial reads under 2000 lines
 - NO `limit` or `offset` unless file >2000 lines
@@ -143,6 +145,10 @@ from src.core.exceptions import (
 raise ValidationError("Invalid email")
 raise NotFoundError("User not found")
 raise ValidationError("Invalid email", context={"field": "email"})
+
+# Exception chaining
+except ValueError as e:
+    raise ValidationError("Invalid format", cause=e)
 
 # Severity: LOW (validation/not found), MEDIUM (business rules), HIGH (auth), CRITICAL (system)
 # Error codes: INTERNAL_ERROR, VALIDATION_ERROR, NOT_FOUND, UNAUTHORIZED
