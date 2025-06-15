@@ -210,7 +210,10 @@ class TestConfigureStructlog:
         processors = config["processors"]
 
         # Verify JSON renderer is in the pipeline
-        has_json_renderer = any(type(p).__name__ == "JSONRenderer" for p in processors)
+        # (either ORJSONRenderer or JSONRenderer)
+        has_json_renderer = any(
+            type(p).__name__ in ["JSONRenderer", "_ORJSONRenderer"] for p in processors
+        )
         assert has_json_renderer, "JSON renderer should be configured"
 
         # Now test with LogCapture to verify structure
@@ -327,7 +330,8 @@ class TestConfigureStructlog:
         assert any("add_logger_name" in str(p) for p in processors)
         assert "CallsiteParameterAdder" in processor_types
         assert "TimeStamper" in processor_types
-        assert "JSONRenderer" in processor_types
+        # Should have either JSONRenderer or ORJSONRenderer
+        assert "JSONRenderer" in processor_types or "_ORJSONRenderer" in processor_types
 
     @patch("src.core.logging.get_settings")
     def test_timestamp_configuration(self, mock_get_settings: MagicMock) -> None:
@@ -440,7 +444,8 @@ class TestConfigureStructlog:
         ]
 
         assert "ConsoleRenderer" in dev_renderers
-        assert "JSONRenderer" in prod_renderers
+        # Should have either JSONRenderer or ORJSONRenderer in production
+        assert "JSONRenderer" in prod_renderers or "_ORJSONRenderer" in prod_renderers
 
     @patch("src.core.logging.get_settings")
     def test_callsite_information(self, mock_get_settings: MagicMock) -> None:
@@ -597,6 +602,119 @@ class TestConfigureStructlog:
         assert cap.entries[0]["correlation_id"] == "context-1"
         assert cap.entries[1]["correlation_id"] == "context-2"
         assert "correlation_id" not in cap.entries[2]
+
+    @patch("src.core.logging.get_settings")
+    @patch("src.core.logging.ORJSON_AVAILABLE", True)
+    @patch("src.core.logging.ORJSONRenderer")
+    def test_orjson_renderer_used_when_available(
+        self, mock_orjson_renderer: MagicMock, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that ORJSONRenderer is used when orjson is available."""
+        # Create a mock renderer instance
+        mock_renderer_instance = MagicMock()
+        mock_orjson_renderer.return_value = mock_renderer_instance
+
+        # Configure for JSON output
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO", log_format="json", render_json_logs=True
+        )
+        mock_get_settings.return_value = settings
+
+        # Configure structlog
+        configure_structlog()
+
+        # Verify ORJSONRenderer was instantiated twice (prod + stdlib)
+        assert mock_orjson_renderer.call_count == 2
+
+        # Get configuration and check the renderer is in processors
+        config = structlog.get_config()
+        processors = config["processors"]
+
+        # The mock renderer instance should be in the processors
+        assert mock_renderer_instance in processors
+
+    @patch("src.core.logging.get_settings")
+    @patch("src.core.logging.ORJSON_AVAILABLE", False)
+    @patch("src.core.logging.ORJSONRenderer", None)
+    def test_json_renderer_fallback_when_orjson_not_available(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that JSONRenderer is used when orjson is not available."""
+        # Configure for JSON output
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO", log_format="json", render_json_logs=True
+        )
+        mock_get_settings.return_value = settings
+
+        # Configure structlog
+        configure_structlog()
+
+        # Get configuration and verify JSONRenderer is used
+        config = structlog.get_config()
+        processors = config["processors"]
+
+        # Should have JSONRenderer, not ORJSONRenderer
+        processor_types = [type(p).__name__ for p in processors]
+        assert "JSONRenderer" in processor_types
+        assert "_ORJSONRenderer" not in processor_types
+
+    @patch("src.core.logging.get_settings")
+    @patch("src.core.logging.ORJSON_AVAILABLE", True)
+    @patch("src.core.logging.ORJSONRenderer")
+    def test_stdlib_logging_uses_orjson_when_available(
+        self, mock_orjson_renderer: MagicMock, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that stdlib logging also uses ORJSONRenderer when available."""
+        # Create a mock renderer instance
+        mock_renderer_instance = MagicMock()
+        mock_orjson_renderer.return_value = mock_renderer_instance
+
+        # Configure for JSON output
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO", log_format="json", render_json_logs=True
+        )
+        mock_get_settings.return_value = settings
+
+        # Configure structlog
+        configure_structlog()
+
+        # Verify ORJSONRenderer was called twice
+        # (once for prod_processors, once for stdlib)
+        assert mock_orjson_renderer.call_count == 2
+
+    @patch("src.core.logging.get_settings")
+    def test_orjson_actually_used_in_production(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that when orjson is actually available, it's used."""
+        # Configure for JSON output
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO", log_format="json", render_json_logs=True
+        )
+        mock_get_settings.return_value = settings
+
+        # Configure structlog
+        configure_structlog()
+
+        # Get configuration and check the renderer type
+        config = structlog.get_config()
+        processors = config["processors"]
+
+        # Find the JSON renderer in processors
+        renderer = None
+        for p in processors:
+            type_name = type(p).__name__
+            if type_name in ["JSONRenderer", "_ORJSONRenderer"]:
+                renderer = p
+                break
+
+        assert renderer is not None
+        # Since orjson is available in our test environment, it should be ORJSONRenderer
+        assert type(renderer).__name__ == "_ORJSONRenderer"
 
 
 class TestGetLogger:

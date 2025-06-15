@@ -230,13 +230,20 @@ def configure_structlog() -> None:
     ]
 
     # Production processors (JSON output)
+    # Use ORJSONRenderer if available, otherwise fall back to standard JSONRenderer
+    json_renderer: Processor
+    if ORJSON_AVAILABLE and ORJSONRenderer is not None:
+        json_renderer = ORJSONRenderer()
+    else:
+        json_renderer = structlog.processors.JSONRenderer()
+
     prod_processors: list[Processor] = [
         *base_processors,
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.processors.dict_tracebacks,
-        structlog.processors.JSONRenderer(),
+        json_renderer,
     ]
 
     # Choose processors based on configuration
@@ -261,11 +268,19 @@ def configure_structlog() -> None:
     )
 
     # Add structlog processor to stdlib logging
+    stdlib_processor: Processor
+    if not log_config.render_json_logs:
+        stdlib_processor = structlog.dev.ConsoleRenderer(colors=True)
+    else:
+        # Use same JSON renderer as prod_processors
+        if ORJSON_AVAILABLE and ORJSONRenderer is not None:
+            stdlib_processor = ORJSONRenderer()
+        else:
+            stdlib_processor = structlog.processors.JSONRenderer()
+
     logging.getLogger().handlers[0].setFormatter(
         structlog.stdlib.ProcessorFormatter(
-            processor=structlog.dev.ConsoleRenderer(colors=True)
-            if not log_config.render_json_logs
-            else structlog.processors.JSONRenderer(),
+            processor=stdlib_processor,
             foreign_pre_chain=base_processors,
         )
     )
