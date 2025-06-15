@@ -41,7 +41,7 @@ This plan was created to implement robust cross-cutting concerns for the Tributu
 ## Implementation Order and Dependencies
 
 The tasks are organized in phases with clear dependencies:
-- Phase 1 (Exceptions) → Foundation for all error handling (Tasks 1.1-1.5b complete, 1.6a-1.8 next)
+- Phase 1 (Exceptions) → Foundation for all error handling (Tasks 1.1-1.6a complete, 1.7a-1.8 next)
 - Phase 2 (Basic Logging) → Basic structlog without correlation IDs (Tasks 2.1-2.5)
 - Phase 3 (Context) → Required for correlation IDs (Tasks 3.1-3.4)
 - Phase 3.5 (Logging Enhancement) → Add correlation ID support (Tasks 2.2b, 2.3b, 3.5b)
