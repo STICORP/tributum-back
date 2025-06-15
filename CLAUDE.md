@@ -141,37 +141,35 @@ from src.core.exceptions import (
     UnauthorizedError, BusinessRuleError
 )
 
-# Use specialized exceptions
+# Basic usage
 raise ValidationError("Invalid email")
 raise NotFoundError("User not found")
-raise ValidationError("Invalid email", context={"field": "email"})
+raise UnauthorizedError("Invalid token")
+raise BusinessRuleError("Insufficient balance")
+
+# With context
+raise ValidationError("Invalid email", context={"field": "email", "value": "bad-email"})
 
 # Exception chaining
 except ValueError as e:
     raise ValidationError("Invalid format", cause=e)
 
-# Severity: LOW (validation/not found), MEDIUM (business rules), HIGH (auth), CRITICAL (system)
-# Error codes: INTERNAL_ERROR, VALIDATION_ERROR, NOT_FOUND, UNAUTHORIZED
+# Exceptions automatically capture:
+# - Stack trace at creation
+# - Fingerprint for error grouping
+# - Severity level (LOW/MEDIUM/HIGH/CRITICAL)
 ```
 
 ### API Errors
 ```python
 from src.api.schemas.errors import ErrorResponse, ServiceInfo
 
-# Standardized error responses
-ErrorResponse(
-    error_code="VALIDATION_ERROR",
-    message="Invalid input",
-    details={"field": "error"},  # Optional
-    correlation_id="...",        # Optional
-    timestamp=datetime.now(UTC), # Auto-generated with timezone
-    severity="WARNING",          # Optional: DEBUG, INFO, WARNING, ERROR, CRITICAL
-    service_info=ServiceInfo(    # Optional: service metadata
-        name="Tributum",
-        version="0.1.0",
-        environment="production"
-    )
-)
+# Error response includes:
+# - error_code, message (required)
+# - details, correlation_id, severity, service_info (optional)
+# - timestamp (auto-generated with UTC timezone)
+
+# Response fields populated from TributumError attributes
 ```
 
 ## Implementation Workflow
