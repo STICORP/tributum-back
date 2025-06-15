@@ -4,6 +4,8 @@ This module provides the foundation for consistent error handling across
 the application, with structured error codes and exception hierarchy.
 """
 
+import hashlib
+import traceback
 from enum import Enum
 from typing import Any
 
@@ -63,6 +65,9 @@ class TributumError(Exception):
         message: A human-readable error message
         severity: The severity level of the error
         context: Additional context information about the error
+        stack_trace: The stack trace at the point of exception creation
+        cause: The original exception that caused this error (if any)
+        fingerprint: A hash for grouping similar errors
     """
 
     def __init__(
@@ -71,6 +76,7 @@ class TributumError(Exception):
         message: str,
         severity: Severity = Severity.MEDIUM,
         context: dict[str, Any] | None = None,
+        cause: Exception | None = None,
     ) -> None:
         """Initialize the exception with error details.
 
@@ -79,6 +85,7 @@ class TributumError(Exception):
             message: Human-readable error message
             severity: Severity level of the error (defaults to MEDIUM)
             context: Additional context information about the error
+            cause: The original exception that caused this error
         """
         self.error_code = (
             error_code.value if isinstance(error_code, ErrorCode) else error_code
@@ -86,7 +93,47 @@ class TributumError(Exception):
         self.message = message
         self.severity = severity
         self.context = context or {}
+        self.cause = cause
+
+        # Capture stack trace at creation time
+        self.stack_trace = traceback.format_stack()[:-1]  # Exclude this frame
+
+        # Generate fingerprint based on error type and location
+        self.fingerprint = self._generate_fingerprint()
+
+        # Set up proper exception chaining
         super().__init__(message)
+        if cause:
+            self.__cause__ = cause
+
+    def _generate_fingerprint(self) -> str:
+        """Generate a fingerprint for error grouping.
+
+        Creates a hash based on the error type and the location where it was raised,
+        allowing similar errors to be grouped together in monitoring systems.
+
+        Returns:
+            A hash string for error grouping
+        """
+        # Use the first few frames from the stack trace to identify location
+        # Skip the last few frames which are in the exception initialization
+        relevant_frames = (
+            self.stack_trace[-5:] if len(self.stack_trace) > 5 else self.stack_trace
+        )
+
+        # Create a string combining error type and location
+        fingerprint_data = f"{self.__class__.__name__}:{self.error_code}"
+
+        # Add file and line info from relevant frames
+        for frame in relevant_frames:
+            if "site-packages" not in frame and "src/" in frame:
+                # Extract file and line number from the frame
+                lines = frame.strip().split("\n")
+                if lines:
+                    fingerprint_data += f":{lines[0]}"
+
+        # Generate hash
+        return hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
 
     def __str__(self) -> str:
         """Return a string representation of the exception.
@@ -122,6 +169,7 @@ class ValidationError(TributumError):
         message: str,
         error_code: str | ErrorCode = ErrorCode.VALIDATION_ERROR,
         context: dict[str, Any] | None = None,
+        cause: Exception | None = None,
     ) -> None:
         """Initialize validation error with message and optional error code.
 
@@ -129,8 +177,9 @@ class ValidationError(TributumError):
             message: Description of the validation failure
             error_code: Error code (defaults to VALIDATION_ERROR)
             context: Additional context information about the error
+            cause: The original exception that caused this error
         """
-        super().__init__(error_code, message, Severity.LOW, context)
+        super().__init__(error_code, message, Severity.LOW, context, cause)
 
 
 class NotFoundError(TributumError):
@@ -145,6 +194,7 @@ class NotFoundError(TributumError):
         message: str,
         error_code: str | ErrorCode = ErrorCode.NOT_FOUND,
         context: dict[str, Any] | None = None,
+        cause: Exception | None = None,
     ) -> None:
         """Initialize not found error with message and optional error code.
 
@@ -152,8 +202,9 @@ class NotFoundError(TributumError):
             message: Description of what resource was not found
             error_code: Error code (defaults to NOT_FOUND)
             context: Additional context information about the error
+            cause: The original exception that caused this error
         """
-        super().__init__(error_code, message, Severity.LOW, context)
+        super().__init__(error_code, message, Severity.LOW, context, cause)
 
 
 class UnauthorizedError(TributumError):
@@ -168,6 +219,7 @@ class UnauthorizedError(TributumError):
         message: str,
         error_code: str | ErrorCode = ErrorCode.UNAUTHORIZED,
         context: dict[str, Any] | None = None,
+        cause: Exception | None = None,
     ) -> None:
         """Initialize unauthorized error with message and optional error code.
 
@@ -175,8 +227,9 @@ class UnauthorizedError(TributumError):
             message: Description of the authorization failure
             error_code: Error code (defaults to UNAUTHORIZED)
             context: Additional context information about the error
+            cause: The original exception that caused this error
         """
-        super().__init__(error_code, message, Severity.HIGH, context)
+        super().__init__(error_code, message, Severity.HIGH, context, cause)
 
 
 class BusinessRuleError(TributumError):
@@ -191,6 +244,7 @@ class BusinessRuleError(TributumError):
         message: str,
         error_code: str | ErrorCode = ErrorCode.INTERNAL_ERROR,
         context: dict[str, Any] | None = None,
+        cause: Exception | None = None,
     ) -> None:
         """Initialize business rule error with message and optional error code.
 
@@ -198,5 +252,6 @@ class BusinessRuleError(TributumError):
             message: Description of the business rule violation
             error_code: Error code (defaults to INTERNAL_ERROR)
             context: Additional context information about the error
+            cause: The original exception that caused this error
         """
-        super().__init__(error_code, message, Severity.MEDIUM, context)
+        super().__init__(error_code, message, Severity.MEDIUM, context, cause)

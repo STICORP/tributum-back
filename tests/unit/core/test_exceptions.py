@@ -128,6 +128,11 @@ class TestTributumError:
         assert exception.message == message
         assert exception.severity == Severity.MEDIUM  # Default severity
         assert exception.context == {}  # Default empty context
+        assert exception.cause is None  # Default no cause
+        assert isinstance(exception.stack_trace, list)
+        assert len(exception.stack_trace) > 0
+        assert isinstance(exception.fingerprint, str)
+        assert len(exception.fingerprint) == 16
 
     def test_exception_can_be_raised_and_caught(self) -> None:
         """Test that exception can be raised and caught properly."""
@@ -251,6 +256,81 @@ class TestTributumError:
         repr_str = repr(exception)
 
         assert "context" not in repr_str
+
+    def test_exception_with_cause(self) -> None:
+        """Test that exception can be created with a cause."""
+        original_error = ValueError("Original error")
+        error_code = "CAUSED_ERROR"
+        message = "Error with cause"
+
+        exception = TributumError(error_code, message, cause=original_error)
+
+        assert exception.cause is original_error
+        assert exception.__cause__ is original_error
+
+    def test_exception_chaining_works_properly(self) -> None:
+        """Test that exception chaining preserves the chain."""
+        # Create the original error
+        original_error = ValueError("Original error")
+
+        # Test that chaining works
+        with pytest.raises(TributumError) as exc_info:
+            raise TributumError("CHAINED", "Chained error", cause=original_error)
+
+        assert exc_info.value.__cause__ is not None
+        assert isinstance(exc_info.value.__cause__, ValueError)
+        assert str(exc_info.value.__cause__) == "Original error"
+        assert exc_info.value.cause is original_error
+
+    def test_stack_trace_captured_at_creation(self) -> None:
+        """Test that stack trace is captured when exception is created."""
+        exception = TributumError("STACK_TEST", "Testing stack trace")
+
+        assert isinstance(exception.stack_trace, list)
+        assert len(exception.stack_trace) > 0
+
+        # Check that stack frames contain expected information
+        for frame in exception.stack_trace:
+            assert isinstance(frame, str)
+            assert len(frame) > 0
+
+    def test_fingerprint_generation(self) -> None:
+        """Test that fingerprint is generated correctly."""
+        exception1 = TributumError("FP_TEST", "Fingerprint test 1")
+        exception3 = TributumError("OTHER_TEST", "Different error")
+
+        # Fingerprints should be strings of correct length
+        assert isinstance(exception1.fingerprint, str)
+        assert len(exception1.fingerprint) == 16
+
+        # Different error types should have different fingerprints
+        assert exception1.fingerprint != exception3.fingerprint
+
+    def test_fingerprint_is_hexadecimal(self) -> None:
+        """Test that fingerprint is a valid hexadecimal string."""
+        exception = TributumError("HEX_TEST", "Testing hex fingerprint")
+
+        # Should be valid hexadecimal
+        try:
+            int(exception.fingerprint, 16)
+        except ValueError:
+            pytest.fail("Fingerprint should be a valid hexadecimal string")
+
+    def test_specialized_exceptions_inherit_stack_trace(self) -> None:
+        """Test that specialized exceptions also capture stack traces."""
+        exceptions = [
+            ValidationError("test"),
+            NotFoundError("test"),
+            UnauthorizedError("test"),
+            BusinessRuleError("test"),
+        ]
+
+        for exception in exceptions:
+            assert hasattr(exception, "stack_trace")
+            assert isinstance(exception.stack_trace, list)
+            assert len(exception.stack_trace) > 0
+            assert hasattr(exception, "fingerprint")
+            assert isinstance(exception.fingerprint, str)
 
 
 class TestSpecializedExceptions:
@@ -422,3 +502,26 @@ class TestSpecializedExceptions:
         assert NotFoundError("test").severity == Severity.LOW
         assert UnauthorizedError("test").severity == Severity.HIGH
         assert BusinessRuleError("test").severity == Severity.MEDIUM
+
+    def test_specialized_exceptions_with_cause(self) -> None:
+        """Test that specialized exceptions can be created with a cause."""
+        original_error = ValueError("Original validation error")
+
+        validation_error = ValidationError("Invalid input", cause=original_error)
+        assert validation_error.cause is original_error
+        assert validation_error.__cause__ is original_error
+
+        not_found_error = NotFoundError(
+            "Resource not found", cause=KeyError("Missing key")
+        )
+        assert isinstance(not_found_error.cause, KeyError)
+
+        unauthorized_error = UnauthorizedError(
+            "Access denied", cause=Exception("Auth failed")
+        )
+        assert isinstance(unauthorized_error.cause, Exception)
+
+        business_error = BusinessRuleError(
+            "Rule violation", cause=RuntimeError("Runtime issue")
+        )
+        assert isinstance(business_error.cause, RuntimeError)
