@@ -9,7 +9,8 @@ GCP Project: tributum-new
 - Exception infrastructure implemented with severity levels and context support
 - API error response patterns defined
 - Structured logging with structlog (basic setup without correlation IDs)
-- Correlation ID generator implemented (UUID4-based)
+- Correlation ID generator and request context implemented (UUID4-based, contextvars)
+- RequestContextMiddleware for correlation ID propagation
 - Domain-driven design structure planned (not fully implemented)
 
 ## Essential Commands
@@ -112,11 +113,13 @@ Before ANY code:
 src/
 ├── api/
 │   ├── main.py         # FastAPI app with /info endpoint
+│   ├── middleware/
+│   │   └── request_context.py  # Correlation ID middleware
 │   └── schemas/
 │       └── errors.py   # ErrorResponse model
 ├── core/
 │   ├── config.py       # Pydantic Settings
-│   ├── context.py      # Correlation ID generation
+│   ├── context.py      # Correlation ID generation, RequestContext
 │   ├── exceptions.py   # Base exceptions, ErrorCode enum
 │   ├── error_context.py # Context utilities, sanitization
 │   └── logging.py      # Structured logging with structlog
