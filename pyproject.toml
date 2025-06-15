@@ -190,6 +190,7 @@ ignore-module = true
 ignore-nested-functions = false
 ignore-nested-classes = true
 ignore-setters = false
+ignore-overloaded-functions = true
 fail-under = 80
 exclude = ["setup.py", "docs", "build", "htmlcov", "tests"]
 ignore-regex = ["^get$", "^mock_.*", ".*BaseClass.*"]
