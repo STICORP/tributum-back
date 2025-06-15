@@ -9,6 +9,7 @@ GCP Project: tributum-new
 - Exception infrastructure implemented with severity levels and context support
 - API error response patterns defined
 - Structured logging with structlog (basic setup without correlation IDs)
+- Correlation ID generator implemented (UUID4-based)
 - Domain-driven design structure planned (not fully implemented)
 
 ## Essential Commands
@@ -66,6 +67,7 @@ terraform apply
 **MANDATORY: Task is NOT complete until ALL checks pass. Fix EVERY failure.**
 
 ### 4. ALWAYS Read Complete Files
+**MANDATORY:**
 - NO partial reads under 2000 lines
 - NO `limit` or `offset` unless file >2000 lines
 - Read ENTIRE file for context
@@ -112,6 +114,7 @@ src/
 │       └── errors.py   # ErrorResponse model
 ├── core/
 │   ├── config.py       # Pydantic Settings
+│   ├── context.py      # Correlation ID generation
 │   ├── exceptions.py   # Base exceptions, ErrorCode enum
 │   ├── error_context.py # Context utilities, sanitization
 │   └── logging.py      # Structured logging with structlog
