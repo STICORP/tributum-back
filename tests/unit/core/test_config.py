@@ -6,7 +6,35 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from src.core.config import Settings, get_settings
+from src.core.config import LogConfig, Settings, get_settings
+
+
+class TestLogConfig:
+    """Test cases for LogConfig class."""
+
+    def test_default_values(self) -> None:
+        """Test default values for LogConfig."""
+        config = LogConfig()
+        assert config.log_level == "INFO"
+        assert config.log_format == "console"
+        assert config.render_json_logs is False
+        assert config.add_timestamp is True
+        assert config.timestamper_format == "iso"
+
+    def test_custom_values(self) -> None:
+        """Test custom values for LogConfig."""
+        config = LogConfig(
+            log_level="DEBUG",
+            log_format="json",
+            render_json_logs=True,
+            add_timestamp=False,
+            timestamper_format="unix",
+        )
+        assert config.log_level == "DEBUG"
+        assert config.log_format == "json"
+        assert config.render_json_logs is True
+        assert config.add_timestamp is False
+        assert config.timestamper_format == "unix"
 
 
 class TestSettings:
@@ -30,7 +58,12 @@ class TestSettings:
         assert settings.openapi_url == "/openapi.json"
 
         # Logging
-        assert settings.log_level == "INFO"
+        assert isinstance(settings.log_config, LogConfig)
+        assert settings.log_config.log_level == "INFO"
+        assert settings.log_config.log_format == "console"
+        assert settings.log_config.render_json_logs is False
+        assert settings.log_config.add_timestamp is True
+        assert settings.log_config.timestamper_format == "iso"
 
     def test_environment_variable_override(self) -> None:
         """Test that environment variables override default settings."""
@@ -42,7 +75,8 @@ class TestSettings:
                 "ENVIRONMENT": "production",
                 "DEBUG": "false",
                 "API_PORT": "9000",
-                "LOG_LEVEL": "DEBUG",
+                "LOG_CONFIG__LOG_LEVEL": "DEBUG",
+                "LOG_CONFIG__LOG_FORMAT": "json",
             },
         ):
             settings = Settings()
@@ -52,7 +86,10 @@ class TestSettings:
             assert settings.environment == "production"
             assert settings.debug is False
             assert settings.api_port == 9000
-            assert settings.log_level == "DEBUG"
+            assert settings.log_config.log_level == "DEBUG"
+            # In production, console format should be overridden to json
+            assert settings.log_config.log_format == "json"
+            assert settings.log_config.render_json_logs is True
 
     def test_case_insensitive_env_vars(self) -> None:
         """Test that environment variables are case-insensitive."""
@@ -78,7 +115,7 @@ class TestSettings:
     def test_invalid_log_level(self) -> None:
         """Test that invalid log levels raise validation errors."""
         with (
-            patch.dict(os.environ, {"LOG_LEVEL": "INVALID"}),
+            patch.dict(os.environ, {"LOG_CONFIG__LOG_LEVEL": "INVALID"}),
             pytest.raises(
                 ValidationError,
                 match=(
@@ -98,6 +135,22 @@ class TestSettings:
             assert settings.docs_url is None
             assert settings.redoc_url is None
             assert settings.openapi_url is None
+
+    def test_production_environment_json_logs(self) -> None:
+        """Test that production environment automatically sets JSON logs."""
+        with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
+            settings = Settings()
+            assert settings.environment == "production"
+            assert settings.log_config.log_format == "json"
+            assert settings.log_config.render_json_logs is True
+
+    def test_development_environment_console_logs(self) -> None:
+        """Test that development environment keeps console logs."""
+        with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
+            settings = Settings()
+            assert settings.environment == "development"
+            assert settings.log_config.log_format == "console"
+            assert settings.log_config.render_json_logs is False
 
 
 class TestGetSettings:

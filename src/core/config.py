@@ -7,8 +7,28 @@ Pydantic Settings. It supports environment variables and .env files.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class LogConfig(BaseModel):
+    """Logging configuration settings."""
+
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
+        default="INFO", description="Logging level"
+    )
+    log_format: Literal["json", "console"] = Field(
+        default="console", description="Log output format"
+    )
+    render_json_logs: bool = Field(
+        default=False, description="Whether to render logs as JSON"
+    )
+    add_timestamp: bool = Field(
+        default=True, description="Whether to add timestamp to logs"
+    )
+    timestamper_format: str = Field(
+        default="iso", description="Timestamp format (iso or unix)"
+    )
 
 
 class Settings(BaseSettings):
@@ -19,6 +39,7 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         validate_default=True,
+        env_nested_delimiter="__",
     )
 
     # Application settings
@@ -39,10 +60,26 @@ class Settings(BaseSettings):
         default="/openapi.json", description="OpenAPI schema URL"
     )
 
-    # Logging
-    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
-        default="INFO", description="Logging level"
+    # Logging configuration
+    log_config: LogConfig = Field(
+        default_factory=LogConfig, description="Logging configuration"
     )
+
+    def model_post_init(self, __context: object) -> None:
+        """Post initialization to adjust log configuration based on environment."""
+        super().model_post_init(__context)
+        # In production, default to JSON logs only if not explicitly set
+        if (
+            self.environment == "production"
+            and self.log_config.log_format == "console"
+            and not self.log_config.render_json_logs
+        ):
+            self.log_config.log_format = "json"
+            self.log_config.render_json_logs = True
+
+        # Ensure render_json_logs matches log_format
+        if self.log_config.log_format == "json":
+            self.log_config.render_json_logs = True
 
     @field_validator("docs_url", "redoc_url", "openapi_url", mode="before")
     @classmethod
