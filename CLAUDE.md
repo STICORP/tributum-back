@@ -234,7 +234,7 @@ logger.error("database_error", error=str(e), query=query)
 with log_context(request_id="abc-123", user_id=456) as logger:
     logger.info("processing request")  # Includes request_id and user_id
 
-# Bind context for async propagation (new)
+# Bind context for async propagation
 bind_logger_context(user_id=123, session_id="xyz")  # All subsequent logs include these
 logger.info("user action")  # Automatically includes user_id and session_id
 clear_logger_context()  # Clean up after request
@@ -250,7 +250,8 @@ except TributumError as e:
 # Correlation ID automatically included when in request context
 # Context propagates across async boundaries via contextvars
 # Dev: Colored console output
-# Prod: JSON format for log aggregation
+# Prod: JSON format with high-performance orjson serialization
+# Performance: 2-10x faster JSON serialization with orjson
 ```
 
 ## Notes
