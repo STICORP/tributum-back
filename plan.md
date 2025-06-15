@@ -42,7 +42,7 @@ This plan was created to implement robust cross-cutting concerns for the Tributu
 
 The tasks are organized in phases with clear dependencies:
 - Phase 1 (Exceptions) → Foundation for all error handling (Tasks 1.1-1.8 complete)
-- Phase 2 (Basic Logging) → Basic structlog without correlation IDs (Tasks 2.1-2.5)
+- Phase 2 (Basic Logging) → Basic structlog without correlation IDs (Tasks 2.1-2.5 complete)
 - Phase 3 (Context) → Required for correlation IDs (Tasks 3.1-3.4)
 - Phase 3.5 (Logging Enhancement) → Add correlation ID support (Tasks 2.2b, 2.3b, 3.5b)
 - Phase 4 (API Middleware) → Depends on 1, 2, 3 (Tasks 4.1-4.4)
@@ -308,7 +308,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Lazy evaluation improves performance
 
 #### Task 2.4: Create Exception Logging Utilities
-**Status**: Pending
+**Status**: Complete - log_exception() helper created with severity-based logging
 **File**: `src/core/logging.py`
 **Implementation**:
 - Create `log_exception()` helper with full context
@@ -325,7 +325,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Exception chains preserved
 
 #### Task 2.5: Document Basic Logging Setup
-**Status**: Pending
+**Status**: Complete - Concise logging documentation added to CLAUDE.md
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document structlog configuration approach

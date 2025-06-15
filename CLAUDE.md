@@ -8,6 +8,7 @@ GCP Project: tributum-new
 - Basic FastAPI app with configuration management
 - Exception infrastructure implemented with severity levels and context support
 - API error response patterns defined
+- Structured logging with structlog (basic setup without correlation IDs)
 - Domain-driven design structure planned (not fully implemented)
 
 ## Essential Commands
@@ -112,7 +113,8 @@ src/
 ├── core/
 │   ├── config.py       # Pydantic Settings
 │   ├── exceptions.py   # Base exceptions, ErrorCode enum
-│   └── error_context.py # Context utilities, sanitization
+│   ├── error_context.py # Context utilities, sanitization
+│   └── logging.py      # Structured logging with structlog
 └── domain/            # Empty (planned for business domains)
 
 tests/
@@ -194,7 +196,7 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 
 ### Logging
 ```python
-from src.core.logging import configure_structlog, get_logger, log_context
+from src.core.logging import configure_structlog, get_logger, log_context, log_exception
 
 # Configure at app startup
 configure_structlog()
@@ -209,6 +211,13 @@ logger.error("database_error", error=str(e), query=query)
 # Temporary context bindings (without contextvars)
 with log_context(request_id="abc-123", user_id=456) as logger:
     logger.info("processing request")  # Includes request_id and user_id
+
+# Exception logging with full context
+try:
+    risky_operation()
+except TributumError as e:
+    log_exception(logger, e, "Operation failed", operation="risky_op")
+    # Logs with severity-based level, stack trace, error context, and fingerprint
 
 # Logs include: timestamp, level, logger name, filename, line number, function name
 # Dev: Colored console output
