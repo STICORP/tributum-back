@@ -6,7 +6,7 @@ GCP Project: tributum-new
 
 ## Current Status
 - Basic FastAPI app with configuration management
-- Exception infrastructure implemented
+- Exception infrastructure implemented with severity levels and context support
 - API error response patterns defined
 - Domain-driven design structure planned (not fully implemented)
 
@@ -135,15 +135,16 @@ Environment vars: APP_NAME, APP_VERSION, ENVIRONMENT, DEBUG, API_HOST, API_PORT,
 ### Exceptions
 ```python
 from src.core.exceptions import (
-    ErrorCode, ValidationError, NotFoundError,
+    ErrorCode, Severity, ValidationError, NotFoundError,
     UnauthorizedError, BusinessRuleError
 )
 
-# Use specialized exceptions (preferred)
+# Use specialized exceptions
 raise ValidationError("Invalid email")
 raise NotFoundError("User not found")
+raise ValidationError("Invalid email", context={"field": "email"})
 
-# Exception naming: "Error" suffix, not "Exception"
+# Severity: LOW (validation/not found), MEDIUM (business rules), HIGH (auth), CRITICAL (system)
 # Error codes: INTERNAL_ERROR, VALIDATION_ERROR, NOT_FOUND, UNAUTHORIZED
 ```
 

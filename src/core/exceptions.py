@@ -5,6 +5,7 @@ the application, with structured error codes and exception hierarchy.
 """
 
 from enum import Enum
+from typing import Any
 
 
 class ErrorCode(Enum):
@@ -31,6 +32,26 @@ class ErrorCode(Enum):
     """Authentication failed or user is not authorized for this action."""
 
 
+class Severity(Enum):
+    """Severity levels for errors in the Tributum application.
+
+    These severity levels help categorize the impact and urgency of errors,
+    enabling appropriate handling, monitoring, and alerting strategies.
+    """
+
+    LOW = "LOW"
+    """Low severity errors that don't significantly impact functionality."""
+
+    MEDIUM = "MEDIUM"
+    """Medium severity errors that may affect some features but not critical ops."""
+
+    HIGH = "HIGH"
+    """High severity errors impacting critical functionality or data integrity."""
+
+    CRITICAL = "CRITICAL"
+    """Critical errors requiring immediate attention, may cause system failures."""
+
+
 class TributumError(Exception):
     """Base exception class for all Tributum application exceptions.
 
@@ -40,19 +61,31 @@ class TributumError(Exception):
     Attributes:
         error_code: A unique identifier for the error type
         message: A human-readable error message
+        severity: The severity level of the error
+        context: Additional context information about the error
     """
 
-    def __init__(self, error_code: str | ErrorCode, message: str) -> None:
-        """Initialize the exception with an error code and message.
+    def __init__(
+        self,
+        error_code: str | ErrorCode,
+        message: str,
+        severity: Severity = Severity.MEDIUM,
+        context: dict[str, Any] | None = None,
+    ) -> None:
+        """Initialize the exception with error details.
 
         Args:
             error_code: Unique identifier for the error type (string or ErrorCode enum)
             message: Human-readable error message
+            severity: Severity level of the error (defaults to MEDIUM)
+            context: Additional context information about the error
         """
         self.error_code = (
             error_code.value if isinstance(error_code, ErrorCode) else error_code
         )
         self.message = message
+        self.severity = severity
+        self.context = context or {}
         super().__init__(message)
 
     def __str__(self) -> str:
@@ -67,10 +100,14 @@ class TributumError(Exception):
         """Return a detailed representation of the exception.
 
         Returns:
-            A string showing the class name, error code, and message
+            A string showing the class name, error code, message, severity, and context
         """
         class_name = self.__class__.__name__
-        return f"{class_name}(error_code='{self.error_code}', message='{self.message}')"
+        context_str = f", context={self.context}" if self.context else ""
+        return (
+            f"{class_name}(error_code='{self.error_code}', "
+            f"message='{self.message}', severity={self.severity.value}{context_str})"
+        )
 
 
 class ValidationError(TributumError):
@@ -81,15 +118,19 @@ class ValidationError(TributumError):
     """
 
     def __init__(
-        self, message: str, error_code: str | ErrorCode = ErrorCode.VALIDATION_ERROR
+        self,
+        message: str,
+        error_code: str | ErrorCode = ErrorCode.VALIDATION_ERROR,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize validation error with message and optional error code.
 
         Args:
             message: Description of the validation failure
             error_code: Error code (defaults to VALIDATION_ERROR)
+            context: Additional context information about the error
         """
-        super().__init__(error_code, message)
+        super().__init__(error_code, message, Severity.LOW, context)
 
 
 class NotFoundError(TributumError):
@@ -100,15 +141,19 @@ class NotFoundError(TributumError):
     """
 
     def __init__(
-        self, message: str, error_code: str | ErrorCode = ErrorCode.NOT_FOUND
+        self,
+        message: str,
+        error_code: str | ErrorCode = ErrorCode.NOT_FOUND,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize not found error with message and optional error code.
 
         Args:
             message: Description of what resource was not found
             error_code: Error code (defaults to NOT_FOUND)
+            context: Additional context information about the error
         """
-        super().__init__(error_code, message)
+        super().__init__(error_code, message, Severity.LOW, context)
 
 
 class UnauthorizedError(TributumError):
@@ -119,15 +164,19 @@ class UnauthorizedError(TributumError):
     """
 
     def __init__(
-        self, message: str, error_code: str | ErrorCode = ErrorCode.UNAUTHORIZED
+        self,
+        message: str,
+        error_code: str | ErrorCode = ErrorCode.UNAUTHORIZED,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize unauthorized error with message and optional error code.
 
         Args:
             message: Description of the authorization failure
             error_code: Error code (defaults to UNAUTHORIZED)
+            context: Additional context information about the error
         """
-        super().__init__(error_code, message)
+        super().__init__(error_code, message, Severity.HIGH, context)
 
 
 class BusinessRuleError(TributumError):
@@ -138,12 +187,16 @@ class BusinessRuleError(TributumError):
     """
 
     def __init__(
-        self, message: str, error_code: str | ErrorCode = ErrorCode.INTERNAL_ERROR
+        self,
+        message: str,
+        error_code: str | ErrorCode = ErrorCode.INTERNAL_ERROR,
+        context: dict[str, Any] | None = None,
     ) -> None:
         """Initialize business rule error with message and optional error code.
 
         Args:
             message: Description of the business rule violation
             error_code: Error code (defaults to INTERNAL_ERROR)
+            context: Additional context information about the error
         """
-        super().__init__(error_code, message)
+        super().__init__(error_code, message, Severity.MEDIUM, context)
