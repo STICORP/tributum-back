@@ -230,9 +230,14 @@ logger = get_logger("module_name")  # or get_logger() for auto-name
 logger.info("user_action", user_id=123, action="login")
 logger.error("database_error", error=str(e), query=query)
 
-# Temporary context bindings (without contextvars)
+# Temporary context bindings
 with log_context(request_id="abc-123", user_id=456) as logger:
     logger.info("processing request")  # Includes request_id and user_id
+
+# Bind context for async propagation (new)
+bind_logger_context(user_id=123, session_id="xyz")  # All subsequent logs include these
+logger.info("user action")  # Automatically includes user_id and session_id
+clear_logger_context()  # Clean up after request
 
 # Exception logging with full context
 try:
@@ -243,6 +248,7 @@ except TributumError as e:
 
 # Logs include: timestamp, level, logger name, filename, line number, function name
 # Correlation ID automatically included when in request context
+# Context propagates across async boundaries via contextvars
 # Dev: Colored console output
 # Prod: JSON format for log aggregation
 ```

@@ -417,7 +417,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Context properly isolated between requests
 
 #### Task 2.3b: Enhance Logger Factory with Contextvars
-**Status**: Pending
+**Status**: Complete - Logger factory enhanced with contextvars support
 **File**: `src/core/logging.py`
 **Implementation**:
 - Update `get_logger()` to use contextvars for automatic context binding
@@ -433,7 +433,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - No context leakage between requests
 
 #### Task 3.5b: Document Enhanced Logging
-**Status**: Pending
+**Status**: Complete - Documentation updated with async context propagation
 **File**: `CLAUDE.md`
 **Implementation**:
 - Update logging documentation with correlation ID integration
@@ -1001,7 +1001,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 
 - [x] All exceptions inherit from TributumError with enhanced context
 - [x] Exception stack traces captured and logged but not exposed to clients
-- [ ] All logs use structlog with correlation ID when in request context
+- [x] All logs use structlog with correlation ID when in request context
 - [x] Error responses include timestamp, severity, and service info
 - [ ] Debug information only available in development environment
 - [ ] All API responses include security headers
