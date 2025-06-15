@@ -16,8 +16,8 @@ GCP Project: tributum-new
 uv run pre-commit install    # Install git hooks
 
 # Quality checks
-uv run ruff check . --fix    # Lint and fix
 uv run ruff format .         # Format code
+uv run ruff check . --fix    # Lint and fix
 uv run mypy .                # Type check
 uv run pre-commit run --all-files  # Run all checks
 
@@ -156,7 +156,7 @@ except ValueError as e:
 
 ### API Errors
 ```python
-from src.api.schemas.errors import ErrorResponse
+from src.api.schemas.errors import ErrorResponse, ServiceInfo
 
 # Standardized error responses
 ErrorResponse(
@@ -165,7 +165,12 @@ ErrorResponse(
     details={"field": "error"},  # Optional
     correlation_id="...",        # Optional
     timestamp=datetime.now(UTC), # Auto-generated with timezone
-    severity="WARNING"           # Optional: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    severity="WARNING",          # Optional: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    service_info=ServiceInfo(    # Optional: service metadata
+        name="Tributum",
+        version="0.1.0",
+        environment="production"
+    )
 )
 ```
 
