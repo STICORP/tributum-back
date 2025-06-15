@@ -251,6 +251,47 @@ class TestSanitizeContext:
             sanitized["level1"]["level2"]["level3"]["level4"][0]["password"] == REDACTED
         )
 
+    def test_sanitizes_nested_lists(self) -> None:
+        """Test sanitization of lists containing lists."""
+        context = {
+            "matrix_data": [
+                ["public", "data", "here"],
+                [{"username": "user1"}, {"password": "secret123"}],
+                [
+                    ["nested", "list"],
+                    [{"api_key": "hidden_key"}, {"public": "visible"}],
+                ],
+            ],
+            "mixed_array": [
+                "string_value",
+                123,
+                ["inner_list", {"token": "secret_token"}],
+                [[["deeply", "nested"], {"credentials": "hidden"}]],
+            ],
+        }
+
+        sanitized = sanitize_context(context)
+
+        # First level list items
+        assert sanitized["matrix_data"][0] == ["public", "data", "here"]
+        assert sanitized["matrix_data"][1][0]["username"] == "user1"
+        assert sanitized["matrix_data"][1][1]["password"] == REDACTED
+
+        # Nested lists within lists
+        assert sanitized["matrix_data"][2][0] == ["nested", "list"]
+        assert sanitized["matrix_data"][2][1][0]["api_key"] == REDACTED
+        assert sanitized["matrix_data"][2][1][1]["public"] == "visible"
+
+        # Mixed array with deep nesting
+        assert sanitized["mixed_array"][0] == "string_value"
+        assert sanitized["mixed_array"][1] == 123
+        assert sanitized["mixed_array"][2][0] == "inner_list"
+        assert sanitized["mixed_array"][2][1]["token"] == REDACTED
+
+        # Triple nested lists
+        assert sanitized["mixed_array"][3][0][0] == ["deeply", "nested"]
+        assert sanitized["mixed_array"][3][0][1]["credentials"] == REDACTED
+
 
 class TestEnrichError:
     """Test cases for error enrichment."""
