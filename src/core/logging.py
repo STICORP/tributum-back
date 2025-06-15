@@ -14,6 +14,7 @@ import structlog
 from structlog.typing import EventDict, Processor
 
 from src.core.config import get_settings
+from src.core.context import RequestContext
 
 
 def add_log_level_upper(
@@ -36,6 +37,26 @@ def add_log_level_upper(
     return event_dict
 
 
+def inject_correlation_id(
+    logger: logging.Logger, method_name: str, event_dict: EventDict
+) -> EventDict:
+    """Inject correlation ID from context into log entries.
+
+    Args:
+        logger: The logger instance.
+        method_name: The logging method name.
+        event_dict: The event dictionary.
+
+    Returns:
+        The event dictionary with correlation ID if available.
+    """
+    _ = logger, method_name  # Required by structlog processor interface
+    correlation_id = RequestContext.get_correlation_id()
+    if correlation_id:
+        event_dict["correlation_id"] = correlation_id
+    return event_dict
+
+
 def configure_structlog() -> None:
     """Configure structlog with appropriate processors for the environment.
 
@@ -53,6 +74,7 @@ def configure_structlog() -> None:
     base_processors: list[Processor] = [
         structlog.stdlib.add_logger_name,
         add_log_level_upper,
+        inject_correlation_id,  # Add correlation ID from context
         structlog.processors.CallsiteParameterAdder(
             parameters=[
                 structlog.processors.CallsiteParameter.FILENAME,

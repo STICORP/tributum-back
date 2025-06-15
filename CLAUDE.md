@@ -242,6 +242,7 @@ except TributumError as e:
     # Logs with severity-based level, stack trace, error context, and fingerprint
 
 # Logs include: timestamp, level, logger name, filename, line number, function name
+# Correlation ID automatically included when in request context
 # Dev: Colored console output
 # Prod: JSON format for log aggregation
 ```

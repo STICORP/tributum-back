@@ -9,6 +9,7 @@ import structlog
 from structlog.testing import LogCapture
 
 from src.core.config import LogConfig, Settings
+from src.core.context import RequestContext
 from src.core.exceptions import (
     BusinessRuleError,
     ErrorCode,
@@ -22,6 +23,7 @@ from src.core.logging import (
     add_log_level_upper,
     configure_structlog,
     get_logger,
+    inject_correlation_id,
     log_context,
     log_exception,
 )
@@ -63,6 +65,54 @@ class TestAddLogLevelUpper:
             event_dict: dict[str, object] = {}
             result = add_log_level_upper(logger, method_name, event_dict)
             assert result["level"] == expected_level
+
+
+class TestInjectCorrelationId:
+    """Test the inject_correlation_id processor."""
+
+    def test_injects_correlation_id_when_present(self) -> None:
+        """Test that correlation ID is injected when available."""
+        # Set correlation ID in context
+        test_correlation_id = "test-correlation-123"
+        RequestContext.set_correlation_id(test_correlation_id)
+
+        logger = MagicMock()
+        event_dict: dict[str, object] = {}
+
+        result = inject_correlation_id(logger, "info", event_dict)
+
+        assert result["correlation_id"] == test_correlation_id
+
+        # Clean up
+        RequestContext.clear()
+
+    def test_no_correlation_id_when_not_set(self) -> None:
+        """Test that no correlation ID is added when not in context."""
+        # Ensure context is clear
+        RequestContext.clear()
+
+        logger = MagicMock()
+        event_dict: dict[str, object] = {}
+
+        result = inject_correlation_id(logger, "info", event_dict)
+
+        assert "correlation_id" not in result
+
+    def test_preserves_existing_fields(self) -> None:
+        """Test that existing fields are preserved."""
+        RequestContext.set_correlation_id("test-id")
+
+        logger = MagicMock()
+        event_dict: dict[str, object] = {"existing": "value", "another": 123}
+
+        result = inject_correlation_id(logger, "info", event_dict)
+
+        assert result["existing"] == "value"
+        assert result["another"] == 123
+        assert result["correlation_id"] == "test-id"
+
+        # Clean up
+        RequestContext.clear()
 
 
 class TestConfigureStructlog:
@@ -368,6 +418,126 @@ class TestConfigureStructlog:
         assert "lineno" in entry
         assert "func_name" in entry
         assert entry["func_name"] == "test_callsite_information"
+
+    @patch("src.core.logging.get_settings")
+    def test_correlation_id_included_in_logs(
+        self, mock_get_settings: MagicMock
+    ) -> None:
+        """Test that correlation ID is automatically included in logs when set."""
+        # Set up configuration
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO", log_format="json", render_json_logs=True
+        )
+        mock_get_settings.return_value = settings
+
+        # Configure structlog with correlation ID processor
+        configure_structlog()
+
+        # Set correlation ID in context
+        test_correlation_id = "test-corr-456"
+        RequestContext.set_correlation_id(test_correlation_id)
+
+        # Create logger with LogCapture
+        cap = LogCapture()
+        structlog.configure(
+            processors=[
+                structlog.stdlib.add_logger_name,
+                add_log_level_upper,
+                inject_correlation_id,
+                cap,
+            ]
+        )
+
+        # Log a message
+        logger = structlog.get_logger("test")
+        logger.info("test with correlation", user_id=123)
+
+        # Verify correlation ID is included
+        assert len(cap.entries) == 1
+        entry = cap.entries[0]
+        assert entry["correlation_id"] == test_correlation_id
+        assert entry["user_id"] == 123
+        assert entry["event"] == "test with correlation"
+
+        # Clean up
+        RequestContext.clear()
+
+    @patch("src.core.logging.get_settings")
+    def test_logs_without_correlation_id(self, mock_get_settings: MagicMock) -> None:
+        """Test that logs work fine without correlation ID."""
+        # Ensure context is clear
+        RequestContext.clear()
+
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO", log_format="json", render_json_logs=True
+        )
+        mock_get_settings.return_value = settings
+
+        configure_structlog()
+
+        # Create logger with LogCapture
+        cap = LogCapture()
+        structlog.configure(
+            processors=[
+                structlog.stdlib.add_logger_name,
+                add_log_level_upper,
+                inject_correlation_id,
+                cap,
+            ]
+        )
+
+        # Log a message without correlation ID
+        logger = structlog.get_logger()
+        logger.info("no correlation id")
+
+        # Verify no correlation ID field
+        assert len(cap.entries) == 1
+        entry = cap.entries[0]
+        assert "correlation_id" not in entry
+        assert entry["event"] == "no correlation id"
+
+    @patch("src.core.logging.get_settings")
+    def test_correlation_id_isolation(self, mock_get_settings: MagicMock) -> None:
+        """Test that correlation IDs are isolated between contexts."""
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO", log_format="json", render_json_logs=True
+        )
+        mock_get_settings.return_value = settings
+
+        configure_structlog()
+
+        # Create logger with LogCapture
+        cap = LogCapture()
+        structlog.configure(
+            processors=[
+                structlog.stdlib.add_logger_name,
+                inject_correlation_id,
+                cap,
+            ]
+        )
+
+        logger = structlog.get_logger()
+
+        # First context with correlation ID
+        RequestContext.set_correlation_id("context-1")
+        logger.info("message 1")
+
+        # Second context with different correlation ID
+        RequestContext.set_correlation_id("context-2")
+        logger.info("message 2")
+
+        # Clear context
+        RequestContext.clear()
+        logger.info("message 3")
+
+        # Verify entries
+        assert len(cap.entries) == 3
+        assert cap.entries[0]["correlation_id"] == "context-1"
+        assert cap.entries[1]["correlation_id"] == "context-2"
+        assert "correlation_id" not in cap.entries[2]
 
 
 class TestGetLogger:
