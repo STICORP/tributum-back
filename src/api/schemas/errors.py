@@ -10,6 +10,32 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class ServiceInfo(BaseModel):
+    """Service information for error context.
+
+    Provides metadata about the service that generated the error,
+    useful for debugging in multi-service environments.
+    """
+
+    name: str = Field(
+        ...,
+        description="Name of the service",
+        examples=["Tributum", "PaymentService"],
+    )
+
+    version: str = Field(
+        ...,
+        description="Version of the service",
+        examples=["0.1.0", "1.2.3"],
+    )
+
+    environment: str = Field(
+        ...,
+        description="Environment where the service is running",
+        examples=["development", "staging", "production"],
+    )
+
+
 class ErrorResponse(BaseModel):
     """Standardized error response model for API errors.
 
@@ -53,6 +79,18 @@ class ErrorResponse(BaseModel):
         examples=["ERROR", "WARNING"],
     )
 
+    service_info: ServiceInfo | None = Field(
+        default=None,
+        description="Information about the service that generated the error",
+        examples=[
+            {
+                "name": "Tributum",
+                "version": "0.1.0",
+                "environment": "production",
+            }
+        ],
+    )
+
     model_config = {
         "json_schema_extra": {
             "examples": [
@@ -66,6 +104,11 @@ class ErrorResponse(BaseModel):
                     "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
                     "timestamp": "2024-06-14T12:00:00+00:00",
                     "severity": "WARNING",
+                    "service_info": {
+                        "name": "Tributum",
+                        "version": "0.1.0",
+                        "environment": "production",
+                    },
                 },
                 {
                     "error_code": "NOT_FOUND",
@@ -73,6 +116,11 @@ class ErrorResponse(BaseModel):
                     "correlation_id": "550e8400-e29b-41d4-a716-446655440001",
                     "timestamp": "2024-06-14T12:00:01+00:00",
                     "severity": "WARNING",
+                    "service_info": {
+                        "name": "Tributum",
+                        "version": "0.1.0",
+                        "environment": "staging",
+                    },
                 },
                 {
                     "error_code": "UNAUTHORIZED",
