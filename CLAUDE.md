@@ -86,6 +86,7 @@ Before ANY code:
 ### 7. Git Commits
 - NO AI references ("Claude", "Generated with", etc.)
 - Use conventional commit format
+- NEVER commit without explicit user request
 
 ### 8. Dependencies
 - ALWAYS use latest versions when adding
