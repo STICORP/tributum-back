@@ -41,7 +41,7 @@ This plan was created to implement robust cross-cutting concerns for the Tributu
 ## Implementation Order and Dependencies
 
 The tasks are organized in phases with clear dependencies:
-- Phase 1 (Exceptions) → Foundation for all error handling (Tasks 1.1-1.8 complete ✓)
+- Phase 1 (Exceptions) → Foundation for all error handling (Tasks 1.1-1.8 complete)
 - Phase 2 (Basic Logging) → Basic structlog without correlation IDs (Tasks 2.1-2.5)
 - Phase 3 (Context) → Required for correlation IDs (Tasks 3.1-3.4)
 - Phase 3.5 (Logging Enhancement) → Add correlation ID support (Tasks 2.2b, 2.3b, 3.5b)
@@ -103,57 +103,62 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 1: Exception Infrastructure (Foundation)
 
 #### Task 1.1: Create Base Exception Class
+**Status**: Complete - Base exception class with error_code and message implemented
 **File**: `src/core/exceptions.py`
 **Implementation**:
 - Create `TributumError` base class with error_code and message
 - Add `__str__` and `__repr__` methods
-**Tests**: `tests/unit/core/test_exceptions.py`
+  **Tests**: `tests/unit/core/test_exceptions.py`
 - Test exception creation with code and message
 - Test string representation
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Exception stores error_code and message
 - Can be raised and caught
 - String representation includes both code and message
 
 #### Task 1.2: Create Exception Error Codes Enum
+**Status**: Complete - ErrorCode enum created with standard error codes
 **File**: `src/core/exceptions.py`
 **Implementation**:
 - Create `ErrorCode` enum with initial codes (INTERNAL_ERROR, VALIDATION_ERROR, NOT_FOUND, UNAUTHORIZED)
 - Document each error code
-**Tests**: Update `tests/unit/core/test_exceptions.py`
+  **Tests**: Update `tests/unit/core/test_exceptions.py`
 - Test all enum values are unique
 - Test enum can be used with base exception
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - All error codes have unique values
 - Error codes follow consistent naming pattern
 
 #### Task 1.3: Create Specialized Exception Classes
+**Status**: Complete - All specialized exception classes created with appropriate defaults
 **File**: `src/core/exceptions.py`
 **Implementation**:
 - Create `ValidationError(TributumError)`
 - Create `NotFoundError(TributumError)`
 - Create `UnauthorizedError(TributumError)`
 - Create `BusinessRuleError(TributumError)`
-**Tests**: Update `tests/unit/core/test_exceptions.py`
+  **Tests**: Update `tests/unit/core/test_exceptions.py`
 - Test each exception type with default error codes
 - Test inheritance chain
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Each exception has appropriate default error code
 - All inherit from TributumError
 
 #### Task 1.4: Create Error Response Model
+**Status**: Complete - ErrorResponse model created with basic fields
 **File**: `src/api/schemas/errors.py`
 **Implementation**:
 - Create `ErrorResponse` Pydantic model with fields: error_code, message, details (optional), correlation_id (optional)
 - Add response examples
-**Tests**: `tests/unit/api/schemas/test_errors.py`
+  **Tests**: `tests/unit/api/schemas/test_errors.py`
 - Test model validation
 - Test JSON serialization
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Model validates required fields
 - Can serialize to JSON with correct structure
 
 #### Task 1.5a: Add Severity and Context to Base Exception
+**Status**: Complete - Severity enum and context support added to exceptions
 **Pre-Implementation**: Complete the Standard Pre-Implementation Checklist (especially read CLAUDE.md)
 **File**: `src/core/exceptions.py`
 **Implementation**:
@@ -161,78 +166,83 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Add `severity` attribute to TributumError (default to ERROR)
 - Add `context` dict attribute for capturing business context
 - Add method to add context items incrementally
-**Tests**: Update `tests/unit/core/test_exceptions.py`
+  **Tests**: Update `tests/unit/core/test_exceptions.py`
 - Test severity enum values
 - Test default severity
 - Test context initialization and updates
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Severity enum has all levels
 - Context is empty dict by default
 - Can add context after exception creation
 
 #### Task 1.5b: Add Stack Trace and Exception Chaining
+**Status**: Complete - Stack trace capture and exception chaining implemented
 **File**: `src/core/exceptions.py`
 **Implementation**:
 - Add `stack_trace` attribute to capture traceback at creation
 - Add `cause` attribute for exception chaining
 - Add `fingerprint` for error grouping (based on type + location)
 - Implement `__cause__` property for proper exception chaining
-**Tests**: Update `tests/unit/core/test_exceptions.py`
+  **Tests**: Update `tests/unit/core/test_exceptions.py`
 - Test stack trace capture
 - Test exception chaining with cause
 - Test fingerprint generation
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Stack trace captured automatically
 - Exception chains properly with Python's exception handling
 - Fingerprint is consistent for same error location
 
 #### Task 1.6a: Create Generic Context Utilities
+**Status**: Complete - Context utilities created with sensitive data sanitization
 **File**: `src/core/error_context.py`
 **Implementation**:
 - Create `sanitize_context()` to remove sensitive data patterns
 - Create `enrich_error()` to add context to TributumError instances
 - Define SENSITIVE_FIELD_PATTERNS (password, token, secret, key, etc.)
 - Support nested dict sanitization
-**Tests**: `tests/unit/core/test_error_context.py`
+  **Tests**: `tests/unit/core/test_error_context.py`
 - Test sensitive field removal
 - Test nested dict sanitization
 - Test error enrichment
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Common sensitive fields removed
 - Nested structures handled
 - Original context not modified
 
 #### Task 1.7a: Add Basic Production Fields to Error Response
+**Status**: Complete - Timestamp and severity fields added to ErrorResponse
 **File**: `src/api/schemas/errors.py`
 **Implementation**:
 - Add `timestamp` field with timezone (datetime)
 - Add `severity` field (str)
 - Import datetime and configure proper serialization
-**Tests**: Update `tests/unit/api/schemas/test_errors.py`
+  **Tests**: Update `tests/unit/api/schemas/test_errors.py`
 - Test timestamp serialization
 - Test severity field
 - Test JSON output format
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Timestamp includes timezone info
 - Serializes to ISO format
 - Severity field is optional
 
 #### Task 1.7b: Add Service Info to Error Response
+**Status**: Complete - ServiceInfo model created and integrated into ErrorResponse
 **File**: `src/api/schemas/errors.py`
 **Implementation**:
 - Create `ServiceInfo` nested model (name, version, environment)
 - Add `service_info` field to ErrorResponse
 - Make service_info optional
-**Tests**: Update `tests/unit/api/schemas/test_errors.py`
+  **Tests**: Update `tests/unit/api/schemas/test_errors.py`
 - Test ServiceInfo model
 - Test nested model serialization
 - Test with and without service info
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - ServiceInfo validates fields
 - Properly nested in JSON output
 - Optional field handling correct
 
-#### Task 1.8: Document Enhanced Exception Features ✓
+#### Task 1.8: Document Enhanced Exception Features
+**Status**: Complete - Added concise documentation for all enhanced exception features
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document severity levels and their usage
@@ -240,15 +250,15 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Document stack trace capture behavior
 - Add examples of exception chaining
 - Document the enhanced ErrorResponse fields
-**Acceptance Criteria**:
+  **Acceptance Criteria**:
 - Clear examples for each new feature
 - Guidelines on when to use each severity level
 - Context usage best practices documented
-**Status**: Complete - Added concise documentation for all enhanced exception features
 
 ### Phase 2: Logging Infrastructure (with structlog)
 
 #### Task 2.1: Add structlog Dependencies and Configuration
+**Status**: Pending
 **File**: `pyproject.toml` and `src/core/config.py`
 **Implementation**:
 - Add structlog dependency to pyproject.toml
@@ -263,6 +273,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Configuration supports both development and production modes
 
 #### Task 2.2a: Create Basic structlog Setup
+**Status**: Pending
 **File**: `src/core/logging.py`
 **Implementation**:
 - Create `configure_structlog()` function with basic processors
@@ -280,6 +291,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Console vs JSON format switching works
 
 #### Task 2.3a: Create Basic Logger Factory
+**Status**: Pending
 **File**: `src/core/logging.py`
 **Implementation**:
 - Create `get_logger(name)` function returning bound structlog logger
@@ -296,6 +308,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Lazy evaluation improves performance
 
 #### Task 2.4: Create Exception Logging Utilities
+**Status**: Pending
 **File**: `src/core/logging.py`
 **Implementation**:
 - Create `log_exception()` helper with full context
@@ -312,6 +325,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Exception chains preserved
 
 #### Task 2.5: Document Basic Logging Setup
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document structlog configuration approach
@@ -327,6 +341,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 3: Request Context Infrastructure
 
 #### Task 3.1: Create Correlation ID Generator
+**Status**: Pending
 **File**: `src/core/context.py`
 **Implementation**:
 - Create `generate_correlation_id()` using UUID4
@@ -339,6 +354,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Each call produces unique ID
 
 #### Task 3.2: Create Request Context Storage
+**Status**: Pending
 **File**: `src/core/context.py`
 **Implementation**:
 - Create `RequestContext` class using contextvars
@@ -353,6 +369,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Can retrieve None if not set
 
 #### Task 3.3: Create Context Middleware
+**Status**: Pending
 **File**: `src/api/middleware/request_context.py`
 **Implementation**:
 - Create `RequestContextMiddleware` class
@@ -369,6 +386,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Adds ID to response headers
 
 #### Task 3.4: Document Context Infrastructure
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document correlation ID pattern and usage
@@ -383,6 +401,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 3.5: Logging Enhancement (After Context Infrastructure)
 
 #### Task 2.2b: Add Correlation ID Support to structlog
+**Status**: Pending
 **File**: `src/core/logging.py`
 **Implementation**:
 - Add `bind_contextvars` processor to structlog configuration
@@ -398,6 +417,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Context properly isolated between requests
 
 #### Task 2.3b: Enhance Logger Factory with Contextvars
+**Status**: Pending
 **File**: `src/core/logging.py`
 **Implementation**:
 - Update `get_logger()` to use contextvars for automatic context binding
@@ -413,6 +433,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - No context leakage between requests
 
 #### Task 3.5b: Document Enhanced Logging
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Update logging documentation with correlation ID integration
@@ -427,6 +448,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 4: API Middleware
 
 #### Task 4.1: Create Security Headers Middleware
+**Status**: Pending
 **File**: `src/api/middleware/security_headers.py`
 **Implementation**:
 - Create `SecurityHeadersMiddleware` class
@@ -442,6 +464,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Headers have correct values
 
 #### Task 4.2: Create Request Logging Middleware
+**Status**: Pending
 **File**: `src/api/middleware/request_logging.py`
 **Implementation**:
 - Create `RequestLoggingMiddleware` class
@@ -458,6 +481,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Sensitive paths are filtered
 
 #### Task 4.3: Create Global Exception Handler
+**Status**: Pending
 **File**: `src/api/middleware/error_handler.py`
 **Implementation**:
 - Create exception handler for `TributumError` with full context capture
@@ -483,6 +507,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - All errors logged with full context for monitoring
 
 #### Task 4.4: Document Middleware Patterns
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document middleware ordering and why it matters
@@ -498,6 +523,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 4.5: Exception Enhancement (After Middleware)
 
 #### Task 1.6b: Add HTTP Context Capture
+**Status**: Pending
 **File**: `src/core/error_context.py`
 **Implementation**:
 - Create `capture_request_context()` to extract HTTP request info
@@ -514,6 +540,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Handles missing request gracefully
 
 #### Task 1.7c: Add Debug Info and Request ID to Error Response
+**Status**: Pending
 **File**: `src/api/schemas/errors.py`
 **Implementation**:
 - Add `debug_info` optional field for development environments
@@ -529,6 +556,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Stack trace properly formatted in debug info
 
 #### Task 4.5c: Document Complete Error Handling
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document complete error handling flow with HTTP context
@@ -544,6 +572,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 5: OpenTelemetry Setup
 
 #### Task 5.1: Add OpenTelemetry Dependencies
+**Status**: Pending
 **File**: `pyproject.toml`
 **Implementation**:
 - Add opentelemetry-api
@@ -557,6 +586,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Versions are compatible
 
 #### Task 5.2: Create Observability Configuration
+**Status**: Pending
 **File**: `src/core/config.py`
 **Implementation**:
 - Add `ObservabilityConfig` to Settings
@@ -569,6 +599,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Sample rate between 0.0 and 1.0
 
 #### Task 5.3: Create Tracing Setup
+**Status**: Pending
 **File**: `src/core/observability.py`
 **Implementation**:
 - Create `setup_tracing()` function
@@ -591,6 +622,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Severity properly mapped to span status
 
 #### Task 5.4: Instrument FastAPI
+**Status**: Pending
 **File**: `src/api/main.py`
 **Implementation**:
 - Call `setup_tracing()` on startup
@@ -605,6 +637,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Parent-child relationships correct
 
 #### Task 5.5: Document Observability Setup
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document OpenTelemetry integration
@@ -620,6 +653,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 6: Database Infrastructure
 
 #### Task 6.1: Add Database Dependencies
+**Status**: Pending
 **File**: `pyproject.toml`
 **Implementation**:
 - Add sqlalchemy[asyncio]>=2.0
@@ -632,6 +666,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Versions are compatible
 
 #### Task 6.2: Create Database Configuration
+**Status**: Pending
 **File**: `src/core/config.py`
 **Implementation**:
 - Add `DatabaseConfig` to Settings
@@ -645,6 +680,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Pool settings have sensible defaults
 
 #### Task 6.3: Create Base Model
+**Status**: Pending
 **File**: `src/infrastructure/database/base.py`
 **Implementation**:
 - Create SQLAlchemy declarative base
@@ -659,6 +695,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Naming conventions applied
 
 #### Task 6.4: Create Async Session Factory
+**Status**: Pending
 **File**: `src/infrastructure/database/session.py`
 **Implementation**:
 - Create async engine with connection pool
@@ -674,6 +711,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Proper cleanup on exit
 
 #### Task 6.5: Create Database Dependencies
+**Status**: Pending
 **File**: `src/infrastructure/database/dependencies.py`
 **Implementation**:
 - Create `get_db` async dependency for FastAPI
@@ -688,6 +726,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Type hints work correctly
 
 #### Task 6.6: Create Base Repository
+**Status**: Pending
 **File**: `src/infrastructure/database/repository.py`
 **Implementation**:
 - Create `BaseRepository[T]` generic class
@@ -703,6 +742,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Handles None cases properly
 
 #### Task 6.7: Extend Base Repository
+**Status**: Pending
 **File**: `src/infrastructure/database/repository.py`
 **Implementation**:
 - Add `update(id: UUID, data: dict) -> T | None`
@@ -719,6 +759,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Count is efficient
 
 #### Task 6.8: Add Repository Filtering
+**Status**: Pending
 **File**: `src/infrastructure/database/repository.py`
 **Implementation**:
 - Add `filter_by(**kwargs) -> list[T]`
@@ -733,6 +774,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Efficient SQL generation
 
 #### Task 6.9: Initialize Alembic
+**Status**: Pending
 **Implementation**:
 - Run `alembic init alembic`
 - Update alembic.ini for async
@@ -745,6 +787,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Makefile commands work
 
 #### Task 6.10: Create Initial Migration
+**Status**: Pending
 **Implementation**:
 - Create empty initial migration
 - Test upgrade/downgrade
@@ -754,6 +797,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Can upgrade and downgrade
 
 #### Task 6.11: Document Database Patterns
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document repository pattern implementation
@@ -769,6 +813,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 7: Integration
 
 #### Task 7.1: Wire Middleware in Correct Order
+**Status**: Pending
 **File**: `src/api/main.py`
 **Implementation**:
 - Add SecurityHeadersMiddleware (first)
@@ -783,6 +828,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - All headers/logs present
 
 #### Task 7.2: Add Database Lifecycle
+**Status**: Pending
 **File**: `src/api/main.py`
 **Implementation**:
 - Add startup event for DB connection check
@@ -796,6 +842,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Health check reports DB status
 
 #### Task 7.3: Create Integration Test Fixtures
+**Status**: Pending
 **File**: `tests/conftest.py`
 **Implementation**:
 - Add async test database fixture
@@ -808,6 +855,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Async tests work
 
 #### Task 7.4: End-to-End Integration Tests
+**Status**: Pending
 **File**: `tests/integration/test_full_stack.py`
 **Implementation**:
 - Test request with all middleware
@@ -823,6 +871,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 8: Error Aggregator Integration
 
 #### Task 8.1: Add Sentry SDK Dependencies
+**Status**: Pending
 **File**: `pyproject.toml` and `src/core/config.py`
 **Implementation**:
 - Add sentry-sdk[fastapi] dependency
@@ -838,6 +887,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - DSN only required when enabled
 
 #### Task 8.2: Create Sentry Integration
+**Status**: Pending
 **File**: `src/core/error_aggregator.py`
 **Implementation**:
 - Create `setup_sentry()` function
@@ -857,6 +907,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Sensitive data filtered
 
 #### Task 8.3: Create GCP Error Reporting Integration
+**Status**: Pending
 **File**: `src/core/error_aggregator.py`
 **Implementation**:
 - Add GCP Error Reporting client setup
@@ -874,6 +925,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Works alongside Sentry
 
 #### Task 8.4: Integrate Error Aggregators with Middleware
+**Status**: Pending
 **File**: `src/api/middleware/error_handler.py`
 **Implementation**:
 - Call error aggregator reporting in exception handlers
@@ -890,6 +942,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Aggregator failures don't break response
 
 #### Task 8.5: Document Error Aggregator Integration
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Document Sentry and GCP Error Reporting setup
@@ -905,6 +958,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 9: Final Documentation Review
 
 #### Task 9.1: Review and Consolidate Documentation
+**Status**: Pending
 **File**: `CLAUDE.md`
 **Implementation**:
 - Review all documentation added throughout phases
@@ -945,16 +999,16 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 
 ## Success Criteria for Complete Implementation
 
-- [ ] All exceptions inherit from TributumError with enhanced context
-- [ ] Exception stack traces captured and logged but not exposed to clients
+- [x] All exceptions inherit from TributumError with enhanced context
+- [x] Exception stack traces captured and logged but not exposed to clients
 - [ ] All logs use structlog with correlation ID when in request context
-- [ ] Error responses include timestamp, severity, and service info
+- [x] Error responses include timestamp, severity, and service info
 - [ ] Debug information only available in development environment
 - [ ] All API responses include security headers
 - [ ] Database operations use repository pattern
 - [ ] OpenTelemetry traces show full request flow with error context
 - [ ] Sentry/GCP Error Reporting integration captures all unhandled errors
-- [ ] Sensitive data properly sanitized in logs and error reports
+- [x] Sensitive data properly sanitized in logs and error reports
 - [ ] All components have >80% test coverage
 - [ ] Documentation is complete and accurate
 - [ ] No hardcoded configuration values
