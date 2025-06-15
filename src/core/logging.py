@@ -8,6 +8,7 @@ import logging
 import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 import structlog
@@ -15,6 +16,11 @@ from structlog.typing import EventDict, Processor
 
 from src.core.config import get_settings
 from src.core.context import RequestContext
+
+# Context variable for storing additional logger context across async boundaries
+_logger_context_var: ContextVar[dict[str, Any] | None] = ContextVar(
+    "logger_context", default=None
+)
 
 
 def add_log_level_upper(
@@ -57,6 +63,32 @@ def inject_correlation_id(
     return event_dict
 
 
+def inject_logger_context(
+    logger: logging.Logger, method_name: str, event_dict: EventDict
+) -> EventDict:
+    """Inject additional context from contextvars into log entries.
+
+    This processor adds any context stored in the logger context var
+    to all log entries, enabling context propagation across async boundaries.
+
+    Args:
+        logger: The logger instance.
+        method_name: The logging method name.
+        event_dict: The event dictionary.
+
+    Returns:
+        The event dictionary with additional context merged in.
+    """
+    _ = logger, method_name  # Required by structlog processor interface
+    context = _logger_context_var.get()
+    if context is not None:
+        # Merge context, with event_dict taking precedence
+        for key, value in context.items():
+            if key not in event_dict:
+                event_dict[key] = value
+    return event_dict
+
+
 def configure_structlog() -> None:
     """Configure structlog with appropriate processors for the environment.
 
@@ -75,6 +107,7 @@ def configure_structlog() -> None:
         structlog.stdlib.add_logger_name,
         add_log_level_upper,
         inject_correlation_id,  # Add correlation ID from context
+        inject_logger_context,  # Add additional context from contextvars
         structlog.processors.CallsiteParameterAdder(
             parameters=[
                 structlog.processors.CallsiteParameter.FILENAME,
@@ -142,16 +175,23 @@ def configure_structlog() -> None:
     )
 
 
-def get_logger(name: str | None = None) -> Any:
-    """Get a structlog logger instance.
+def get_logger(name: str | None = None, **initial_context: Any) -> Any:
+    """Get a structlog logger instance with automatic context binding.
+
+    This function returns a logger that automatically includes any context
+    stored in contextvars, ensuring context propagation across async boundaries.
 
     Args:
         name: The name of the logger. If None, uses the caller's module name.
+        **initial_context: Initial key-value pairs to bind to this logger instance.
 
     Returns:
-        A bound structlog logger instance.
+        A bound structlog logger instance with context from contextvars.
     """
-    return structlog.get_logger(name)
+    logger = structlog.get_logger(name)
+    if initial_context:
+        logger = logger.bind(**initial_context)
+    return logger
 
 
 @contextmanager
@@ -239,3 +279,38 @@ def log_exception(
 
     # Log with exception info for stack trace
     log_method(log_message, exc_info=error, **context)
+
+
+def bind_logger_context(**bindings: Any) -> None:
+    """Bind additional context to all loggers in the current async context.
+
+    This function adds key-value pairs to the logger context that will be
+    automatically included in all log messages within the current async context.
+    This is useful for adding request-specific context that should appear in
+    all logs during request processing.
+
+    Args:
+        **bindings: Key-value pairs to add to the logger context.
+
+    Example:
+        # At the start of request processing
+        bind_logger_context(user_id=123, request_id="abc-123")
+
+        # All subsequent logs will include user_id and request_id
+        logger.info("Processing request")  # Will include user_id and request_id
+    """
+    current_context = _logger_context_var.get()
+    if current_context is None:
+        updated_context = bindings
+    else:
+        updated_context = {**current_context, **bindings}
+    _logger_context_var.set(updated_context)
+
+
+def clear_logger_context() -> None:
+    """Clear all logger context for the current async context.
+
+    This should typically be called at the end of request processing to ensure
+    a clean state for the next request.
+    """
+    _logger_context_var.set(None)
