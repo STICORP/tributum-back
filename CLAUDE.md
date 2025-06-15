@@ -194,18 +194,21 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 
 ### Logging
 ```python
-from src.core.logging import configure_structlog
-import structlog
+from src.core.logging import configure_structlog, get_logger, log_context
 
 # Configure at app startup
 configure_structlog()
 
 # Get logger
-logger = structlog.get_logger("module_name")
+logger = get_logger("module_name")  # or get_logger() for auto-name
 
 # Log with structured data
 logger.info("user_action", user_id=123, action="login")
 logger.error("database_error", error=str(e), query=query)
+
+# Temporary context bindings (without contextvars)
+with log_context(request_id="abc-123", user_id=456) as logger:
+    logger.info("processing request")  # Includes request_id and user_id
 
 # Logs include: timestamp, level, logger name, filename, line number, function name
 # Dev: Colored console output
