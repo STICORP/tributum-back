@@ -43,9 +43,10 @@ This plan was created to implement robust cross-cutting concerns for the Tributu
 The tasks are organized in phases with clear dependencies:
 - Phase 1 (Exceptions) → Foundation for all error handling (Tasks 1.1-1.8 complete)
 - Phase 2 (Basic Logging) → Basic structlog without correlation IDs (Tasks 2.1-2.5 complete)
-- Phase 3 (Context) → Required for correlation IDs (Tasks 3.1-3.4)
-- Phase 3.5 (Logging Enhancement) → Add correlation ID support (Tasks 2.2b, 2.3b, 3.5b)
-- Phase 4 (API Middleware) → Depends on 1, 2, 3 (Tasks 4.1-4.4)
+- Phase 3 (Context) → Required for correlation IDs (Tasks 3.1-3.4 complete)
+- Phase 3.5 (Logging Enhancement) → Add correlation ID support (Tasks 2.2b, 2.3b, 3.5b complete)
+- Phase 3.6 (JSON Performance) → Optimize JSON serialization for logs and API (Tasks 3.6.1-3.6.7)
+- Phase 4 (API Middleware) → Depends on 1, 2, 3, 3.6 (Tasks 4.1-4.4)
 - Phase 4.5 (Exception Enhancement) → Add HTTP context capture (Tasks 1.6b, 1.7c, 4.5c)
 - Phase 5 (OpenTelemetry) → After context setup with error integration (Tasks 5.1-5.5)
 - Phase 6 (Database) → Independent but needed before integration (Tasks 6.1-6.11)
@@ -444,6 +445,123 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Examples show correlation ID in logs
 - Async logging patterns documented
 - Request tracing explained
+
+### Phase 3.6: JSON Performance Optimization (After Context Infrastructure)
+
+#### Task 3.6.1: Add orjson Dependency
+**Status**: Pending
+**Pre-Implementation**: Check latest orjson version compatible with Python 3.13
+**File**: `pyproject.toml`
+**Implementation**:
+- Add orjson dependency to pyproject.toml
+- Check version: `curl -s https://pypi.org/pypi/orjson/json | grep -o '"version":"[^"]*"' | head -1`
+- Ensure compatibility with Python 3.13
+**Tests**: Run `uv sync` and verify installation
+**Acceptance Criteria**:
+- orjson installs without conflicts
+- Compatible with Python 3.13 and existing dependencies
+
+#### Task 3.6.2: Create Custom orjson Processor for structlog
+**Status**: Pending
+**File**: `src/core/logging.py`
+**Implementation**:
+- Create `ORJSONRenderer` class that implements structlog processor interface
+- Handle all Python types currently used in logs (datetime, UUID, exceptions)
+- Use orjson.dumps with appropriate options (OPT_SORT_KEYS for consistency)
+- Ensure compatibility with existing log processors
+**Tests**: Update `tests/unit/core/test_logging.py`
+- Test JSON output structure remains the same
+- Test performance improvement over standard JSONRenderer
+- Test special type handling (datetime with timezone, UUID, exceptions)
+- Test with all log levels and contexts
+**Acceptance Criteria**:
+- Logs maintain exact same structure as before
+- Performance improvement measurable
+- All existing log types handled correctly
+- No loss of information in logs
+
+#### Task 3.6.3: Update Logging Configuration to Use orjson
+**Status**: Pending
+**File**: `src/core/logging.py`
+**Implementation**:
+- Replace `structlog.processors.JSONRenderer()` with `ORJSONRenderer()` in prod_processors
+- Ensure fallback to standard JSONRenderer if orjson import fails
+- Maintain existing processor pipeline order
+**Tests**: Update `tests/unit/core/test_logging.py`
+- Test configuration with orjson renderer
+- Test fallback behavior if orjson unavailable
+- Verify correlation ID and context still work
+**Acceptance Criteria**:
+- JSON logs use orjson in production mode
+- Console logs unchanged in development mode
+- Graceful fallback if orjson unavailable
+
+#### Task 3.6.4: Create ORJSONResponse Class
+**Status**: Pending
+**File**: `src/api/utils/responses.py`
+**Implementation**:
+- Create `ORJSONResponse` class extending FastAPI's Response
+- Implement render method using orjson.dumps
+- Set media_type to "application/json"
+- Handle orjson options (OPT_INDENT_2 for readability in debug mode)
+- Support Pydantic model serialization via model_dump()
+**Tests**: `tests/unit/api/utils/test_responses.py`
+- Test basic type serialization
+- Test Pydantic model serialization
+- Test datetime with timezone (crucial for ErrorResponse.timestamp)
+- Test None values and empty responses
+- Compare performance with JSONResponse
+**Acceptance Criteria**:
+- Correctly serializes all API response types
+- Handles ErrorResponse model with timestamp
+- Maintains compatibility with FastAPI
+- Measurable performance improvement
+
+#### Task 3.6.5: Configure FastAPI to Use ORJSONResponse
+**Status**: Pending
+**File**: `src/api/main.py`
+**Implementation**:
+- Import ORJSONResponse from utils.responses
+- Add `default_response_class=ORJSONResponse` to FastAPI constructor
+- Ensure all existing endpoints work without modification
+- Verify OpenAPI schema generation still functions
+**Tests**: `tests/integration/api/test_orjson_integration.py`
+- Test all existing endpoints return valid JSON
+- Test error responses serialize correctly
+- Test OpenAPI endpoints (/docs, /redoc, /openapi.json)
+- Test response headers include correct content-type
+**Acceptance Criteria**:
+- All endpoints use orjson automatically
+- No changes required to endpoint code
+- OpenAPI documentation accessible
+- Error responses maintain structure
+
+#### Task 3.6.6: Verify orjson Compatibility with Existing Components
+**Status**: Pending
+**Implementation**:
+- Run all existing tests to ensure no regressions
+- Check ErrorResponse serialization with timestamp
+- Verify correlation ID in logs still works
+- Test with different log levels and contexts
+**Tests**: Run full test suite
+**Acceptance Criteria**:
+- All existing tests pass
+- No functionality degradation
+- Performance improvement confirmed
+
+#### Task 3.6.7: Document orjson Integration
+**Status**: Pending
+**File**: `CLAUDE.md`
+**Implementation**:
+- Add section on JSON performance optimization
+- Document why orjson was chosen (performance, memory efficiency)
+- Note any limitations or special handling
+- Add example of custom serialization if needed
+- Update performance considerations
+**Acceptance Criteria**:
+- Clear explanation of orjson benefits
+- Any gotchas documented
+- Examples if custom serialization needed
 
 ### Phase 4: API Middleware
 
@@ -1003,6 +1121,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - [x] Exception stack traces captured and logged but not exposed to clients
 - [x] All logs use structlog with correlation ID when in request context
 - [x] Error responses include timestamp, severity, and service info
+- [ ] High-performance JSON serialization with orjson for logs and API responses
 - [ ] Debug information only available in development environment
 - [ ] All API responses include security headers
 - [ ] Database operations use repository pattern
