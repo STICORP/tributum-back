@@ -1,9 +1,16 @@
 """Unit tests for the context module."""
 
+import asyncio
 import re
 import uuid
 
-from src.core.context import CORRELATION_ID_HEADER, generate_correlation_id
+import pytest
+
+from src.core.context import (
+    CORRELATION_ID_HEADER,
+    RequestContext,
+    generate_correlation_id,
+)
 
 
 class TestCorrelationIDGeneration:
@@ -64,3 +71,92 @@ class TestCorrelationIDHeader:
         # This test verifies the use of Final typing
         # The actual immutability is enforced by type checkers
         assert isinstance(CORRELATION_ID_HEADER, str)
+
+
+class TestRequestContext:
+    """Test RequestContext for storing and retrieving correlation IDs."""
+
+    def test_set_and_get_correlation_id(self) -> None:
+        """Test setting and getting a correlation ID."""
+        test_id = "test-correlation-123"
+        RequestContext.set_correlation_id(test_id)
+        assert RequestContext.get_correlation_id() == test_id
+
+    def test_get_correlation_id_returns_none_when_not_set(self) -> None:
+        """Test getting correlation ID returns None when not set."""
+        RequestContext.clear()  # Ensure clean state
+        assert RequestContext.get_correlation_id() is None
+
+    def test_clear_removes_correlation_id(self) -> None:
+        """Test that clear() removes the correlation ID."""
+        test_id = "test-correlation-456"
+        RequestContext.set_correlation_id(test_id)
+        assert RequestContext.get_correlation_id() == test_id
+
+        RequestContext.clear()
+        assert RequestContext.get_correlation_id() is None
+
+    def test_overwrite_correlation_id(self) -> None:
+        """Test that setting a new correlation ID overwrites the old one."""
+        first_id = "first-correlation-id"
+        second_id = "second-correlation-id"
+
+        RequestContext.set_correlation_id(first_id)
+        assert RequestContext.get_correlation_id() == first_id
+
+        RequestContext.set_correlation_id(second_id)
+        assert RequestContext.get_correlation_id() == second_id
+
+    @pytest.mark.asyncio
+    async def test_context_isolation_between_async_tasks(self) -> None:
+        """Test that context is isolated between concurrent async tasks."""
+        results = []
+
+        async def task1() -> None:
+            """First async task setting its own correlation ID."""
+            RequestContext.set_correlation_id("task1-id")
+            await asyncio.sleep(0.01)  # Simulate some async work
+            results.append(("task1", RequestContext.get_correlation_id()))
+
+        async def task2() -> None:
+            """Second async task setting its own correlation ID."""
+            RequestContext.set_correlation_id("task2-id")
+            await asyncio.sleep(0.01)  # Simulate some async work
+            results.append(("task2", RequestContext.get_correlation_id()))
+
+        # Run tasks concurrently
+        await asyncio.gather(task1(), task2())
+
+        # Each task should see its own correlation ID
+        assert ("task1", "task1-id") in results
+        assert ("task2", "task2-id") in results
+
+    @pytest.mark.asyncio
+    async def test_context_propagation_in_async_chain(self) -> None:
+        """Test that context propagates through async call chain."""
+        correlation_id = "chain-correlation-id"
+
+        async def inner_function() -> str | None:
+            """Inner function that reads the correlation ID."""
+            return RequestContext.get_correlation_id()
+
+        async def middle_function() -> str | None:
+            """Middle function in the call chain."""
+            return await inner_function()
+
+        async def outer_function() -> str | None:
+            """Outer function that sets the correlation ID."""
+            RequestContext.set_correlation_id(correlation_id)
+            return await middle_function()
+
+        result = await outer_function()
+        assert result == correlation_id
+
+    def test_context_with_generated_correlation_id(self) -> None:
+        """Test using RequestContext with a generated correlation ID."""
+        generated_id = generate_correlation_id()
+        RequestContext.set_correlation_id(generated_id)
+
+        retrieved_id = RequestContext.get_correlation_id()
+        assert retrieved_id == generated_id
+        assert uuid.UUID(retrieved_id)  # Verify it's a valid UUID
