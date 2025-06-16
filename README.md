@@ -45,6 +45,12 @@ Tributum (Latin for "tribute" or "tax") is a financial backend system designed t
 
 The project is in active development (v0.1.0) with core infrastructure implemented. Business logic implementation is planned after completing cross-cutting concerns.
 
+### Recent Updates
+- High-performance JSON serialization with orjson (2-10x faster)
+- Request context middleware with correlation ID tracking
+- Async context propagation using contextvars
+- Enhanced logging with automatic correlation ID injection
+
 ## Architecture
 
 Tributum follows Domain-Driven Design (DDD) principles with clear separation of concerns:
@@ -82,6 +88,7 @@ Tributum follows Domain-Driven Design (DDD) principles with clear separation of 
 - **ASGI Server**: Uvicorn 0.34.3
 - **Configuration**: Pydantic Settings 2.9.1
 - **Logging**: Structlog 25.4.0
+- **JSON Serialization**: orjson 3.10.18 (high-performance)
 - **Package Manager**: uv (fast Python package installer)
 
 ### Infrastructure
@@ -97,7 +104,7 @@ Tributum follows Domain-Driven Design (DDD) principles with clear separation of 
 - **Type Checking**: mypy (strict mode)
 - **Testing**: pytest with coverage
 - **Security**: Bandit, Safety, pip-audit, Semgrep
-- **Code Quality**: Vulture, Interrogate
+- **Code Quality**: Vulture, Interrogate, Pylint (variable shadowing)
 - **Git Hooks**: pre-commit
 
 ## Prerequisites
@@ -293,6 +300,16 @@ tests/
 - Minimum coverage: 80%
 - Coverage reports: `htmlcov/index.html`
 
+### Code Quality Metrics
+
+Tributum maintains high code quality standards:
+- **Type Coverage**: 100% (enforced by mypy strict mode)
+- **Test Coverage**: Minimum 80% (enforced in CI)
+- **Docstring Coverage**: Minimum 80% (Google style)
+- **Security**: No high/critical vulnerabilities allowed
+- **Code Style**: Enforced by Ruff with comprehensive rules
+- **Performance**: JSON operations optimized with orjson (2-10x faster)
+
 ## Deployment
 
 ### Infrastructure Setup
@@ -333,15 +350,19 @@ Each environment has its own Terraform configuration in `terraform/environments/
 tributum-back/
 ├── src/                    # Source code
 │   ├── api/               # API layer
-│   │   ├── main.py       # FastAPI application
-│   │   └── schemas/      # Pydantic models
-│   │       └── errors.py # Error response models
+│   │   ├── main.py       # FastAPI application with ORJSONResponse
+│   │   ├── middleware/   # API middleware
+│   │   │   └── request_context.py # Correlation ID tracking
+│   │   ├── schemas/      # Pydantic models
+│   │   │   └── errors.py # Error response models
+│   │   └── utils/        # API utilities
+│   │       └── responses.py # ORJSONResponse for high-performance
 │   ├── core/             # Core utilities
 │   │   ├── config.py     # Configuration management
 │   │   ├── context.py    # Request context and correlation IDs
 │   │   ├── error_context.py # Error context utilities
 │   │   ├── exceptions.py # Exception classes
-│   │   └── logging.py    # Structured logging setup
+│   │   └── logging.py    # Structured logging with orjson
 │   └── domain/           # Business domains (planned)
 ├── tests/                 # Test suite
 │   ├── unit/             # Unit tests
@@ -442,7 +463,10 @@ Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 - [x] Structured logging with structlog
 - [x] Correlation ID generation
 - [x] Request context infrastructure
-- [ ] API middleware (security, logging)
+- [x] Request context middleware for correlation IDs
+- [x] High-performance JSON serialization (orjson)
+- [x] Async context propagation (contextvars)
+- [ ] Additional API middleware (security, rate limiting)
 - [ ] OpenTelemetry integration
 - [ ] Database setup (PostgreSQL + SQLAlchemy)
 
@@ -467,7 +491,7 @@ This project is licensed under the MIT License.
 ---
 
 <!-- README-METADATA
-Last Updated: 2025-06-15
-Last Commit: 156ee6c
-Update Count: 2
+Last Updated: 2025-06-16
+Last Commit: 5bc4211
+Update Count: 3
 -->
