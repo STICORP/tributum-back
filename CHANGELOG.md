@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Project metadata and semantic versioning setup
 - Automated changelog updates in commit workflow
 - Security headers middleware with configurable HSTS support
+- Request logging middleware with comprehensive sanitization for observability
 
 ### Changed
 - Improved changelog commit messages to be more descriptive and follow project standards
