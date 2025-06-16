@@ -89,6 +89,16 @@ repos:
         args: [--config=pyproject.toml, --verbose]
         exclude: ^(tests/|htmlcov/)
 
+  # Pylint for catching variable shadowing issues
+  - repo: https://github.com/pylint-dev/pylint
+    rev: v3.3.7
+    hooks:
+      - id: pylint
+        name: pylint (shadowing check)
+        args: [--rcfile=pyproject.toml]
+        additional_dependencies: [pydantic, fastapi]  # Add runtime deps for import resolution
+        exclude: ^tests/  # Exclude test files as shadowing is common in fixtures
+
   # Run all tests to catch breaking changes
   - repo: local
     hooks:

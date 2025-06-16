@@ -30,6 +30,7 @@ dev = [
     "pytest-rich>=0.2.0",
     "vulture>=2.14",
     "interrogate>=1.7.0",
+    "pylint>=3.3.7",
 ]
 
 [tool.ruff]
@@ -204,3 +205,13 @@ color = true
 omit-covered-files = false
 generate-badge = "."
 badge-format = "svg"
+
+[tool.pylint.messages_control]
+disable = "all"
+enable = ["redefined-outer-name"]
+
+[tool.pylint.basic]
+good-names = ["i", "j", "k", "ex", "Run", "_", "id", "ok"]
+
+[tool.pylint.format]
+max-line-length = 88  # Match Ruff's line length

@@ -33,6 +33,7 @@ uv run semgrep --config=auto .
 # Code quality
 uv run vulture .             # Dead code (false positives → vulture_whitelist.py)
 uv run interrogate -v .      # Docstring coverage (80% minimum, Google-style)
+uv run pylint src/           # Variable shadowing check (excludes tests)
 
 # Run app
 make run
