@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Automated changelog updates in commit workflow
 
 ### Changed
+- Improved changelog commit messages to be more descriptive and follow project standards
 
 ### Deprecated
 
