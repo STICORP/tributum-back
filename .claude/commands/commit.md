@@ -111,6 +111,30 @@ After creating each commit, automatically update CHANGELOG.md:
    Entry:  - Updated FastAPI to 0.115.12 (under ### Security if security update)
    ```
 
+7. **Changelog commit message format**:
+   ```
+   docs: update changelog for <feature/fix description>
+
+   Added entry to [Unreleased] section under <category> for the
+   <commit type> that <what it does>.
+
+   This keeps the changelog current with development progress and
+   ensures all user-facing changes are properly documented for
+   the next release.
+   ```
+
+   Example:
+   ```
+   docs: update changelog for JWT authentication feature
+
+   Added entry to [Unreleased] section under Added category for the
+   authentication feature that implements JWT-based API security.
+
+   This keeps the changelog current with development progress and
+   ensures all user-facing changes are properly documented for
+   the next release.
+   ```
+
 ## Usage
 
 When I ask you to commit changes, follow these steps:
@@ -118,9 +142,5 @@ When I ask you to commit changes, follow these steps:
 2. Group them logically
 3. Create atomic commits with descriptive messages
 4. After each commit, check if it should update CHANGELOG.md
-5. If yes, stage and commit the changelog update separately:
-   ```bash
-   git add CHANGELOG.md
-   git commit -m "docs: update changelog"
-   ```
+5. If yes, stage and commit the changelog update with a descriptive message following the format above
 6. Explain what was done and why, focusing on the reasoning behind the implementation
