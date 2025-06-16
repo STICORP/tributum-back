@@ -1,24 +1,48 @@
 """Unit tests for RequestLoggingMiddleware."""
 
+import asyncio
 from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response
 from fastapi.testclient import TestClient
+from pydantic import BaseModel
 
 from src.api.middleware.request_context import RequestContextMiddleware
-from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.api.middleware.request_logging import (
+    MAX_BODY_SIZE,
+    TRUNCATED_SUFFIX,
+    RequestLoggingMiddleware,
+)
 from src.core.context import CORRELATION_ID_HEADER
 
 
-def create_test_app(add_logging_middleware: bool = True) -> FastAPI:
+class UserModel(BaseModel):
+    """Test model for request/response bodies."""
+
+    username: str
+    password: str
+    email: str | None = None
+
+
+def create_test_app(
+    add_logging_middleware: bool = True,
+    log_request_body: bool = False,
+    log_response_body: bool = False,
+    max_body_size: int = MAX_BODY_SIZE,
+) -> FastAPI:
     """Create a test FastAPI app."""
     test_app = FastAPI()
     # Note: Middleware is executed in reverse order in FastAPI/Starlette
     # So we add RequestLoggingMiddleware first, then RequestContextMiddleware
     if add_logging_middleware:
-        test_app.add_middleware(RequestLoggingMiddleware)
+        test_app.add_middleware(
+            RequestLoggingMiddleware,
+            log_request_body=log_request_body,
+            log_response_body=log_response_body,
+            max_body_size=max_body_size,
+        )
     test_app.add_middleware(RequestContextMiddleware)
 
     @test_app.get("/test")
@@ -50,6 +74,36 @@ def create_test_app(add_logging_middleware: bool = True) -> FastAPI:
     async def unhandled_error_endpoint() -> None:
         """Test endpoint that raises an unhandled exception."""
         raise ValueError("This is an unhandled error")
+
+    @test_app.post("/json-endpoint")
+    async def json_endpoint(user: UserModel) -> dict[str, Any]:
+        """Test endpoint that accepts JSON body."""
+        return {"received": user.model_dump()}
+
+    @test_app.post("/form-endpoint")
+    async def form_endpoint(
+        username: str = Form(), password: str = Form(), age: int = Form()
+    ) -> dict[str, Any]:
+        """Test endpoint that accepts form data."""
+        # Password is intentionally not returned to test sanitization
+        _ = password  # Mark as intentionally unused
+        return {"username": username, "age": age}
+
+    @test_app.post("/raw-text")
+    async def raw_text_endpoint(request: Request) -> dict[str, str]:
+        """Test endpoint that accepts raw text."""
+        body = await request.body()
+        return {"received": body.decode("utf-8")}
+
+    @test_app.post("/binary-upload")
+    async def binary_upload_endpoint(file: bytes = File()) -> dict[str, int]:
+        """Test endpoint that accepts binary file."""
+        return {"size": len(file)}
+
+    @test_app.post("/echo", response_model=UserModel)
+    async def echo_endpoint(user: UserModel) -> UserModel:
+        """Test endpoint that echoes back the input."""
+        return user
 
     return test_app
 
@@ -368,3 +422,485 @@ class TestRequestLoggingMiddleware:
         assert call_kwargs["error_type"] == "ValueError"
         assert "exc_info" in call_kwargs
         assert "correlation_id" in call_kwargs
+
+
+class TestRequestBodyLogging:
+    """Test cases for request body logging functionality."""
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_logs_json_request_body(self, mock_get_logger: Mock) -> None:
+        """Test that middleware logs JSON request body."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # Send JSON body
+        body = {
+            "username": "john",
+            "password": "secret123",
+            "email": "john@example.com",
+        }
+        client.post("/json-endpoint", json=body)
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify body was logged and password was sanitized
+        call_kwargs = started_calls[0][1]
+        assert "body" in call_kwargs
+        assert call_kwargs["body"]["username"] == "john"
+        assert call_kwargs["body"]["password"] == "[REDACTED]"
+        assert call_kwargs["body"]["email"] == "john@example.com"
+        assert (
+            "headers" in call_kwargs
+        )  # Headers should be logged when body logging is enabled
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_logs_form_data_request_body(self, mock_get_logger: Mock) -> None:
+        """Test that middleware logs form data request body."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # Send form data
+        form_data = {"username": "alice", "password": "secret456", "age": "25"}
+        client.post("/form-endpoint", data=form_data)
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify form data was logged and password was sanitized
+        call_kwargs = started_calls[0][1]
+        assert "body" in call_kwargs
+        assert call_kwargs["body"]["username"] == "alice"
+        assert call_kwargs["body"]["password"] == "[REDACTED]"
+        assert call_kwargs["body"]["age"] == "25"
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_logs_text_request_body(self, mock_get_logger: Mock) -> None:
+        """Test that middleware logs text request body."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # Send plain text
+        text_body = "This is a plain text message"
+        client.post(
+            "/raw-text", content=text_body, headers={"content-type": "text/plain"}
+        )
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify text body was logged
+        call_kwargs = started_calls[0][1]
+        assert "body" in call_kwargs
+        assert call_kwargs["body"] == text_body
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_logs_binary_request_metadata(self, mock_get_logger: Mock) -> None:
+        """Test that middleware logs binary request metadata only."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # Send binary data
+        binary_data = b"Binary content \x00\x01\x02"
+        files = {"file": ("test.bin", binary_data, "application/octet-stream")}
+        client.post("/binary-upload", files=files)
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify only metadata was logged for multipart
+        call_kwargs = started_calls[0][1]
+        assert "body" in call_kwargs
+        assert call_kwargs["body"]["_type"] == "multipart/form-data"
+        assert "_size" in call_kwargs["body"]
+        assert call_kwargs["body"]["_info"] == "Binary content not logged"
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_truncates_large_request_body(self, mock_get_logger: Mock) -> None:
+        """Test that middleware truncates large request bodies."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        # Create app with small max body size
+        app = create_test_app(log_request_body=True, max_body_size=50)
+        client = TestClient(app)
+
+        # Send large text body
+        large_text = "A" * 100
+        client.post(
+            "/raw-text", content=large_text, headers={"content-type": "text/plain"}
+        )
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify body was truncated
+        call_kwargs = started_calls[0][1]
+        assert "body" in call_kwargs
+        assert len(call_kwargs["body"]) < len(large_text)
+        assert call_kwargs["body"].endswith(TRUNCATED_SUFFIX)
+        assert call_kwargs["body"].startswith("A" * 50)
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_sanitizes_headers_when_body_logging_enabled(
+        self, mock_get_logger: Mock
+    ) -> None:
+        """Test that headers are sanitized when body logging is enabled."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # Send request with sensitive headers
+        headers = {
+            "Authorization": "Bearer secret-token",
+            "X-API-Key": "api-secret",
+            "Content-Type": "application/json",
+            "User-Agent": "TestClient",
+        }
+        client.post("/json-endpoint", json={"username": "test"}, headers=headers)
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify headers were sanitized
+        call_kwargs = started_calls[0][1]
+        assert "headers" in call_kwargs
+        assert call_kwargs["headers"]["authorization"] == "[REDACTED]"
+        assert call_kwargs["headers"]["x-api-key"] == "[REDACTED]"
+        assert call_kwargs["headers"]["content-type"] == "application/json"
+        assert call_kwargs["headers"]["user-agent"] == "TestClient"
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_handles_invalid_json_gracefully(self, mock_get_logger: Mock) -> None:
+        """Test that middleware handles invalid JSON gracefully."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # Send invalid JSON
+        client.post(
+            "/json-endpoint",
+            content=b"Invalid JSON {",
+            headers={"content-type": "application/json"},
+        )
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify the invalid JSON was logged as text
+        call_kwargs = started_calls[0][1]
+        assert "body" in call_kwargs
+        assert "Invalid JSON {" in str(call_kwargs["body"])
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_request_body_still_available_to_endpoint(
+        self, mock_get_logger: Mock
+    ) -> None:
+        """Test that request body is still available to the endpoint."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # Send JSON body
+        body = {"username": "test", "password": "pass", "email": "test@example.com"}
+        response = client.post("/json-endpoint", json=body)
+
+        # Verify endpoint received the body correctly
+        assert response.status_code == 200
+        assert response.json()["received"]["username"] == "test"
+        assert response.json()["received"]["email"] == "test@example.com"
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_no_body_logging_when_disabled(self, mock_get_logger: Mock) -> None:
+        """Test that body is not logged when disabled."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=False)  # Body logging disabled
+        client = TestClient(app)
+
+        # Send JSON body
+        body = {"username": "john", "password": "secret"}
+        client.post("/json-endpoint", json=body)
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify body was NOT logged
+        call_kwargs = started_calls[0][1]
+        assert "body" not in call_kwargs
+        assert "headers" not in call_kwargs
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_body_logging_only_for_write_methods(self, mock_get_logger: Mock) -> None:
+        """Test that body logging only happens for POST/PUT/PATCH."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+        client = TestClient(app)
+
+        # GET request should not log body even if enabled
+        client.get("/test")
+
+        # Find the request_started call
+        started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_started"
+        ]
+        assert len(started_calls) == 1
+
+        # Verify no body was logged for GET
+        call_kwargs = started_calls[0][1]
+        assert "body" not in call_kwargs
+        # Headers might still be logged
+        assert "headers" in call_kwargs
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_handles_request_body_read_failure(self, mock_get_logger: Mock) -> None:
+        """Test that middleware handles request body read failures gracefully."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_request_body=True)
+
+        # Mock request that fails to read body
+        async def failing_body() -> bytes:
+            raise RuntimeError("Failed to read body")
+
+        # Create a mock request
+        mock_request = Mock(spec=Request)
+        mock_request.method = "POST"
+        mock_request.url.path = "/test"
+        mock_request.query_params = {}
+        mock_request.headers = {"content-type": "application/json"}
+        mock_request.body = failing_body
+
+        # Test the middleware directly
+        middleware = RequestLoggingMiddleware(app, log_request_body=True)
+
+        # This should log a warning but not crash
+        parsed, raw = asyncio.run(middleware._parse_request_body(mock_request))
+
+        assert parsed is None
+        assert raw is None
+
+        # Check warning was logged
+        mock_logger.warning.assert_called_once()
+        warning_call = mock_logger.warning.call_args
+        assert warning_call[0][0] == "Failed to read request body"
+
+
+class TestResponseBodyLogging:
+    """Test cases for response body logging functionality."""
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_logs_json_response_body(self, mock_get_logger: Mock) -> None:
+        """Test that middleware logs JSON response body."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_response_body=True)
+        client = TestClient(app)
+
+        # Make request that returns JSON
+        body = {"username": "test", "password": "secret", "email": "test@example.com"}
+        client.post("/echo", json=body)
+
+        # Find the request_completed call
+        completed_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_completed"
+        ]
+        assert len(completed_calls) == 1
+
+        # Verify response body was logged and password was sanitized
+        call_kwargs = completed_calls[0][1]
+        assert "response_body" in call_kwargs
+        assert call_kwargs["response_body"]["username"] == "test"
+        assert call_kwargs["response_body"]["password"] == "[REDACTED]"
+        assert call_kwargs["response_body"]["email"] == "test@example.com"
+        assert "response_headers" in call_kwargs
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_no_response_body_logging_when_disabled(
+        self, mock_get_logger: Mock
+    ) -> None:
+        """Test that response body is not logged when disabled."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_response_body=False)  # Response body logging disabled
+        client = TestClient(app)
+
+        # Make request
+        body = {"username": "test", "password": "secret"}
+        client.post("/echo", json=body)
+
+        # Find the request_completed call
+        completed_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_completed"
+        ]
+        assert len(completed_calls) == 1
+
+        # Verify response body was NOT logged
+        call_kwargs = completed_calls[0][1]
+        assert "response_body" not in call_kwargs
+        assert "response_headers" not in call_kwargs
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_sanitizes_response_headers(self, mock_get_logger: Mock) -> None:
+        """Test that response headers are sanitized."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        app = create_test_app(log_response_body=True)
+
+        # Add custom endpoint that sets sensitive headers
+        @app.get("/sensitive-headers")
+        async def sensitive_headers() -> Response:
+            return Response(
+                content="OK",
+                headers={
+                    "Set-Cookie": "session=secret",
+                    "X-API-Key": "response-secret",
+                    "X-Custom": "public-value",
+                },
+            )
+
+        client = TestClient(app)
+        client.get("/sensitive-headers")
+
+        # Find the request_completed call
+        completed_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_completed"
+        ]
+        assert len(completed_calls) == 1
+
+        # Verify headers were sanitized
+        call_kwargs = completed_calls[0][1]
+        assert "response_headers" in call_kwargs
+        assert call_kwargs["response_headers"]["set-cookie"] == "[REDACTED]"
+        assert call_kwargs["response_headers"]["x-api-key"] == "[REDACTED]"
+        assert call_kwargs["response_headers"]["x-custom"] == "public-value"
+
+
+class TestMiddlewareConfiguration:
+    """Test middleware configuration options."""
+
+    def test_custom_max_body_size(self) -> None:
+        """Test that custom max body size is respected."""
+        middleware = RequestLoggingMiddleware(
+            Mock(), log_request_body=True, max_body_size=100
+        )
+        assert middleware.max_body_size == 100
+
+    def test_default_configuration(self) -> None:
+        """Test default middleware configuration."""
+        middleware = RequestLoggingMiddleware(Mock())
+        assert middleware.log_request_body is False
+        assert middleware.log_response_body is False
+        assert middleware.max_body_size == MAX_BODY_SIZE
+
+    def test_truncate_body_method(self) -> None:
+        """Test the truncate body method."""
+        middleware = RequestLoggingMiddleware(Mock(), max_body_size=10)
+
+        # Test string truncation
+        result = middleware._truncate_body("Hello World!")
+        assert result == "Hello Worl" + TRUNCATED_SUFFIX
+
+        # Test bytes truncation
+        result = middleware._truncate_body(b"Hello World!")
+        assert result == "Hello Worl" + TRUNCATED_SUFFIX
+
+        # Test no truncation needed
+        result = middleware._truncate_body("Short")
+        assert result == "Short"
+
+        # Test binary data that can't be decoded - within size limit
+        # The method tries to decode with errors='replace'
+        # so it will show replacement chars
+        result = middleware._truncate_body(b"\xff\xfe\xfd")
+        assert len(result) == 3  # Should be decoded with replacement characters
+
+    def test_content_type_extraction(self) -> None:
+        """Test content type extraction."""
+        # Test the static method directly
+        from starlette.datastructures import Headers
+
+        headers = Headers({"content-type": "application/json; charset=utf-8"})
+        content_type = RequestLoggingMiddleware._get_content_type(headers)
+        assert content_type == "application/json"
+
+        headers = Headers({"content-type": "text/plain"})
+        content_type = RequestLoggingMiddleware._get_content_type(headers)
+        assert content_type == "text/plain"
+
+        headers = Headers({})
+        content_type = RequestLoggingMiddleware._get_content_type(headers)
+        assert content_type == ""
