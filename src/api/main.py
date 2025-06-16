@@ -20,7 +20,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     if settings is None:
         settings = get_settings()
 
-    app = FastAPI(
+    application = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
         debug=settings.debug,
@@ -31,7 +31,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     # Define routes
-    @app.get("/")
+    @application.get("/")
     async def root() -> dict[str, str]:
         """Root endpoint returning a hello world message.
 
@@ -40,27 +40,27 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         return {"message": "Hello from Tributum!"}
 
-    @app.get("/info")
+    @application.get("/info")
     async def info(
-        settings: Annotated[Settings, Depends(get_settings)],
+        app_settings: Annotated[Settings, Depends(get_settings)],
     ) -> dict[str, Any]:
         """Get application information.
 
         Args:
-            settings: Application settings injected via dependency.
+            app_settings: Application settings injected via dependency.
 
         Returns:
             dict[str, Any]: Application information including name, version,
                 and environment.
         """
         return {
-            "app_name": settings.app_name,
-            "version": settings.app_version,
-            "environment": settings.environment,
-            "debug": settings.debug,
+            "app_name": app_settings.app_name,
+            "version": app_settings.app_version,
+            "environment": app_settings.environment,
+            "debug": app_settings.debug,
         }
 
-    return app
+    return application
 
 
 app = create_app()
