@@ -115,3 +115,49 @@ class TestRequestContextMiddleware:
         correlation_id = response.headers[CORRELATION_ID_HEADER]
         assert correlation_id != ""
         assert len(correlation_id) == 36
+
+    @pytest.mark.asyncio
+    async def test_non_http_request_passthrough(self) -> None:
+        """Test that non-HTTP requests (like WebSocket) are passed through."""
+        from collections.abc import Awaitable, Callable, MutableMapping
+        from typing import Any
+
+        # Create a mock app that tracks if it was called
+        called = False
+
+        async def mock_app(
+            scope: MutableMapping[str, Any],
+            receive: Callable[[], Awaitable[MutableMapping[str, Any]]],
+            send: Callable[[MutableMapping[str, Any]], Awaitable[None]],
+        ) -> None:
+            nonlocal called
+            called = True
+            # Use the parameters to avoid unused argument warnings
+            assert scope["type"] == "websocket"
+            assert receive is not None
+            assert send is not None
+
+        # Create middleware instance
+        middleware = RequestContextMiddleware(mock_app)
+
+        # Create a WebSocket scope
+        websocket_scope: MutableMapping[str, Any] = {
+            "type": "websocket",
+            "path": "/ws",
+            "headers": [],
+        }
+
+        # Mock receive and send callables
+        async def mock_receive() -> MutableMapping[str, Any]:
+            return {"type": "websocket.connect"}
+
+        async def mock_send(message: MutableMapping[str, Any]) -> None:
+            pass
+
+        # Call middleware with WebSocket scope
+        await middleware(websocket_scope, mock_receive, mock_send)
+
+        # Verify the app was called directly without context handling
+        assert called
+        # Context should remain None (not set by middleware)
+        assert RequestContext.get_correlation_id() is None
