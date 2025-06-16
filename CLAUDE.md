@@ -254,21 +254,31 @@ except TributumError as e:
 # Performance: 2-10x faster JSON serialization with orjson
 ```
 
-## Version Management
-Uses [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
+## Version Management & Release Workflow
 
+Uses [Semantic Versioning](https://semver.org/) with automated changelog tracking.
+
+### Development Workflow
+1. **Develop & Commit**: Use `/commit` - automatically updates CHANGELOG.md
+2. **Push**: Regular `git push` after commits
+3. **Release**: Use `/release` when ready to tag a version
+
+### Automated Changelog
+- `/commit` adds entries to `[Unreleased]` section automatically
+- Meaningful commits (feat, fix, refactor) tracked
+- Test/style commits skipped
+- No manual changelog editing needed
+
+### Release Process
 ```bash
-# Bump version (updates pyproject.toml, src/core/config.py, VERSION)
-uv run bump-my-version bump patch  # Bug fixes
-uv run bump-my-version bump minor  # New features
-uv run bump-my-version bump major  # Breaking changes
-
-# Release process
-1. Update CHANGELOG.md
-2. git add CHANGELOG.md
-3. uv run bump-my-version bump [patch|minor|major]
-4. git push && git push --tags
+/release  # Analyzes changes, bumps version, creates tag
+git push && git push --tags  # Push release
 ```
+
+Version bump decided by changelog content:
+- **PATCH**: Bug fixes, security updates
+- **MINOR**: New features (any "Added" entries)
+- **MAJOR**: Breaking changes, removals
 
 ## Notes
 Update this file as project grows with new patterns and implementations.

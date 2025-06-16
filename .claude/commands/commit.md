@@ -64,10 +64,63 @@ When analyzing changes:
    the application and enables secure API access.
    ```
 
+## Automatic CHANGELOG Updates
+
+After creating each commit, automatically update CHANGELOG.md:
+
+1. **Parse commit message** to determine change type and description
+2. **Map commit types to changelog categories**:
+   - `feat:` → `### Added`
+   - `fix:` → `### Fixed`
+   - `docs:` → `### Changed` (only if significant)
+   - `refactor:` → `### Changed`
+   - `perf:` → `### Changed`
+   - `test:` → Skip (don't add to changelog)
+   - `chore:` → Skip (unless dependencies/security)
+   - `style:` → Skip (don't add to changelog)
+   - `build:` → `### Changed`
+   - `ci:` → Skip (unless affects users)
+
+3. **Format changelog entry**:
+   - Extract subject line without type/scope prefix
+   - Capitalize first letter
+   - Rephrase for end-users (not developers)
+   - Include key details from commit body if relevant
+
+4. **Update CHANGELOG.md**:
+   - Add under `## [Unreleased]` in appropriate category
+   - Create category if it doesn't exist
+   - Avoid duplicates - check if similar entry exists
+   - Preserve existing entries
+
+5. **Skip changelog for**:
+   - Test-only commits
+   - Style/formatting changes
+   - Minor doc updates (typos, comments)
+   - Dev tool configs (unless affects users)
+
+6. **Changelog entry examples**:
+   ```
+   Commit: feat(auth): implement JWT authentication
+   Entry:  - JWT authentication for API endpoints
+
+   Commit: fix(api): resolve memory leak in handler
+   Entry:  - Memory leak in request handling
+
+   Commit: chore(deps): bump fastapi to 0.115.12
+   Entry:  - Updated FastAPI to 0.115.12 (under ### Security if security update)
+   ```
+
 ## Usage
 
 When I ask you to commit changes, follow these steps:
 1. Analyze all uncommitted changes
 2. Group them logically
 3. Create atomic commits with descriptive messages
-4. Explain what was done and why, focusing on the reasoning behind the implementation
+4. After each commit, check if it should update CHANGELOG.md
+5. If yes, stage and commit the changelog update separately:
+   ```bash
+   git add CHANGELOG.md
+   git commit -m "docs: update changelog"
+   ```
+6. Explain what was done and why, focusing on the reasoning behind the implementation

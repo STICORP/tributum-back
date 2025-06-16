@@ -16,7 +16,8 @@ Manage semantic versioning and changelog updates for the Tributum project.
 
 3. **Verify Unreleased Changes**
    - Check CHANGELOG.md has content in [Unreleased] section
-   - If empty, check git log for undocumented changes
+   - If empty, stop and inform user that no unreleased changes are documented
+   - Note: With automatic changelog updates from /commit, this should rarely be empty
 
 ## Release Steps
 
@@ -26,10 +27,15 @@ Manage semantic versioning and changelog updates for the Tributum project.
    - Review changes to determine impact
 
 2. **Determine Version Bump Type**
-   Based on the changes, recommend:
-   - **PATCH (0.0.X)**: Bug fixes, documentation updates, dependency security patches, performance improvements
-   - **MINOR (0.X.0)**: New features, new endpoints, deprecations, significant dependency updates
-   - **MAJOR (X.0.0)**: Breaking changes, API changes, config structure changes, removed features
+   Based on the CHANGELOG.md [Unreleased] section content:
+   - **PATCH (0.0.X)**: Only entries in Fixed, Security categories, or minor dependency updates
+   - **MINOR (0.X.0)**: Any entries in Added category, or significant entries in Changed
+   - **MAJOR (X.0.0)**: Any entries in Removed category, breaking changes noted, or entries marked as BREAKING CHANGE
+
+   Additional analysis from git commits:
+   - Check commit messages for "BREAKING CHANGE" in footer
+   - Verify API contract changes
+   - Review configuration structure modifications
 
 3. **Update CHANGELOG.md**
    - Read current CHANGELOG.md
