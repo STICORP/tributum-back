@@ -8,9 +8,10 @@ GCP Project: tributum-new
 - Basic FastAPI app with configuration management
 - Exception infrastructure implemented with severity levels and context support
 - API error response patterns defined
-- Structured logging with structlog (basic setup without correlation IDs)
+- Structured logging with structlog with correlation ID support
 - Correlation ID generator and request context implemented (UUID4-based, contextvars)
 - RequestContextMiddleware for correlation ID propagation
+- RequestLoggingMiddleware with request/response body logging
 - Domain-driven design structure planned (not fully implemented)
 
 ## Essential Commands
@@ -279,6 +280,28 @@ Version bump decided by changelog content:
 - **PATCH**: Bug fixes, security updates
 - **MINOR**: New features (any "Added" entries)
 - **MAJOR**: Breaking changes, removals
+
+### Request/Response Logging
+```python
+from src.api.middleware.request_logging import RequestLoggingMiddleware
+
+# Add middleware with body logging
+app.add_middleware(
+    RequestLoggingMiddleware,
+    log_request_body=True,      # Log request bodies (default: False)
+    log_response_body=True,     # Log response bodies (default: False)
+    max_body_size=10*1024,      # Max body size to log (default: 10KB)
+)
+
+# Logs include:
+# - Method, path, status code, duration
+# - Query parameters (sanitized)
+# - Request/response headers (sensitive headers redacted)
+# - Request/response bodies for JSON/form data (sanitized)
+# - Binary data logged as metadata only
+# - Large bodies truncated with [TRUNCATED] suffix
+# - All sensitive fields automatically sanitized
+```
 
 ## Notes
 Update this file as project grows with new patterns and implementations.
