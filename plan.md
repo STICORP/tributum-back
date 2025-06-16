@@ -46,7 +46,7 @@ The tasks are organized in phases with clear dependencies:
 - Phase 3 (Context) → Required for correlation IDs (Tasks 3.1-3.4 complete)
 - Phase 3.5 (Logging Enhancement) → Add correlation ID support (Tasks 2.2b, 2.3b, 3.5b complete)
 - Phase 3.6 (JSON Performance) → Optimize JSON serialization for logs and API (Tasks 3.6.1-3.6.7)
-- Phase 4 (API Middleware) → Depends on 1, 2, 3, 3.6 (Tasks 4.1-4.4)
+- Phase 4 (API Middleware) → Depends on 1, 2, 3, 3.6 (Tasks 4.1-4.4, including 4.2b)
 - Phase 4.5 (Exception Enhancement) → Add HTTP context capture (Tasks 1.6b, 1.7c, 4.5c)
 - Phase 5 (OpenTelemetry) → After context setup with error integration (Tasks 5.1-5.5)
 - Phase 6 (Database) → Independent but needed before integration (Tasks 6.1-6.11)
@@ -582,7 +582,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Headers have correct values
 
 #### Task 4.2: Create Request Logging Middleware
-**Status**: Pending
+**Status**: Complete
 **File**: `src/api/middleware/request_logging.py`
 **Implementation**:
 - Create `RequestLoggingMiddleware` class
@@ -597,6 +597,44 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Logs include correlation ID
 - Duration is calculated correctly
 - Sensitive paths are filtered
+
+#### Task 4.2b: Add Request/Response Body Logging
+**Status**: Pending
+**Pre-requisites**: Task 4.2 (RequestLoggingMiddleware exists)
+**File**: `src/api/middleware/request_logging.py`
+**Implementation**:
+- Implement `log_request_body` functionality in existing middleware
+- Implement `log_response_body` functionality
+- Read request body safely (handle streaming, preserve for downstream)
+- Support JSON content type with full parsing and sanitization
+- Support form data content type with sanitization
+- Handle multipart/binary data (log metadata only, not content)
+- Add configurable size limits (default 10KB for logs)
+- Truncate large bodies with clear indication
+- Use `sanitize_context` on parsed request/response bodies
+- Add request headers logging (sanitized, exclude Authorization, Cookie)
+- Add response headers logging if enabled
+- Handle request body read errors gracefully
+**Tests**: Update `tests/unit/api/middleware/test_request_logging.py`
+- Test JSON request body logging with sanitization
+- Test form data request body logging with sanitization
+- Test large body truncation
+- Test binary/multipart data handling (metadata only)
+- Test request body read errors don't break request
+- Test response body logging when enabled
+- Test headers logging with sensitive header filtering
+- Test that request body is still available to endpoints
+- Test with various content types
+**Acceptance Criteria**:
+- Request bodies are logged when `log_request_body=True`
+- Response bodies are logged when `log_response_body=True`
+- All sensitive data is sanitized using existing patterns
+- Large bodies are truncated with size indication
+- Binary data shows metadata only (content-type, size)
+- Request processing continues even if body logging fails
+- Original request body remains accessible to endpoints
+- Performance impact is minimal
+- Memory usage is bounded by size limits
 
 #### Task 4.3: Create Global Exception Handler
 **Status**: Pending
@@ -1096,6 +1134,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 3. **Commit after each completed task** with descriptive commit messages
 4. **Update CLAUDE.md** as you implement new patterns
 5. **Check dependencies** are installed before starting each phase
+6. **Prioritize observability** - Log all relevant request/response data with proper sanitization
 
 ## Testing Strategy Reminders
 
@@ -1124,6 +1163,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - [x] High-performance JSON serialization with orjson for logs and API responses
 - [ ] Debug information only available in development environment
 - [ ] All API responses include security headers
+- [ ] Request/response bodies are logged with proper sanitization
 - [ ] Database operations use repository pattern
 - [ ] OpenTelemetry traces show full request flow with error context
 - [ ] Sentry/GCP Error Reporting integration captures all unhandled errors
