@@ -1,10 +1,6 @@
 """Request context middleware for correlation ID management."""
 
-from collections.abc import Awaitable, Callable
-
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.types import ASGIApp
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from src.core.context import (
     CORRELATION_ID_HEADER,
@@ -13,7 +9,7 @@ from src.core.context import (
 )
 
 
-class RequestContextMiddleware(BaseHTTPMiddleware):
+class RequestContextMiddleware:
     """Middleware to manage request context and correlation IDs.
 
     This middleware:
@@ -23,8 +19,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     4. Adds the correlation ID to response headers
     5. Clears the context after request completion
 
-    Attributes:
-        app: The ASGI application to wrap.
+    This uses pure ASGI middleware to avoid issues with BaseHTTPMiddleware
+    exception handling.
     """
 
     def __init__(self, app: ASGIApp) -> None:
@@ -33,38 +29,62 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
         Args:
             app: The ASGI application to wrap.
         """
-        super().__init__(app)
+        self.app = app
 
-    async def dispatch(
-        self,
-        request: Request,
-        call_next: Callable[[Request], Awaitable[Response]],
-    ) -> Response:
-        """Process the request and manage correlation ID context.
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Process the ASGI request.
 
         Args:
-            request: The incoming HTTP request.
-            call_next: The next middleware or route handler.
-
-        Returns:
-            The HTTP response with correlation ID header added.
+            scope: The ASGI connection scope.
+            receive: The ASGI receive callable.
+            send: The ASGI send callable.
         """
-        # Extract or generate correlation ID
-        correlation_id = request.headers.get(CORRELATION_ID_HEADER)
-        if not correlation_id:
+        if scope["type"] != "http":
+            # Only handle HTTP requests
+            await self.app(scope, receive, send)
+            return
+
+        # Extract headers from scope
+        headers = dict(scope.get("headers", []))
+        correlation_id_bytes = headers.get(CORRELATION_ID_HEADER.lower().encode())
+
+        # Get or generate correlation ID
+        if correlation_id_bytes:
+            correlation_id = correlation_id_bytes.decode("latin-1")
+        else:
             correlation_id = generate_correlation_id()
 
         # Set correlation ID in context
         RequestContext.set_correlation_id(correlation_id)
 
+        # Flag to track if headers have been sent
+        headers_sent = False
+
+        async def send_wrapper(message: Message) -> None:
+            """Wrap the send callable to add correlation ID header."""
+            nonlocal headers_sent
+
+            if message["type"] == "http.response.start" and not headers_sent:
+                headers_sent = True
+                # Add correlation ID to response headers
+                response_headers = list(message.get("headers", []))
+                response_headers.append(
+                    (
+                        CORRELATION_ID_HEADER.lower().encode(),
+                        correlation_id.encode("latin-1"),
+                    )
+                )
+                message["headers"] = response_headers
+
+            await send(message)
+
         try:
             # Process the request
-            response = await call_next(request)
-
-            # Add correlation ID to response headers
-            response.headers[CORRELATION_ID_HEADER] = correlation_id
-
-            return response
+            await self.app(scope, receive, send_wrapper)
+        except Exception:
+            # Clear context but re-raise the exception
+            RequestContext.clear()
+            raise
         finally:
-            # Clear the context to prevent leakage
+            # Ensure context is cleared even if no exception
             RequestContext.clear()

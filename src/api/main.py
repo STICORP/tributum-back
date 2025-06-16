@@ -4,6 +4,8 @@ from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
 
+from src.api.middleware.error_handler import register_exception_handlers
+from src.api.middleware.request_context import RequestContextMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 
@@ -29,6 +31,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url=settings.openapi_url,
         default_response_class=ORJSONResponse,
     )
+
+    # Register exception handlers BEFORE middleware
+    register_exception_handlers(application)
+
+    # Register middleware AFTER exception handlers
+    application.add_middleware(RequestContextMiddleware)
 
     # Define routes
     @application.get("/")
