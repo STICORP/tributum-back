@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test infrastructure with pytest and coverage reporting
 - Domain-driven design structure (planned)
 - Project metadata and semantic versioning setup
+- Automated changelog updates in commit workflow
 
 ### Changed
 
