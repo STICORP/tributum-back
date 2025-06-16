@@ -7,11 +7,11 @@ improved JSON serialization performance.
 from typing import Any
 
 import orjson
-from fastapi import Response
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 
-class ORJSONResponse(Response):
+class ORJSONResponse(JSONResponse):
     """FastAPI Response class using orjson for high-performance JSON serialization.
 
     This response class provides 2-10x faster JSON serialization compared to
@@ -20,16 +20,6 @@ class ORJSONResponse(Response):
     """
 
     media_type = "application/json"
-
-    def __init__(self, content: Any = None, **kwargs: Any) -> None:
-        """Initialize the response.
-
-        Args:
-            content: The content to render.
-            **kwargs: Additional arguments passed to Response.
-        """
-        self.debug = kwargs.pop("debug", False)
-        super().__init__(content, **kwargs)
 
     def render(self, content: Any) -> bytes:
         """Render the content as JSON using orjson.
@@ -44,9 +34,5 @@ class ORJSONResponse(Response):
         if isinstance(content, BaseModel):
             content = content.model_dump()
 
-        # In debug mode, use indentation for readability
-        options = orjson.OPT_SORT_KEYS
-        if self.debug:
-            options |= orjson.OPT_INDENT_2
-
-        return orjson.dumps(content, option=options)
+        # Use consistent sorting for predictable output
+        return orjson.dumps(content, option=orjson.OPT_SORT_KEYS)

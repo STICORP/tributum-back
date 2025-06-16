@@ -148,20 +148,16 @@ class TestORJSONResponse:
         assert parsed_str.index('"a"') < parsed_str.index('"m"')
         assert parsed_str.index('"m"') < parsed_str.index('"z"')
 
-    def test_debug_mode_indentation(self) -> None:
-        """Test indentation in debug mode."""
+    def test_compact_output(self) -> None:
+        """Test that output is compact (no indentation)."""
         content = {"key": "value", "nested": {"inner": "data"}}
 
-        # Test without debug mode
         response = ORJSONResponse(content)
         result = response.render(content)
-        assert b"\n" not in result  # No newlines in compact mode
 
-        # Test with debug mode
-        response = ORJSONResponse(content, debug=True)
-        result = response.render(content)
-        assert b"\n" in result  # Should have newlines for indentation
-        assert b"  " in result  # Should have indentation
+        # Should be compact without newlines or extra spaces
+        assert b"\n" not in result
+        assert b"  " not in result
 
     def test_special_types_handling(self) -> None:
         """Test handling of special types like UUID and datetime."""

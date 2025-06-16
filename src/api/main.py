@@ -4,6 +4,7 @@ from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
 
+from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 
 
@@ -26,6 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         docs_url=settings.docs_url,
         redoc_url=settings.redoc_url,
         openapi_url=settings.openapi_url,
+        default_response_class=ORJSONResponse,
     )
 
     # Define routes
