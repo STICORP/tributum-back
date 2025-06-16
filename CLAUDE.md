@@ -112,11 +112,13 @@ Before ANY code:
 ```
 src/
 ├── api/
-│   ├── main.py         # FastAPI app with /info endpoint
+│   ├── main.py         # FastAPI app with /info endpoint, uses ORJSONResponse
 │   ├── middleware/
 │   │   └── request_context.py  # Correlation ID middleware
-│   └── schemas/
-│       └── errors.py   # ErrorResponse model
+│   ├── schemas/
+│   │   └── errors.py   # ErrorResponse model
+│   └── utils/
+│       └── responses.py # ORJSONResponse for high-performance JSON
 ├── core/
 │   ├── config.py       # Pydantic Settings
 │   ├── context.py      # Correlation ID generation, RequestContext
