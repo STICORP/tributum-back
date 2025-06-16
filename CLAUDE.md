@@ -99,6 +99,11 @@ Before ANY code:
   - If ANY other interaction happened after /commit: authorization expired
   - Must wait for new /commit command
 - When /commit is NOT in the last prompt: ONLY stage files and show commit message
+- **File Creation Rule**: ALWAYS stage new files immediately after creation
+  - Use: `Write(file) && Bash("git add <file>")` pattern
+  - Or: `Bash("echo 'content' > file && git add file")`
+  - Exception: Temporary/scratch files that will be deleted
+  - This prevents "unstaged files detected" errors during commits
 
 ### 8. Dependencies
 - ALWAYS use latest versions when adding
