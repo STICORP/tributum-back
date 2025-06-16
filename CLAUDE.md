@@ -10,8 +10,10 @@ GCP Project: tributum-new
 - API error response patterns defined
 - Structured logging with structlog with correlation ID support
 - Correlation ID generator and request context implemented (UUID4-based, contextvars)
-- RequestContextMiddleware for correlation ID propagation
+- RequestContextMiddleware for correlation ID propagation (pure ASGI implementation)
 - RequestLoggingMiddleware with request/response body logging
+- Global exception handlers for all exception types with proper logging
+- High-performance JSON serialization with orjson for logs and API responses
 - Domain-driven design structure planned (not fully implemented)
 
 ## Essential Commands
@@ -301,6 +303,36 @@ app.add_middleware(
 # - Binary data logged as metadata only
 # - Large bodies truncated with [TRUNCATED] suffix
 # - All sensitive fields automatically sanitized
+```
+
+### Global Exception Handling
+```python
+# Exception handlers are automatically registered in create_app()
+# All exceptions are caught and converted to standardized ErrorResponse
+
+# TributumError and subclasses
+# - Returns appropriate HTTP status code (400, 401, 404, 422)
+# - Includes full context, severity, and correlation ID
+# - Stack trace logged but not exposed to clients
+
+# RequestValidationError (FastAPI/Pydantic)
+# - Returns 422 with field-level validation errors
+# - Groups errors by field name
+
+# HTTPException (Starlette)
+# - Converts to our standard error format
+# - Maps status codes to appropriate error codes
+
+# Generic Exception
+# - Returns 500 Internal Server Error
+# - In development: includes exception details
+# - In production: hides internal details
+# - Always logs full stack trace with structlog
+
+# All error responses include:
+# - error_code, message, correlation_id
+# - timestamp (UTC), severity, service_info
+# - details (sanitized context information)
 ```
 
 ## Notes
