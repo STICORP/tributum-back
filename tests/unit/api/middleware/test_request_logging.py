@@ -46,6 +46,11 @@ def create_test_app(add_logging_middleware: bool = True) -> FastAPI:
         """Another sensitive endpoint."""
         return {"token": "another-secret"}
 
+    @test_app.get("/unhandled-error")
+    async def unhandled_error_endpoint() -> None:
+        """Test endpoint that raises an unhandled exception."""
+        raise ValueError("This is an unhandled error")
+
     return test_app
 
 
@@ -323,3 +328,43 @@ class TestRequestLoggingMiddleware:
             response1.headers[CORRELATION_ID_HEADER]
             != response2.headers[CORRELATION_ID_HEADER]
         )
+
+    @patch("src.api.middleware.request_logging.get_logger")
+    def test_logs_unhandled_exceptions(self, mock_get_logger: Mock) -> None:
+        """Test that middleware logs unhandled exceptions."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        # Create app and client after patching
+        app = create_test_app()
+        client = TestClient(app)
+
+        # This should raise an unhandled ValueError
+        with pytest.raises(ValueError, match="This is an unhandled error"):
+            client.get("/unhandled-error")
+
+        # Should log request_started
+        request_started_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0] and call[0][0] == "request_started"
+        ]
+        assert len(request_started_calls) == 1
+
+        # Should log request_failed (not request_completed)
+        failed_calls = [
+            call
+            for call in mock_logger.error.call_args_list
+            if call[0][0] == "request_failed"
+        ]
+        assert len(failed_calls) == 1
+
+        # Verify the error details
+        call_kwargs = failed_calls[0][1]
+        assert call_kwargs["method"] == "GET"
+        assert call_kwargs["path"] == "/unhandled-error"
+        assert "duration_ms" in call_kwargs
+        assert isinstance(call_kwargs["duration_ms"], float)
+        assert call_kwargs["error_type"] == "ValueError"
+        assert "exc_info" in call_kwargs
+        assert "correlation_id" in call_kwargs
