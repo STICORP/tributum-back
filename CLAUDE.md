@@ -252,7 +252,6 @@ except TributumError as e:
 # Dev: Colored console output
 # Prod: JSON format with high-performance orjson serialization
 # Performance: 2-10x faster JSON serialization with orjson
-# Fallback: Automatically uses standard JSONRenderer if orjson unavailable
 ```
 
 ## Notes

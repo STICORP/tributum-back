@@ -23,7 +23,6 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging import (
-    ORJSON_AVAILABLE,
     ORJSONRenderer,
     add_log_level_upper,
     bind_logger_context,
@@ -209,12 +208,11 @@ class TestConfigureStructlog:
         config = structlog.get_config()
         processors = config["processors"]
 
-        # Verify JSON renderer is in the pipeline
-        # (either ORJSONRenderer or JSONRenderer)
-        has_json_renderer = any(
-            type(p).__name__ in ["JSONRenderer", "_ORJSONRenderer"] for p in processors
+        # Verify ORJSONRenderer is in the pipeline
+        has_orjson_renderer = any(
+            type(p).__name__ == "ORJSONRenderer" for p in processors
         )
-        assert has_json_renderer, "JSON renderer should be configured"
+        assert has_orjson_renderer, "ORJSONRenderer should be configured"
 
         # Now test with LogCapture to verify structure
         structlog.configure(
@@ -330,8 +328,8 @@ class TestConfigureStructlog:
         assert any("add_logger_name" in str(p) for p in processors)
         assert "CallsiteParameterAdder" in processor_types
         assert "TimeStamper" in processor_types
-        # Should have either JSONRenderer or ORJSONRenderer
-        assert "JSONRenderer" in processor_types or "_ORJSONRenderer" in processor_types
+        # Should have ORJSONRenderer
+        assert "ORJSONRenderer" in processor_types
 
     @patch("src.core.logging.get_settings")
     def test_timestamp_configuration(self, mock_get_settings: MagicMock) -> None:
@@ -444,8 +442,8 @@ class TestConfigureStructlog:
         ]
 
         assert "ConsoleRenderer" in dev_renderers
-        # Should have either JSONRenderer or ORJSONRenderer in production
-        assert "JSONRenderer" in prod_renderers or "_ORJSONRenderer" in prod_renderers
+        # Should have ORJSONRenderer in production
+        assert "ORJSONRenderer" in prod_renderers
 
     @patch("src.core.logging.get_settings")
     def test_callsite_information(self, mock_get_settings: MagicMock) -> None:
@@ -604,92 +602,8 @@ class TestConfigureStructlog:
         assert "correlation_id" not in cap.entries[2]
 
     @patch("src.core.logging.get_settings")
-    @patch("src.core.logging.ORJSON_AVAILABLE", True)
-    @patch("src.core.logging.ORJSONRenderer")
-    def test_orjson_renderer_used_when_available(
-        self, mock_orjson_renderer: MagicMock, mock_get_settings: MagicMock
-    ) -> None:
-        """Test that ORJSONRenderer is used when orjson is available."""
-        # Create a mock renderer instance
-        mock_renderer_instance = MagicMock()
-        mock_orjson_renderer.return_value = mock_renderer_instance
-
-        # Configure for JSON output
-        settings = Settings()
-        settings.log_config = LogConfig(
-            log_level="INFO", log_format="json", render_json_logs=True
-        )
-        mock_get_settings.return_value = settings
-
-        # Configure structlog
-        configure_structlog()
-
-        # Verify ORJSONRenderer was instantiated twice (prod + stdlib)
-        assert mock_orjson_renderer.call_count == 2
-
-        # Get configuration and check the renderer is in processors
-        config = structlog.get_config()
-        processors = config["processors"]
-
-        # The mock renderer instance should be in the processors
-        assert mock_renderer_instance in processors
-
-    @patch("src.core.logging.get_settings")
-    @patch("src.core.logging.ORJSON_AVAILABLE", False)
-    @patch("src.core.logging.ORJSONRenderer", None)
-    def test_json_renderer_fallback_when_orjson_not_available(
-        self, mock_get_settings: MagicMock
-    ) -> None:
-        """Test that JSONRenderer is used when orjson is not available."""
-        # Configure for JSON output
-        settings = Settings()
-        settings.log_config = LogConfig(
-            log_level="INFO", log_format="json", render_json_logs=True
-        )
-        mock_get_settings.return_value = settings
-
-        # Configure structlog
-        configure_structlog()
-
-        # Get configuration and verify JSONRenderer is used
-        config = structlog.get_config()
-        processors = config["processors"]
-
-        # Should have JSONRenderer, not ORJSONRenderer
-        processor_types = [type(p).__name__ for p in processors]
-        assert "JSONRenderer" in processor_types
-        assert "_ORJSONRenderer" not in processor_types
-
-    @patch("src.core.logging.get_settings")
-    @patch("src.core.logging.ORJSON_AVAILABLE", True)
-    @patch("src.core.logging.ORJSONRenderer")
-    def test_stdlib_logging_uses_orjson_when_available(
-        self, mock_orjson_renderer: MagicMock, mock_get_settings: MagicMock
-    ) -> None:
-        """Test that stdlib logging also uses ORJSONRenderer when available."""
-        # Create a mock renderer instance
-        mock_renderer_instance = MagicMock()
-        mock_orjson_renderer.return_value = mock_renderer_instance
-
-        # Configure for JSON output
-        settings = Settings()
-        settings.log_config = LogConfig(
-            log_level="INFO", log_format="json", render_json_logs=True
-        )
-        mock_get_settings.return_value = settings
-
-        # Configure structlog
-        configure_structlog()
-
-        # Verify ORJSONRenderer was called twice
-        # (once for prod_processors, once for stdlib)
-        assert mock_orjson_renderer.call_count == 2
-
-    @patch("src.core.logging.get_settings")
-    def test_orjson_actually_used_in_production(
-        self, mock_get_settings: MagicMock
-    ) -> None:
-        """Test that when orjson is actually available, it's used."""
+    def test_orjson_used_in_production(self, mock_get_settings: MagicMock) -> None:
+        """Test that ORJSONRenderer is used in production."""
         # Configure for JSON output
         settings = Settings()
         settings.log_config = LogConfig(
@@ -707,14 +621,12 @@ class TestConfigureStructlog:
         # Find the JSON renderer in processors
         renderer = None
         for p in processors:
-            type_name = type(p).__name__
-            if type_name in ["JSONRenderer", "_ORJSONRenderer"]:
+            if type(p).__name__ == "ORJSONRenderer":
                 renderer = p
                 break
 
         assert renderer is not None
-        # Since orjson is available in our test environment, it should be ORJSONRenderer
-        assert type(renderer).__name__ == "_ORJSONRenderer"
+        assert type(renderer).__name__ == "ORJSONRenderer"
 
 
 class TestGetLogger:
@@ -1298,7 +1210,6 @@ class TestLoggerContextBinding:
         assert cap.entries[2]["inner_only"] == "yes"
 
 
-@pytest.mark.skipif(not ORJSON_AVAILABLE, reason="orjson not available")
 class TestORJSONRenderer:
     """Test the ORJSONRenderer custom processor."""
 
@@ -1567,54 +1478,3 @@ class TestORJSONRenderer:
         assert parsed["request"]["method"] == "POST"
         assert parsed["response"]["duration_ms"] == 45.23
         assert parsed["tags"] == ["api", "success"]
-
-
-class TestORJSONRendererFallback:
-    """Test behavior when orjson is not available."""
-
-    def test_orjson_not_available(self) -> None:
-        """Test that ORJSON_AVAILABLE is False when import fails."""
-        # We can't actually test the import failure in this test,
-        # but we can verify the flag exists
-        from src.core.logging import ORJSON_AVAILABLE
-
-        # Should be True since we have orjson installed
-        assert ORJSON_AVAILABLE is True
-
-    def test_orjson_renderer_none_when_not_available(self) -> None:
-        """Test that ORJSONRenderer is None when orjson not available."""
-        # This is more of a documentation test since we have orjson
-        from src.core.logging import ORJSONRenderer
-
-        # Should not be None since we have orjson
-        assert ORJSONRenderer is not None
-
-    def test_import_error_handling(self) -> None:
-        """Test the ImportError handling by directly executing the except block."""
-        # The lines 112-114 handle the case when orjson is not available
-        # We'll test this by creating the same conditions that would exist
-        # in the except ImportError block
-
-        # Create a test namespace to simulate the except block execution
-        test_namespace: dict[str, Any] = {"Any": Any}
-
-        # Execute the same code that's in the except block
-        exec(
-            """
-ORJSON_AVAILABLE = False
-ORJSONRenderer = None
-""",
-            test_namespace,
-        )
-
-        # Verify the results
-        assert test_namespace.get("ORJSON_AVAILABLE") is False
-        assert test_namespace.get("ORJSONRenderer") is None
-
-        # Also verify that our actual module handles this case
-        # by checking that the variables exist and have proper types
-        from src.core import logging as logging_module
-
-        assert hasattr(logging_module, "ORJSON_AVAILABLE")
-        assert hasattr(logging_module, "ORJSONRenderer")
-        assert isinstance(logging_module.ORJSON_AVAILABLE, bool)
