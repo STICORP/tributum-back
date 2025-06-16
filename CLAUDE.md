@@ -30,18 +30,10 @@ uv run safety scan
 uv run pip-audit --ignore-vuln PYSEC-2022-42969
 uv run semgrep --config=auto .
 
-# Code quality
-uv run vulture .             # Dead code (false positives → vulture_whitelist.py)
-uv run interrogate -v .      # Docstring coverage (80% minimum, Google-style)
-uv run pylint src/           # Variable shadowing check (excludes tests)
-
-# Run app
-make run
-
-# Terraform (from terraform/ directory)
-terraform init
-terraform plan
-terraform apply
+# Version management
+uv run bump-my-version bump patch  # 0.1.0 → 0.1.1
+uv run bump-my-version bump minor  # 0.1.1 → 0.2.0
+uv run bump-my-version bump major  # 0.2.0 → 1.0.0
 ```
 
 ## CRITICAL DEVELOPMENT RULES
@@ -260,6 +252,22 @@ except TributumError as e:
 # Dev: Colored console output
 # Prod: JSON format with high-performance orjson serialization
 # Performance: 2-10x faster JSON serialization with orjson
+```
+
+## Version Management
+Uses [Semantic Versioning](https://semver.org/) and [Keep a Changelog](https://keepachangelog.com/).
+
+```bash
+# Bump version (updates pyproject.toml, src/core/config.py, VERSION)
+uv run bump-my-version bump patch  # Bug fixes
+uv run bump-my-version bump minor  # New features
+uv run bump-my-version bump major  # Breaking changes
+
+# Release process
+1. Update CHANGELOG.md
+2. git add CHANGELOG.md
+3. uv run bump-my-version bump [patch|minor|major]
+4. git push && git push --tags
 ```
 
 ## Notes
