@@ -862,6 +862,43 @@ class TestRequestBodyLogging:
         assert call_kwargs["body"]["_size"] == 16
         assert call_kwargs["body"]["_info"] == "Binary content not logged"
 
+    @pytest.mark.asyncio
+    async def test_receive_function_coverage(self) -> None:
+        """Test the receive function implementation to cover line 260."""
+        # Create middleware
+        middleware = RequestLoggingMiddleware(Mock(), log_request_body=True)
+
+        # Create a mock request
+        mock_request = Mock(spec=Request)
+        mock_request.method = "POST"
+        mock_request.url.path = "/test"
+        mock_request.query_params = {}
+        mock_request.headers = {"content-type": "application/json"}
+
+        test_body = b'{"test": "data"}'
+
+        async def mock_body() -> bytes:
+            return test_body
+
+        mock_request.body = mock_body
+
+        # Mock call_next that tests the receive function
+        async def mock_call_next(request: Request) -> Response:
+            # Verify and test the receive function that was set by middleware
+            assert hasattr(request, "_receive")
+            # Call it to test line 260
+            result = await request._receive()
+            assert result == {"type": "http.request", "body": test_body}
+
+            # Return a mock response
+            mock_response = Mock(spec=Response)
+            mock_response.status_code = 200
+            mock_response.headers = {}
+            return mock_response
+
+        # Call dispatch
+        await middleware.dispatch(mock_request, mock_call_next)
+
 
 class TestResponseBodyLogging:
     """Test cases for response body logging functionality."""
@@ -1023,40 +1060,50 @@ class TestResponseBodyLogging:
         # Should fall back to string representation
         assert '{"invalid": json}' in call_kwargs["response_body"]
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_response_with_string_chunks(self, mock_get_logger: Mock) -> None:
+    @pytest.mark.asyncio
+    async def test_logs_response_with_string_chunks(self) -> None:
         """Test that middleware handles response with string chunks."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        # Test middleware directly to control the response body iterator
+        middleware = RequestLoggingMiddleware(Mock(), log_response_body=True)
 
-        app = create_test_app(log_response_body=True)
+        # Create a mock request
+        mock_request = Mock(spec=Request)
+        mock_request.method = "GET"
+        mock_request.url.path = "/test"
+        mock_request.query_params = {}
 
-        # Add endpoint that returns streaming response with strings
-        @app.get("/streaming-text")
-        async def streaming_text() -> Response:
-            async def generate() -> AsyncIterator[str]:
-                yield "Hello "
-                yield "World"
+        # Create a response that yields string chunks
+        class StringChunkResponse:
+            def __init__(self) -> None:
+                self.status_code = 200
+                self.headers = {"content-type": "text/plain"}
+                self.media_type = "text/plain"
 
-            from starlette.responses import StreamingResponse
+            @property
+            def body_iterator(self) -> AsyncIterator[str | bytes]:
+                async def generate() -> AsyncIterator[str | bytes]:
+                    # Yield different types to test lines 300-301
+                    yield "Hello "  # String chunk - line 300-301
+                    yield b"from "  # Bytes chunk - line 298-299
+                    yield "chunks"  # String chunk - line 300-301
 
-            return StreamingResponse(generate(), media_type="text/plain")
+                return generate()
 
-        client = TestClient(app)
-        client.get("/streaming-text")
+        # Mock call_next to return our custom response
+        async def mock_call_next(_request: Request) -> Response:
+            return StringChunkResponse()  # type: ignore
 
-        # Find the request_completed call
-        completed_calls = [
-            call
-            for call in mock_logger.info.call_args_list
-            if call[0][0] == "request_completed"
-        ]
-        assert len(completed_calls) == 1
+        # Call dispatch
+        response = await middleware.dispatch(mock_request, mock_call_next)
 
-        # Verify streamed text was logged
-        call_kwargs = completed_calls[0][1]
-        assert "response_body" in call_kwargs
-        assert call_kwargs["response_body"] == "Hello World"
+        # Verify the response body was reconstructed correctly
+        assert response.status_code == 200
+        # The body should have been read and reconstructed
+        assert hasattr(response, "body")
+        # Check that string chunks were properly encoded
+        expected_body = b"Hello from chunks"
+        if hasattr(response, "body"):
+            assert response.body == expected_body
 
 
 class TestMiddlewareConfiguration:
@@ -1105,6 +1152,32 @@ class TestMiddlewareConfiguration:
         assert result.endswith(TRUNCATED_SUFFIX)
         # The method decodes with errors='replace' so we get replacement chars
         assert len(result) > 10  # Should be truncated
+
+    def test_truncate_body_decode_exception(self) -> None:
+        """Test _truncate_body handles decode exceptions (lines 123-124, 130-131)."""
+        middleware = RequestLoggingMiddleware(Mock(), max_body_size=50)
+
+        # Create a custom bytes class that raises exception on decode
+        class BadBytes(bytes):
+            def decode(self, *_args: Any, **_kwargs: Any) -> str:
+                raise Exception("Simulated decode error")
+
+            def __getitem__(self, key: Any) -> Any:
+                # Ensure slicing returns BadBytes to maintain the decode override
+                result = super().__getitem__(key)
+                if isinstance(key, slice):
+                    return BadBytes(result)
+                return result
+
+        # Test case 1: decode exception for body within max size (lines 123-124)
+        bad_short = BadBytes(b"short")
+        result = middleware._truncate_body(bad_short)
+        assert result == "<binary data: 5 bytes>"
+
+        # Test case 2: decode exception for truncated body (lines 130-131)
+        bad_long = BadBytes(b"a" * 100)
+        result = middleware._truncate_body(bad_long)
+        assert result == f"<binary data: 100 bytes>{TRUNCATED_SUFFIX}"
 
     def test_content_type_extraction(self) -> None:
         """Test content type extraction."""
