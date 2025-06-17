@@ -1,11 +1,14 @@
 """Tests for error context utilities."""
 
 from typing import cast
+from unittest.mock import Mock
 
 import pytest
 
 from src.core.error_context import (
     REDACTED,
+    SENSITIVE_HEADERS,
+    capture_request_context,
     enrich_error,
     is_sensitive_field,
     sanitize_context,
@@ -380,3 +383,206 @@ class TestEnrichError:
         assert error.error_code == original_code
         assert error.message == original_message
         assert error.severity == original_severity
+
+
+class TestCaptureRequestContext:
+    """Test cases for HTTP request context capture."""
+
+    def test_captures_basic_request_info(self) -> None:
+        """Test capturing basic request information."""
+        # Create a mock request
+        request = Mock()
+        request.method = "POST"
+        request.url.path = "/api/users"
+        request.url.scheme = "https"
+        request.url.hostname = "api.example.com"
+        request.url.port = 443
+        request.headers = {"content-type": "application/json", "user-agent": "test"}
+        request.query_params = {}
+        request.client = Mock(host="192.168.1.1", port=12345)
+
+        context = capture_request_context(request)
+
+        assert context["method"] == "POST"
+        assert context["path"] == "/api/users"
+        assert context["headers"]["content-type"] == "application/json"
+        assert context["headers"]["user-agent"] == "test"
+        assert context["client"]["host"] == "192.168.1.1"
+        assert context["client"]["port"] == 12345
+        assert context["url"]["scheme"] == "https"
+        assert context["url"]["hostname"] == "api.example.com"
+        assert context["url"]["port"] == 443
+        assert context["url"]["path"] == "/api/users"
+
+    def test_filters_sensitive_headers(self) -> None:
+        """Test that sensitive headers are redacted."""
+        request = Mock()
+        request.method = "GET"
+        request.url.path = "/api/data"
+        request.url.scheme = "http"
+        request.url.hostname = "localhost"
+        request.url.port = 8000
+        request.headers = {
+            "authorization": "Bearer secret-token",
+            "cookie": "session=12345",
+            "x-api-key": "sk_test_123",
+            "content-type": "application/json",
+            "user-agent": "test-client",
+        }
+        request.query_params = {}
+        request.client = None
+
+        context = capture_request_context(request)
+
+        # Sensitive headers should be redacted
+        assert context["headers"]["authorization"] == REDACTED
+        assert context["headers"]["cookie"] == REDACTED
+        assert context["headers"]["x-api-key"] == REDACTED
+        # Non-sensitive headers should be preserved
+        assert context["headers"]["content-type"] == "application/json"
+        assert context["headers"]["user-agent"] == "test-client"
+
+    def test_sanitizes_query_parameters(self) -> None:
+        """Test that query parameters are sanitized."""
+        request = Mock()
+        request.method = "GET"
+        request.url.path = "/api/search"
+        request.url.scheme = "http"
+        request.url.hostname = "localhost"
+        request.url.port = 8000
+        request.headers = {}
+        request.query_params = {
+            "q": "search term",
+            "api_key": "secret_key_123",
+            "page": "1",
+            "password": "should_be_hidden",
+        }
+        request.client = None
+
+        context = capture_request_context(request)
+
+        assert "query_params" in context
+        assert context["query_params"]["q"] == "search term"
+        assert context["query_params"]["api_key"] == REDACTED
+        assert context["query_params"]["page"] == "1"
+        assert context["query_params"]["password"] == REDACTED
+
+    def test_handles_none_request(self) -> None:
+        """Test handling of None request (not in HTTP context)."""
+        context = capture_request_context(None)
+        assert context == {}
+
+    def test_handles_missing_client_info(self) -> None:
+        """Test handling when client info is not available."""
+        request = Mock()
+        request.method = "GET"
+        request.url.path = "/health"
+        request.url.scheme = "http"
+        request.url.hostname = "localhost"
+        request.url.port = 8000
+        request.headers = {}
+        request.query_params = {}
+        request.client = None  # No client info
+
+        context = capture_request_context(request)
+
+        assert "client" not in context
+
+    def test_handles_empty_query_params(self) -> None:
+        """Test handling when there are no query parameters."""
+        request = Mock()
+        request.method = "GET"
+        request.url.path = "/api/users"
+        request.url.scheme = "http"
+        request.url.hostname = "localhost"
+        request.url.port = 8000
+        request.headers = {"accept": "application/json"}
+        request.query_params = {}
+        request.client = Mock(host="127.0.0.1", port=54321)
+
+        context = capture_request_context(request)
+
+        assert "query_params" not in context
+
+    def test_case_insensitive_header_filtering(self) -> None:
+        """Test that header filtering is case-insensitive."""
+        request = Mock()
+        request.method = "POST"
+        request.url.path = "/api/login"
+        request.url.scheme = "https"
+        request.url.hostname = "api.example.com"
+        request.url.port = 443
+        request.headers = {
+            "Authorization": "Bearer token",  # Title case
+            "COOKIE": "session=abc",  # Upper case
+            "X-Api-Key": "key123",  # Mixed case
+            "Content-Type": "application/json",
+        }
+        request.query_params = {}
+        request.client = None
+
+        context = capture_request_context(request)
+
+        # All variations should be redacted
+        assert context["headers"]["Authorization"] == REDACTED
+        assert context["headers"]["COOKIE"] == REDACTED
+        assert context["headers"]["X-Api-Key"] == REDACTED
+        assert context["headers"]["Content-Type"] == "application/json"
+
+    def test_handles_request_attribute_errors(self) -> None:
+        """Test graceful handling when request attributes raise errors."""
+        request = Mock()
+        # Make some attributes raise exceptions
+        request.method = "GET"
+        request.url.path = "/api/test"
+        request.url.scheme = "http"
+        request.url.hostname = "localhost"
+        request.url.port = 8000
+        request.headers = Mock(side_effect=AttributeError("No headers"))
+        request.query_params = {}
+        request.client = None
+
+        # Should not raise, but return partial context
+        context = capture_request_context(request)
+
+        assert context["method"] == "GET"
+        assert context["path"] == "/api/test"
+        # Headers extraction failed, so it won't be in context
+
+    def test_validates_all_sensitive_headers_defined(self) -> None:
+        """Test that SENSITIVE_HEADERS contains expected values."""
+        expected_headers = {
+            "authorization",
+            "cookie",
+            "x-api-key",
+            "x-auth-token",
+            "x-csrf-token",
+            "set-cookie",
+            "x-secret-key",
+            "proxy-authorization",
+        }
+        assert expected_headers == SENSITIVE_HEADERS
+
+    def test_complex_query_params_sanitization(self) -> None:
+        """Test sanitization of nested query parameters."""
+        request = Mock()
+        request.method = "POST"
+        request.url.path = "/api/complex"
+        request.url.scheme = "http"
+        request.url.hostname = "localhost"
+        request.url.port = 8000
+        request.headers = {}
+        request.query_params = {
+            "filter[name]": "John",
+            "filter[password]": "secret123",
+            "sort": "created_at",
+            "auth_token": "bearer_123",
+        }
+        request.client = None
+
+        context = capture_request_context(request)
+
+        assert context["query_params"]["filter[name]"] == "John"
+        assert context["query_params"]["filter[password]"] == REDACTED
+        assert context["query_params"]["sort"] == "created_at"
+        assert context["query_params"]["auth_token"] == REDACTED

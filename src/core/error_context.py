@@ -6,9 +6,12 @@ and sanitize sensitive data from error contexts before logging or display.
 
 import re
 from copy import deepcopy
-from typing import Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from src.core.exceptions import TributumError
+
+if TYPE_CHECKING:
+    from fastapi import Request
 
 T = TypeVar("T")
 
@@ -37,6 +40,18 @@ SENSITIVE_FIELD_PATTERNS = [
 
 # Replacement value for sensitive data
 REDACTED = "[REDACTED]"
+
+# Headers to exclude from error context for security
+SENSITIVE_HEADERS = {
+    "authorization",
+    "cookie",
+    "x-api-key",
+    "x-auth-token",
+    "x-csrf-token",
+    "set-cookie",
+    "x-secret-key",
+    "proxy-authorization",
+}
 
 
 def is_sensitive_field(field_name: str) -> bool:
@@ -124,3 +139,70 @@ def enrich_error(
         error.context = {**error.context, **additional_context}
 
     return error
+
+
+def capture_request_context(request: "Request | None") -> dict[str, Any]:
+    """Capture HTTP request context for error reporting.
+
+    Extracts relevant information from a FastAPI Request object,
+    filtering out sensitive headers and sanitizing query parameters.
+
+    Args:
+        request: The FastAPI Request object, or None if not in HTTP context
+
+    Returns:
+        Dictionary containing request context:
+        - method: HTTP method
+        - path: Request path
+        - headers: Sanitized headers (sensitive headers removed)
+        - query_params: Sanitized query parameters
+        - client: Client information (host, port)
+        Returns empty dict if request is None
+    """
+    if request is None:
+        return {}
+
+    context: dict[str, Any] = {}
+
+    try:
+        # Extract basic request info
+        context["method"] = request.method
+        context["path"] = str(request.url.path)
+
+        # Extract and sanitize headers
+        headers = {}
+        for key, value in request.headers.items():
+            if key.lower() not in SENSITIVE_HEADERS:
+                headers[key] = value
+            else:
+                headers[key] = REDACTED
+        context["headers"] = headers
+
+        # Extract and sanitize query parameters
+        if request.query_params:
+            query_params = dict(request.query_params)
+            context["query_params"] = sanitize_context({"params": query_params})[
+                "params"
+            ]
+
+        # Extract client information
+        if request.client:
+            context["client"] = {
+                "host": request.client.host,
+                "port": request.client.port,
+            }
+
+        # Add URL information
+        context["url"] = {
+            "scheme": request.url.scheme,
+            "hostname": request.url.hostname,
+            "port": request.url.port,
+            "path": request.url.path,
+        }
+
+    except (AttributeError, KeyError, TypeError):
+        # If we can't extract request context due to missing attributes,
+        # return what we have so far
+        pass
+
+    return context
