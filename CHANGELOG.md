@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-06-17
+
 ### Added
 - Initial project structure with FastAPI framework
 - Configuration management using Pydantic Settings v2
@@ -33,19 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Replaced interrogate with pydoclint for enhanced docstring quality validation
 - Improved documentation quality across all modules with comprehensive docstrings
-
-### Changed
 - Improved changelog commit messages to be more descriptive and follow project standards
 - Enhanced Ruff linting configuration with stricter rules for code quality
 - Refactored codebase to eliminate magic values and improve code quality
-
-### Deprecated
-
-### Removed
-
-### Fixed
-
-### Security
 
 ## [0.1.0] - 2025-06-16
 
@@ -55,5 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core utilities for configuration, exceptions, and logging
 - Development environment setup
 
-[Unreleased]: https://github.com/daniel-jorge/tributum-back/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/daniel-jorge/tributum-back/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/daniel-jorge/tributum-back/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/daniel-jorge/tributum-back/releases/tag/v0.1.0

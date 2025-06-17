@@ -191,16 +191,16 @@ module = "tests.*"
 disallow_untyped_decorators = false
 disallow_any_generics = false
 
+[[tool.mypy.overrides]]
+module = "pydantic_settings"
+ignore_missing_imports = true
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
     "PLR2004",  # Magic values are OK in tests
     "TRY002",   # Creating generic exceptions is OK in tests
     "TRY301",   # Raising exceptions in tests is OK
 ]
-
-[[tool.mypy.overrides]]
-module = "pydantic_settings"
-ignore_missing_imports = true
 
 [tool.bandit]
 targets = ["src/", "main.py"]
