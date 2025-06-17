@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Request/response body logging with automatic sensitive data sanitization
 - Global exception handling with standardized error responses and full context logging
 - HTTP request context capture for enhanced error reporting with security filtering
+- Centralized constants module for magic values and configuration
 
 ### Changed
 - Improved changelog commit messages to be more descriptive and follow project standards
