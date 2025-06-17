@@ -68,27 +68,61 @@ target-version = "py313"
 
 [tool.ruff.lint]
 select = [
+    # Core Python style and errors
     "E",      # pycodestyle errors
     "W",      # pycodestyle warnings
     "F",      # pyflakes
+    "UP",     # pyupgrade
+
+    # Import management
     "I",      # isort
+    "TID",    # flake8-tidy-imports
+    "ICN",    # flake8-import-conventions
+    "TCH",    # flake8-type-checking
+
+    # Naming and documentation
     "N",      # pep8-naming
     "D",      # pydocstyle
-    "UP",     # pyupgrade
+
+    # Type checking
+    "ANN",    # flake8-annotations
+
+    # Code quality
     "B",      # flake8-bugbear
+    "A",      # flake8-builtins
     "C4",     # flake8-comprehensions
+    "ISC",    # flake8-implicit-str-concat
+    "PIE",    # flake8-pie
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "ARG",    # flake8-unused-arguments
+    "ERA",    # eradicate (commented code)
+
+    # Security and error handling
+    "BLE",    # flake8-blind-except
+    "TRY",    # tryceratops (exception handling)
+    "RSE",    # flake8-raise
+
+    # Performance
+    "PERF",   # perflint (performance)
+
+    # Specific domains
+    "ASYNC",  # flake8-async
     "DTZ",    # flake8-datetimez
+    "PT",     # flake8-pytest-style
+    "LOG",    # flake8-logging
+
+    # Code smells and refactoring
+    "FBT",    # flake8-boolean-trap
+    "FLY",    # flynt (f-string formatting)
+    "FURB",   # refurb (refactoring)
+    "PL",     # pylint
+
+    # Development and debugging
     "T10",    # flake8-debugger
     "EXE",    # flake8-executable
-    "ISC",    # flake8-implicit-str-concat
-    "ICN",    # flake8-import-conventions
-    "PIE",    # flake8-pie
-    "PT",     # flake8-pytest-style
-    "RET",    # flake8-return
-    "SIM",    # flake8-simplify
-    "TID",    # flake8-tidy-imports
-    "TCH",    # flake8-type-checking
-    "ARG",    # flake8-unused-arguments
+
+    # Ruff-specific
     "RUF",    # Ruff-specific rules
 ]
 ignore = [
@@ -96,6 +130,12 @@ ignore = [
     "D104",   # Missing docstring in public package
     "D203",   # 1 blank line required before class docstring
     "D213",   # Multi-line docstring summary should start at the second line
+    "ANN401", # Dynamically typed expressions (Any) are disallowed
+    "BLE001", # Do not catch blind exception (we'll be selective about this)
+    "TRY003", # Avoid specifying long messages outside the exception class
+    "PLR0913", # Too many arguments to function call
+    "FBT001", # Boolean positional arg in function definition
+    "FBT002", # Boolean default value in function definition
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -149,6 +189,13 @@ module = "tests.*"
 # Allow more flexibility in tests
 disallow_untyped_decorators = false
 disallow_any_generics = false
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "PLR2004",  # Magic values are OK in tests
+    "TRY002",   # Creating generic exceptions is OK in tests
+    "TRY301",   # Raising exceptions in tests is OK
+]
 
 [[tool.mypy.overrides]]
 module = "pydantic_settings"
