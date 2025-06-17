@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Improved changelog commit messages to be more descriptive and follow project standards
 - Enhanced Ruff linting configuration with stricter rules for code quality
+- Refactored codebase to eliminate magic values and improve code quality
 
 ### Deprecated
 
