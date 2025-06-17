@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Global exception handling with standardized error responses and full context logging
 - HTTP request context capture for enhanced error reporting with security filtering
 - Centralized constants module for magic values and configuration
+- Request ID field for individual request tracking in error responses
+- Debug information in error responses for development environments
 
 ### Changed
 - Replaced interrogate with pydoclint for enhanced docstring quality validation
