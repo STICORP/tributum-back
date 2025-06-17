@@ -9,6 +9,8 @@ import traceback
 from enum import Enum
 from typing import Any
 
+from src.core.constants import FINGERPRINT_MAX_PARTS
+
 
 class ErrorCode(Enum):
     """Standardized error codes for the Tributum application.
@@ -118,7 +120,9 @@ class TributumError(Exception):
         # Use the first few frames from the stack trace to identify location
         # Skip the last few frames which are in the exception initialization
         relevant_frames = (
-            self.stack_trace[-5:] if len(self.stack_trace) > 5 else self.stack_trace
+            self.stack_trace[-FINGERPRINT_MAX_PARTS:]
+            if len(self.stack_trace) > FINGERPRINT_MAX_PARTS
+            else self.stack_trace
         )
 
         # Create a string combining error type and location

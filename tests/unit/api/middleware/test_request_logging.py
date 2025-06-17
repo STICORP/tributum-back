@@ -12,10 +12,10 @@ from pydantic import BaseModel
 
 from src.api.middleware.request_context import RequestContextMiddleware
 from src.api.middleware.request_logging import (
-    MAX_BODY_SIZE,
     TRUNCATED_SUFFIX,
     RequestLoggingMiddleware,
 )
+from src.core.constants import MAX_BODY_SIZE
 from src.core.context import CORRELATION_ID_HEADER
 
 
@@ -409,7 +409,7 @@ class TestRequestLoggingMiddleware:
         # Should log request_failed (not request_completed)
         failed_calls = [
             call
-            for call in mock_logger.error.call_args_list
+            for call in mock_logger.exception.call_args_list
             if call[0][0] == "request_failed"
         ]
         assert len(failed_calls) == 1
@@ -421,7 +421,6 @@ class TestRequestLoggingMiddleware:
         assert "duration_ms" in call_kwargs
         assert isinstance(call_kwargs["duration_ms"], float)
         assert call_kwargs["error_type"] == "ValueError"
-        assert "exc_info" in call_kwargs
         assert "correlation_id" in call_kwargs
 
 

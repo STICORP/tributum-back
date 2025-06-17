@@ -14,6 +14,7 @@ from starlette.exceptions import HTTPException
 from src.api.schemas.errors import ErrorResponse, ServiceInfo
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
+from src.core.constants import HTTP_500_INTERNAL_SERVER_ERROR
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_context
 from src.core.exceptions import (
@@ -191,7 +192,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> Respon
     elif exc.status_code == status.HTTP_404_NOT_FOUND:
         error_code = ErrorCode.NOT_FOUND.value
         severity = "LOW"
-    elif exc.status_code >= 500:
+    elif exc.status_code >= HTTP_500_INTERNAL_SERVER_ERROR:
         severity = "HIGH"
 
     # Log the exception
