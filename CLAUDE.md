@@ -15,6 +15,9 @@ GCP Project: tributum-new
 - Global exception handlers for all exception types with proper logging
 - High-performance JSON serialization with orjson for logs and API responses
 - Domain-driven design structure planned (not fully implemented)
+- Centralized constants module for shared values
+- Comprehensive Ruff linting with strict rules enabled
+- Pydoclint for docstring validation (Google style)
 
 ## Essential Commands
 ```bash
@@ -122,8 +125,9 @@ src/
 │       └── responses.py # ORJSONResponse for high-performance JSON
 ├── core/
 │   ├── config.py       # Pydantic Settings
+│   ├── constants.py    # Shared constants (ErrorCode, Severity, sensitive fields)
 │   ├── context.py      # Correlation ID generation, RequestContext
-│   ├── exceptions.py   # Base exceptions, ErrorCode enum
+│   ├── exceptions.py   # Base exceptions (uses constants from constants.py)
 │   ├── error_context.py # Context utilities, sanitization
 │   └── logging.py      # Structured logging with structlog
 └── domain/            # Empty (planned for business domains)
@@ -158,8 +162,9 @@ Nested log config: LOG_CONFIG__LOG_LEVEL, LOG_CONFIG__LOG_FORMAT, LOG_CONFIG__RE
 
 ### Exceptions
 ```python
+from src.core.constants import ErrorCode, Severity
 from src.core.exceptions import (
-    ErrorCode, Severity, ValidationError, NotFoundError,
+    ValidationError, NotFoundError,
     UnauthorizedError, BusinessRuleError
 )
 
