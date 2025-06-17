@@ -147,57 +147,20 @@ Each domain: schemas.py, models.py, repository.py, service.py, exceptions.py
 ## Core Patterns
 
 ### Configuration
-```python
-from src.core.config import Settings, get_settings
-from fastapi import Depends
-from typing import Annotated
-
-# In endpoints
-def endpoint(settings: Annotated[Settings, Depends(get_settings)]):
-    return {"app": settings.app_name}
-```
-
-Environment vars: APP_NAME, APP_VERSION, ENVIRONMENT, DEBUG, API_HOST, API_PORT
-Nested log config: LOG_CONFIG__LOG_LEVEL, LOG_CONFIG__LOG_FORMAT, LOG_CONFIG__RENDER_JSON_LOGS
+- Settings via Pydantic: `get_settings()` dependency
+- Env vars: APP_NAME, APP_VERSION, ENVIRONMENT, DEBUG, API_HOST, API_PORT
+- Nested: LOG_CONFIG__LOG_LEVEL, LOG_CONFIG__LOG_FORMAT, LOG_CONFIG__RENDER_JSON_LOGS
 
 ### Exceptions
-```python
-from src.core.constants import ErrorCode, Severity
-from src.core.exceptions import (
-    ValidationError, NotFoundError,
-    UnauthorizedError, BusinessRuleError
-)
-
-# Basic usage
-raise ValidationError("Invalid email")
-raise NotFoundError("User not found")
-raise UnauthorizedError("Invalid token")
-raise BusinessRuleError("Insufficient balance")
-
-# With context
-raise ValidationError("Invalid email", context={"field": "email", "value": "bad-email"})
-
-# Exception chaining
-except ValueError as e:
-    raise ValidationError("Invalid format", cause=e)
-
-# Exceptions automatically capture:
-# - Stack trace at creation
-# - Fingerprint for error grouping
-# - Severity level (LOW/MEDIUM/HIGH/CRITICAL)
-```
+- Base: TributumError with error_code, message, context, severity, stack_trace
+- Types: ValidationError, NotFoundError, UnauthorizedError, BusinessRuleError
+- Auto-captures: stack trace, fingerprint, severity (LOW/MEDIUM/HIGH/CRITICAL)
+- Usage: `raise ValidationError("msg", context={"field": "email"})`
 
 ### API Errors
-```python
-from src.api.schemas.errors import ErrorResponse, ServiceInfo
-
-# Error response includes:
-# - error_code, message (required)
-# - details, correlation_id, severity, service_info (optional)
-# - timestamp (auto-generated with UTC timezone)
-
-# Response fields populated from TributumError attributes
-```
+- ErrorResponse: error_code, message, details, correlation_id, severity, timestamp
+- ServiceInfo: name, version, environment
+- Auto-populated from TributumError attributes
 
 ## Implementation Workflow
 1. Check existing patterns first
@@ -211,56 +174,17 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 - Safety CLI requires auth
 
 ### Request Context & Correlation IDs
-```python
-from src.core.context import RequestContext, CORRELATION_ID_HEADER
-
-# RequestContextMiddleware automatically handles correlation IDs:
-# - Extracts from X-Correlation-ID header or generates UUID4
-# - Available via RequestContext.get_correlation_id()
-# - Added to response headers
-# - Context cleared after request
-
-# Access in handlers/services:
-correlation_id = RequestContext.get_correlation_id()
-```
+- Middleware: RequestContextMiddleware (X-Correlation-ID header)
+- Access: `RequestContext.get_correlation_id()`
+- Auto-propagates via contextvars
 
 ### Logging
-```python
-from src.core.logging import configure_structlog, get_logger, log_context, log_exception
-
-# Configure at app startup
-configure_structlog()
-
-# Get logger
-logger = get_logger("module_name")  # or get_logger() for auto-name
-
-# Log with structured data
-logger.info("user_action", user_id=123, action="login")
-logger.error("database_error", error=str(e), query=query)
-
-# Temporary context bindings
-with log_context(request_id="abc-123", user_id=456) as logger:
-    logger.info("processing request")  # Includes request_id and user_id
-
-# Bind context for async propagation
-bind_logger_context(user_id=123, session_id="xyz")  # All subsequent logs include these
-logger.info("user action")  # Automatically includes user_id and session_id
-clear_logger_context()  # Clean up after request
-
-# Exception logging with full context
-try:
-    risky_operation()
-except TributumError as e:
-    log_exception(logger, e, "Operation failed", operation="risky_op")
-    # Logs with severity-based level, stack trace, error context, and fingerprint
-
-# Logs include: timestamp, level, logger name, filename, line number, function name
-# Correlation ID automatically included when in request context
-# Context propagates across async boundaries via contextvars
-# Dev: Colored console output
-# Prod: JSON format with high-performance orjson serialization
-# Performance: 2-10x faster JSON serialization with orjson
-```
+- Setup: `configure_structlog()` at startup
+- Usage: `logger = get_logger()` then `logger.info("msg", key=value)`
+- Context: `with log_context(user_id=123) as logger:` or `bind_logger_context()`
+- Exceptions: `log_exception(logger, exc, "msg")`
+- Auto-includes: correlation_id, timestamp, location, severity
+- Format: Console (dev) / JSON with orjson (prod)
 
 ## Version Management & Release Workflow
 
@@ -289,56 +213,22 @@ Version bump decided by changelog content:
 - **MAJOR**: Breaking changes, removals
 
 ### Request/Response Logging
-```python
-from src.api.middleware.request_logging import RequestLoggingMiddleware
-
-# Add middleware with body logging
-app.add_middleware(
-    RequestLoggingMiddleware,
-    log_request_body=True,      # Log request bodies (default: False)
-    log_response_body=True,     # Log response bodies (default: False)
-    max_body_size=10*1024,      # Max body size to log (default: 10KB)
-)
-
-# Logs include:
-# - Method, path, status code, duration
-# - Query parameters (sanitized)
-# - Request/response headers (sensitive headers redacted)
-# - Request/response bodies for JSON/form data (sanitized)
-# - Binary data logged as metadata only
-# - Large bodies truncated with [TRUNCATED] suffix
-# - All sensitive fields automatically sanitized
-```
+- Middleware: RequestLoggingMiddleware(log_request_body=True, log_response_body=True)
+- Logs: method, path, status, duration, headers, bodienos (sanitized)
+- Auto-sanitizes: passwords, tokens, auth headers
+- Truncates: >10KB bodies
 
 ### Global Exception Handling
-```python
-# Exception handlers are automatically registered in create_app()
-# All exceptions are caught and converted to standardized ErrorResponse
+- TributumError → HTTP 400/401/404/422 based on type
+- RequestValidationError → HTTP 422 with field errors
+- HTTPException → Standardized ErrorResponse
+- Generic Exception → HTTP 500 (details hidden in prod)
+- All include: correlation_id, timestamp, severity, service_info
 
-# TributumError and subclasses
-# - Returns appropriate HTTP status code (400, 401, 404, 422)
-# - Includes full context, severity, and correlation ID
-# - Stack trace logged but not exposed to clients
-
-# RequestValidationError (FastAPI/Pydantic)
-# - Returns 422 with field-level validation errors
-# - Groups errors by field name
-
-# HTTPException (Starlette)
-# - Converts to our standard error format
-# - Maps status codes to appropriate error codes
-
-# Generic Exception
-# - Returns 500 Internal Server Error
-# - In development: includes exception details
-# - In production: hides internal details
-# - Always logs full stack trace with structlog
-
-# All error responses include:
-# - error_code, message, correlation_id
-# - timestamp (UTC), severity, service_info
-# - details (sanitized context information)
-```
+### Error Context & Debug Info
+- Capture HTTP context: `enrich_error(exc, capture_request_context(request))`
+- Debug info (dev only): stack_trace, error_context, cause
+- Auto-sanitizes: password, token, key, auth fields
 
 ## Notes
 Update this file as project grows with new patterns and implementations.
