@@ -31,7 +31,7 @@ type-check:  ## Run type checking
 
 security:  ## Run all security checks
 	uv run bandit -r . -c pyproject.toml
-	uv run pip-audit --ignore-vuln PYSEC-2022-42969
+	uv run pip-audit
 	@echo "Note: 'safety check' is deprecated. Use 'safety scan' instead."
 	uv run safety scan || true
 
@@ -39,7 +39,7 @@ security-bandit:  ## Run Bandit security scan
 	uv run bandit -r . -c pyproject.toml
 
 security-deps:  ## Check dependencies for vulnerabilities
-	uv run pip-audit --ignore-vuln PYSEC-2022-42969
+	uv run pip-audit
 	uv run safety scan || true
 
 pre-commit:  ## Run all pre-commit hooks
@@ -77,6 +77,8 @@ clean:  ## Clean up temporary files
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -type d -name "htmlcov" -exec rm -rf {} +
 	find . -type f -name ".coverage" -delete
+	find . -type f -name "interrogate_badge.svg" -delete
+	find . -type f -name "dead-code-report.txt" -delete
 
 dead-code:  ## Check for dead code using vulture
 	uv run vulture .
@@ -85,11 +87,16 @@ dead-code-report:  ## Generate detailed dead code report
 	uv run vulture . --sort-by-size > dead-code-report.txt
 	@echo "Dead code report saved to dead-code-report.txt"
 
-docstring-coverage:  ## Check docstring coverage
-	uv run interrogate -v .
+docstring-check:  ## Check docstring presence and quality
+	@echo "Checking for missing docstrings..."
+	uv run ruff check . --select D100,D101,D102,D103,D104 || true
+	@echo "\nChecking docstring quality..."
+	uv run pydoclint src/
 
-docstring-badge:  ## Generate docstring coverage badge
-	uv run interrogate --generate-badge . --badge-format svg
-	@echo "Badge generated as interrogate_badge.svg"
+docstring-missing:  ## Show only missing docstrings
+	uv run ruff check . --select D100,D101,D102,D103,D104
 
-all-checks: lint format-check type-check security dead-code docstring-coverage  ## Run all checks including dead code and docstring coverage
+docstring-quality:  ## Check only docstring quality (not presence)
+	uv run pydoclint src/
+
+all-checks: lint format-check type-check security dead-code docstring-check  ## Run all checks including dead code and docstring quality

@@ -62,9 +62,8 @@ repos:
 
       - id: pip-audit
         name: pip audit
-        # Ignoring PYSEC-2022-42969: py package ReDoS vulnerability in SVN handling
-        # This is a transitive dependency of interrogate and we don't use SVN features
-        entry: uv run pip-audit --ignore-vuln PYSEC-2022-42969
+        # No vulnerabilities currently ignored
+        entry: uv run pip-audit
         language: system
         pass_filenames: false
         files: ^(pyproject\.toml|uv\.lock)$
@@ -82,11 +81,11 @@ repos:
       - id: vulture
         args: [--config=pyproject.toml]
 
-  - repo: https://github.com/econchick/interrogate
-    rev: 1.7.0
+  - repo: https://github.com/jsh9/pydoclint
+    rev: 0.6.6
     hooks:
-      - id: interrogate
-        args: [--config=pyproject.toml, --verbose]
+      - id: pydoclint
+        args: [--config=pyproject.toml]
         exclude: ^(tests/|htmlcov/)
 
   # Pylint for catching variable shadowing issues
