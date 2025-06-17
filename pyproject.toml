@@ -1,6 +1,6 @@
 [project]
 name = "tributum"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fiscal Intelligence"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -277,7 +277,7 @@ good-names = ["i", "j", "k", "ex", "Run", "_", "id", "ok"]
 max-line-length = 88  # Match Ruff's line length
 
 [tool.bumpversion]
-current_version = "0.1.0"
+current_version = "0.2.0"
 parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)"
 serialize = ["{major}.{minor}.{patch}"]
 search = "{current_version}"

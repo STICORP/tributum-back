@@ -21,7 +21,7 @@ def test_app_title() -> None:
 @pytest.mark.unit
 def test_app_version() -> None:
     """Test that app has correct version."""
-    assert app.version == "0.1.0"
+    assert app.version == "0.2.0"
 
 
 @pytest.mark.unit

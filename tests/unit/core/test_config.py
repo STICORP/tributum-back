@@ -46,7 +46,7 @@ class TestSettings:
 
         # Application settings
         assert settings.app_name == "Tributum"
-        assert settings.app_version == "0.1.0"
+        assert settings.app_version == "0.2.0"
         assert settings.environment == "development"
         assert settings.debug is True
 
