@@ -22,6 +22,7 @@ GCP Project: tributum-new
 ## Essential Commands
 ```bash
 # Setup (one-time)
+uv sync --all-extras --dev   # Install all dependencies
 uv run pre-commit install    # Install git hooks
 
 # Quality checks
@@ -32,14 +33,15 @@ uv run pre-commit run --all-files  # Run all checks
 
 # Security
 uv run bandit -r . -c pyproject.toml
-uv run safety scan
+./scripts/tool safety scan   # Isolated tool
 uv run pip-audit --ignore-vuln PYSEC-2022-42969
-uv run semgrep --config=auto .
+./scripts/tool semgrep .     # Isolated tool
 
 # Version management
 uv run bump-my-version bump patch  # 0.1.0 → 0.1.1
 uv run bump-my-version bump minor  # 0.1.1 → 0.2.0
 uv run bump-my-version bump major  # 0.2.0 → 1.0.0
+
 ```
 
 ## CRITICAL DEVELOPMENT RULES
@@ -81,9 +83,7 @@ uv run bump-my-version bump major  # 0.2.0 → 1.0.0
 
 ### 6. Pre-Implementation Analysis MANDATORY
 Before ANY code:
-1. Search existing patterns: ~~`uv run rg "pattern" --type py`~~ **NOTE: `uv run rg` is timing out - use Grep tool instead**
-   - Alternative: Use the Grep tool with pattern and include="*.py"
-   - Example: `Grep(pattern="contextvar", include="*.py")`
+1. Search existing patterns: `Grep(pattern="contextvar", include="*.py")`
 2. Identify conventions (error handling, naming, testing)
 3. Check existing utilities
 4. If unclear: ASK, don't assume
@@ -168,6 +168,11 @@ Each domain: schemas.py, models.py, repository.py, service.py, exceptions.py
 3. Follow discovered patterns exactly
 4. Ask if patterns unclear
 5. Verify code consistency
+
+## Isolated Dev Tools
+- **safety** and **semgrep** run via `./scripts/tool` to avoid dependency conflicts
+- Other tools use regular `uv run`
+- To add isolated tools: edit `[tool.isolated-tools]` in pyproject.toml
 
 ## Known Issues
 - PYSEC-2022-42969: py package vulnerability (ignored)
