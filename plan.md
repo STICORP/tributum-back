@@ -679,7 +679,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 ### Phase 4.5: Exception Enhancement (After Middleware)
 
 #### Task 1.6b: Add HTTP Context Capture
-**Status**: Pending
+**Status**: Complete - HTTP request context capture implemented with security filtering
 **File**: `src/core/error_context.py`
 **Implementation**:
 - Create `capture_request_context()` to extract HTTP request info
