@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Wrapper script for running isolated development tools
+# This ensures we always use the Python from our project environment
+
+set -euo pipefail
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+# Change to project root to ensure consistent behavior
+cd "$PROJECT_ROOT"
+
+# Run the tool using uv's Python environment
+exec uv run python scripts/run_tool.py "$@"

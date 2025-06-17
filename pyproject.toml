@@ -27,6 +27,7 @@ classifiers = [
 ]
 dependencies = [
     "fastapi>=0.115.12",
+    "pydantic>=2.11.0",
     "pydantic-settings>=2.9.1",
     "structlog>=25.4.0",
     "orjson>=3.10.18",
@@ -41,14 +42,20 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    # Code quality tools
     "ruff>=0.11.13",
     "pre-commit>=4.2.0",
     "mypy>=1.16.0",
     "bandit[toml]>=1.8.3",
-    "safety>=3.5.2",
     "pip-audit>=2.9.0",
-    "semgrep>=1.125.0",
+    "vulture>=2.14",
+    "pydoclint>=0.6.6",
+    "pylint>=3.3.7",
+
+    # Server for development
     "uvicorn>=0.34.3",
+
+    # Testing framework and plugins
     "pytest>=8.4.0",
     "pytest-cov>=6.2.1",
     "pytest-asyncio>=1.0.0",
@@ -56,9 +63,8 @@ dev = [
     "pytest-xdist>=3.6.1",
     "pytest-timeout>=2.4.0",
     "pytest-rich>=0.2.0",
-    "vulture>=2.14",
-    "pydoclint>=0.6.6",
-    "pylint>=3.3.7",
+
+    # Version management
     "bump-my-version>=0.32.0",
 ]
 
@@ -309,3 +315,11 @@ regex = false
 filename = "VERSION"
 search = "{current_version}"
 replace = "{new_version}"
+
+[tool.isolated-tools]
+# Development tools that run in isolated environments to avoid dependency conflicts
+# Only tools that have problematic dependencies are isolated
+
+# Security analysis tools with conflicting dependencies
+safety = { version = ">=3.5.2", args = ["--disable-optional-telemetry"] }
+semgrep = { version = ">=1.125.0", args = ["--config=auto"] }

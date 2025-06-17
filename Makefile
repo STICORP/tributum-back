@@ -33,14 +33,14 @@ security:  ## Run all security checks
 	uv run bandit -r . -c pyproject.toml
 	uv run pip-audit
 	@echo "Note: 'safety check' is deprecated. Use 'safety scan' instead."
-	uv run safety scan || true
+	./scripts/tool safety scan || true
 
 security-bandit:  ## Run Bandit security scan
 	uv run bandit -r . -c pyproject.toml
 
 security-deps:  ## Check dependencies for vulnerabilities
 	uv run pip-audit
-	uv run safety scan || true
+	./scripts/tool safety scan || true
 
 pre-commit:  ## Run all pre-commit hooks
 	uv run pre-commit run --all-files
