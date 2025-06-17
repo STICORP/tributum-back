@@ -59,13 +59,28 @@ Manage semantic versioning and changelog updates for the Tributum project.
      - Creates commit with message: "chore: bump version from X.Y.Z to X.Y.Z"
    - Show `git status`, `git log -1`, and `git tag -n` for review
 
-6. **Post-Release Instructions**
-   - Provide commands (don't execute):
+6. **Push and Create GitHub Release**
+   - Push the changes and tags:
      ```bash
      git push origin master
      git push origin --tags
      ```
-   - Suggest creating GitHub release from tag if applicable
+   - Extract the changelog content for this version from CHANGELOG.md
+   - Create GitHub release using `gh release create`:
+     ```bash
+     gh release create vX.Y.Z \
+       --title "Release vX.Y.Z" \
+       --notes "changelog content for this version" \
+       --target master
+     ```
+   - Show the release URL from the command output
+
+7. **Post-Release Summary**
+   - Display summary of actions taken:
+     - Version bumped from X.Y.Z to X.Y.Z
+     - CHANGELOG.md updated
+     - Git tag created and pushed
+     - GitHub release published at URL
    - Remind to monitor for any deployment or dependency issues
 
 ## Important Notes
