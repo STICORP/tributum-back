@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Isolated development tool execution system to prevent dependency conflicts
 
+### Fixed
+- Type safety issue in request logging test
+
 ## [0.2.0] - 2025-06-17
 
 ### Added
