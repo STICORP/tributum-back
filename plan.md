@@ -696,7 +696,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Handles missing request gracefully
 
 #### Task 1.7c: Add Debug Info and Request ID to Error Response
-**Status**: Pending
+**Status**: Complete - Debug info and request ID fields added to ErrorResponse
 **File**: `src/api/schemas/errors.py`
 **Implementation**:
 - Add `debug_info` optional field for development environments

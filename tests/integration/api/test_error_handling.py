@@ -108,6 +108,8 @@ class TestTributumErrorHandling:
         assert data["details"]["value"] == "not-an-email"
         assert data["severity"] == Severity.LOW.value
         assert "correlation_id" in data
+        assert "request_id" in data
+        assert data["request_id"].startswith("req-")
         assert "timestamp" in data
         assert "service_info" in data
 
@@ -523,3 +525,146 @@ class TestSensitiveDataSanitization:
         # Non-sensitive fields should be preserved
         assert details["username"] == "john.doe"
         assert details["safe_field"] == "visible_value"
+
+
+class TestDebugInfoInDevelopment:
+    """Test that debug info is included in development mode."""
+
+    def test_tributum_error_includes_debug_info(self, client: TestClient) -> None:
+        """Test that TributumError includes debug info in development."""
+        from src.core.config import get_settings
+
+        # Check current environment
+        settings = get_settings()
+
+        response = client.get("/test/validation-error")
+        data = response.json()
+
+        # In development mode, debug_info should be present
+        assert "debug_info" in data
+
+        if settings.environment == "development":
+            # In development, debug_info should be populated
+            debug_info = data["debug_info"]
+            assert debug_info is not None, (
+                "debug_info should not be None in development mode"
+            )
+
+            # Check debug info structure
+            assert "stack_trace" in debug_info
+            assert "error_context" in debug_info
+            assert "exception_type" in debug_info
+
+            # Verify content
+            assert isinstance(debug_info["stack_trace"], list)
+            assert len(debug_info["stack_trace"]) > 0
+            assert debug_info["exception_type"] == "ValidationError"
+            assert debug_info["error_context"]["field"] == "email"
+            assert debug_info["error_context"]["value"] == "not-an-email"
+        else:
+            # In production, debug_info should be None
+            assert data["debug_info"] is None, (
+                "debug_info should be None in production mode"
+            )
+
+    async def test_generic_exception_includes_debug_info(
+        self, app_with_handlers: FastAPI
+    ) -> None:
+        """Test that generic exceptions include debug info in development."""
+        # Create a mock request
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "query_string": b"",
+            "headers": [],
+            "server": ("testserver", 80),
+            "client": ("testclient", 12345),
+            "asgi": {"version": "3.0"},
+            "scheme": "http",
+            "root_path": "",
+            "app": app_with_handlers,
+        }
+        request = Request(scope)
+
+        # Test the handler directly
+        from src.api.middleware.error_handler import generic_exception_handler
+
+        test_exception = RuntimeError("Test error with context")
+        response = await generic_exception_handler(request, test_exception)
+
+        import json
+
+        if isinstance(response.body, bytes):
+            body_str = response.body.decode()
+        else:
+            body_str = str(response.body)
+        data = json.loads(body_str)
+
+        # Check based on environment
+        from src.core.config import get_settings
+
+        settings = get_settings()
+
+        assert "debug_info" in data
+
+        if settings.environment == "development":
+            # Should have debug_info in development
+            debug_info = data["debug_info"]
+            assert debug_info is not None
+
+            assert "stack_trace" in debug_info
+            assert "error_context" in debug_info
+            assert "exception_type" in debug_info
+
+            assert debug_info["exception_type"] == "RuntimeError"
+            assert (
+                debug_info["error_context"]["error_message"]
+                == "Test error with context"
+            )
+        else:
+            # Should be None in production
+            assert data["debug_info"] is None
+
+    async def test_no_debug_info_in_production(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that debug info is NOT included in production."""
+        # Set production environment
+        monkeypatch.setenv("ENVIRONMENT", "production")
+
+        from src.core.config import get_settings
+
+        get_settings.cache_clear()
+
+        # Test the handler directly in production mode
+        from src.api.middleware.error_handler import generic_exception_handler
+
+        # Create a mock request
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "query_string": b"",
+            "headers": [],
+            "server": ("testserver", 80),
+            "client": ("testclient", 12345),
+            "asgi": {"version": "3.0"},
+            "scheme": "http",
+            "root_path": "",
+        }
+        request = Request(scope)
+
+        test_exception = RuntimeError("Internal details")
+        response = await generic_exception_handler(request, test_exception)
+
+        import json
+
+        if isinstance(response.body, bytes):
+            body_str = response.body.decode()
+        else:
+            body_str = str(response.body)
+        data = json.loads(body_str)
+
+        # Should NOT have debug_info in production
+        assert "debug_info" not in data or data["debug_info"] is None

@@ -63,3 +63,22 @@ def generate_correlation_id() -> str:
         >>> # Format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
     """
     return str(uuid.uuid4())
+
+
+def generate_request_id() -> str:
+    """Generate a unique request ID for individual request tracking.
+
+    Request IDs are unique per request, while correlation IDs can span
+    multiple services in a distributed system.
+
+    Returns:
+        str: A prefixed UUID4 string in format 'req-<uuid4>'.
+
+    Examples:
+        >>> request_id = generate_request_id()
+        >>> request_id.startswith('req-')
+        True
+        >>> len(request_id)
+        40
+    """
+    return f"req-{uuid.uuid4()}"

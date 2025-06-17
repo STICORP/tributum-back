@@ -4,6 +4,7 @@ This module provides centralized exception handling for all API endpoints,
 ensuring consistent error responses and proper logging of exceptions.
 """
 
+import traceback
 from typing import Any
 
 from fastapi import Request, status
@@ -15,7 +16,7 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.constants import HTTP_500_INTERNAL_SERVER_ERROR
-from src.core.context import RequestContext
+from src.core.context import RequestContext, generate_request_id
 from src.core.error_context import sanitize_context
 from src.core.exceptions import (
     BusinessRuleError,
@@ -88,14 +89,31 @@ async def tributum_error_handler(request: Request, exc: TributumError) -> Respon
     if exc.context:
         details = sanitize_context(exc.context)
 
+    # Prepare debug info for development environments
+    debug_info = None
+    if settings.environment == "development":
+        debug_info = {
+            "stack_trace": exc.stack_trace,
+            "error_context": sanitize_context(exc.context) if exc.context else {},
+            "exception_type": type(exc).__name__,
+        }
+        # Add cause information if available
+        if exc.cause:
+            debug_info["cause"] = {
+                "type": type(exc.cause).__name__,
+                "message": str(exc.cause),
+            }
+
     # Create error response
     error_response = ErrorResponse(
         error_code=exc.error_code,
         message=exc.message,
         details=details,
         correlation_id=correlation_id,
+        request_id=generate_request_id(),
         severity=exc.severity.value,
         service_info=get_service_info(settings),
+        debug_info=debug_info,
     )
 
     return ORJSONResponse(
@@ -154,6 +172,7 @@ async def validation_error_handler(
         message="Request validation failed",
         details={"validation_errors": field_errors},
         correlation_id=correlation_id,
+        request_id=generate_request_id(),
         severity="LOW",
         service_info=get_service_info(settings),
     )
@@ -210,6 +229,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> Respon
         error_code=error_code,
         message=str(exc.detail),
         correlation_id=correlation_id,
+        request_id=generate_request_id(),
         severity=severity,
         service_info=get_service_info(settings),
     )
@@ -250,9 +270,19 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
     if settings.environment == "production":
         message = "An internal server error occurred"
         details = None
+        debug_info = None
     else:
         message = f"Internal server error: {type(exc).__name__}"
         details = {"error": str(exc), "type": type(exc).__name__}
+        # Include full stack trace in debug info for development
+        debug_info = {
+            "stack_trace": traceback.format_tb(exc.__traceback__),
+            "error_context": {
+                "error_message": str(exc),
+                "error_args": exc.args if hasattr(exc, "args") else [],
+            },
+            "exception_type": type(exc).__name__,
+        }
 
     # Create error response
     error_response = ErrorResponse(
@@ -260,8 +290,10 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
         message=message,
         details=details,
         correlation_id=correlation_id,
+        request_id=generate_request_id(),
         severity="CRITICAL",
         service_info=get_service_info(settings),
+        debug_info=debug_info,
     )
 
     return ORJSONResponse(

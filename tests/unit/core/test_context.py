@@ -10,6 +10,7 @@ from src.core.context import (
     CORRELATION_ID_HEADER,
     RequestContext,
     generate_correlation_id,
+    generate_request_id,
 )
 
 
@@ -160,3 +161,57 @@ class TestRequestContext:
         retrieved_id = RequestContext.get_correlation_id()
         assert retrieved_id == generated_id
         assert uuid.UUID(retrieved_id)  # Verify it's a valid UUID
+
+
+class TestRequestIDGeneration:
+    """Test request ID generation functionality."""
+
+    def test_generate_request_id_returns_string(self) -> None:
+        """Test that generate_request_id returns a string."""
+        request_id = generate_request_id()
+        assert isinstance(request_id, str)
+
+    def test_generate_request_id_has_prefix(self) -> None:
+        """Test that request ID has the correct prefix."""
+        request_id = generate_request_id()
+        assert request_id.startswith("req-")
+
+    def test_generate_request_id_contains_valid_uuid(self) -> None:
+        """Test that request ID contains a valid UUID after prefix."""
+        request_id = generate_request_id()
+        # Remove prefix and validate UUID
+        uuid_part = request_id[4:]  # Skip "req-"
+        parsed_uuid = uuid.UUID(uuid_part)
+        assert str(parsed_uuid) == uuid_part
+
+    def test_generate_request_id_format(self) -> None:
+        """Test that request ID has the correct format."""
+        request_id = generate_request_id()
+        # Format: req-xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+        request_id_pattern = re.compile(
+            r"^req-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            re.IGNORECASE,
+        )
+        assert request_id_pattern.match(request_id) is not None
+
+    def test_generate_request_id_uniqueness(self) -> None:
+        """Test that each generated request ID is unique."""
+        # Generate multiple IDs
+        ids = [generate_request_id() for _ in range(100)]
+        # Check all are unique
+        assert len(ids) == len(set(ids))
+
+    def test_generate_request_id_length(self) -> None:
+        """Test that request ID has the expected length."""
+        request_id = generate_request_id()
+        # Length is 4 (prefix) + 36 (UUID) = 40
+        assert len(request_id) == 40
+
+    def test_request_id_different_from_correlation_id(self) -> None:
+        """Test that request ID format is different from correlation ID."""
+        request_id = generate_request_id()
+        correlation_id = generate_correlation_id()
+
+        assert request_id.startswith("req-")
+        assert not correlation_id.startswith("req-")
+        assert len(request_id) > len(correlation_id)

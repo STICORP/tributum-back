@@ -67,6 +67,8 @@ class TestErrorResponse:
         assert error.correlation_id is None
         assert error.severity is None
         assert error.service_info is None
+        assert error.request_id is None
+        assert error.debug_info is None
         assert isinstance(error.timestamp, datetime)
         assert error.timestamp.tzinfo is not None  # Ensure it has timezone info
 
@@ -172,12 +174,13 @@ class TestErrorResponse:
         schema = ErrorResponse.model_json_schema()
         examples = schema.get("examples", [])
 
-        assert len(examples) == 3
+        assert len(examples) == 4
 
         # Check first example (validation error with details)
         assert examples[0]["error_code"] == "VALIDATION_ERROR"
         assert "details" in examples[0]
         assert "correlation_id" in examples[0]
+        assert "request_id" in examples[0]
         assert "timestamp" in examples[0]
         assert "severity" in examples[0]
         assert "service_info" in examples[0]
@@ -185,6 +188,7 @@ class TestErrorResponse:
         # Check second example (not found with correlation ID)
         assert examples[1]["error_code"] == "NOT_FOUND"
         assert "correlation_id" in examples[1]
+        assert "request_id" in examples[1]
         assert "timestamp" in examples[1]
         assert "severity" in examples[1]
         assert "service_info" in examples[1]
@@ -196,6 +200,15 @@ class TestErrorResponse:
         assert "severity" in examples[2]
         # This example doesn't include service_info
         assert "service_info" not in examples[2]
+
+        # Check fourth example (internal error with debug info)
+        assert examples[3]["error_code"] == "INTERNAL_ERROR"
+        assert "correlation_id" in examples[3]
+        assert "request_id" in examples[3]
+        assert "debug_info" in examples[3]
+        assert "stack_trace" in examples[3]["debug_info"]
+        assert "error_context" in examples[3]["debug_info"]
+        assert "exception_type" in examples[3]["debug_info"]
 
     def test_error_response_from_dict(self) -> None:
         """Test creating ErrorResponse from dictionary."""
@@ -223,10 +236,14 @@ class TestErrorResponse:
         assert "description" in properties["timestamp"]
         assert "description" in properties["severity"]
         assert "description" in properties["service_info"]
+        assert "description" in properties["request_id"]
+        assert "description" in properties["debug_info"]
 
         # Check that examples are included
         assert "examples" in properties["error_code"]
         assert "examples" in properties["message"]
+        assert "examples" in properties["request_id"]
+        assert "examples" in properties["debug_info"]
 
     def test_error_response_timestamp_serialization(self) -> None:
         """Test that timestamp serializes to ISO format with timezone."""
@@ -298,3 +315,98 @@ class TestErrorResponse:
         assert json_data["service_info"]["name"] == "Tributum"
         assert json_data["service_info"]["version"] == "0.1.0"
         assert json_data["service_info"]["environment"] == "production"
+
+    def test_error_response_with_request_id(self) -> None:
+        """Test ErrorResponse with request_id field."""
+        error = ErrorResponse(
+            error_code="TEST_ERROR",
+            message="Test error with request ID",
+            request_id="req-550e8400-e29b-41d4-a716-446655440000",
+        )
+
+        assert error.request_id == "req-550e8400-e29b-41d4-a716-446655440000"
+
+        # Test JSON serialization includes request_id
+        json_data = json.loads(error.model_dump_json())
+        assert json_data["request_id"] == "req-550e8400-e29b-41d4-a716-446655440000"
+
+    def test_error_response_with_debug_info(self) -> None:
+        """Test ErrorResponse with debug_info field."""
+        debug_info = {
+            "stack_trace": [
+                "Traceback (most recent call last):",
+                "  File '/app/main.py', line 123, in handler",
+                "    process_request()",
+                "ValueError: Invalid value",
+            ],
+            "error_context": {"user_id": 123, "operation": "create_order"},
+            "exception_type": "ValueError",
+        }
+
+        error = ErrorResponse(
+            error_code="DEBUG_ERROR",
+            message="Error with debug information",
+            debug_info=debug_info,
+        )
+
+        assert error.debug_info is not None
+        assert error.debug_info["exception_type"] == "ValueError"
+        assert len(error.debug_info["stack_trace"]) == 4
+        assert error.debug_info["error_context"]["user_id"] == 123
+
+        # Test JSON serialization includes debug_info
+        json_data = json.loads(error.model_dump_json())
+        assert json_data["debug_info"]["exception_type"] == "ValueError"
+        assert len(json_data["debug_info"]["stack_trace"]) == 4
+
+    def test_error_response_excludes_none_fields(self) -> None:
+        """Test that None fields are excluded when requested."""
+        error = ErrorResponse(
+            error_code="MINIMAL_ERROR",
+            message="Minimal error response",
+        )
+
+        # With exclude_none
+        dict_without_none = error.model_dump(exclude_none=True)
+        assert "details" not in dict_without_none
+        assert "correlation_id" not in dict_without_none
+        assert "severity" not in dict_without_none
+        assert "service_info" not in dict_without_none
+        assert "request_id" not in dict_without_none
+        assert "debug_info" not in dict_without_none
+        assert "timestamp" in dict_without_none  # Always has a value
+
+    def test_error_response_complete_example(self) -> None:
+        """Test ErrorResponse with all optional fields populated."""
+        service_info = ServiceInfo(
+            name="Tributum",
+            version="0.1.0",
+            environment="development",
+        )
+
+        error = ErrorResponse(
+            error_code="COMPLETE_ERROR",
+            message="Complete error example",
+            details={"field": "value", "code": 123},
+            correlation_id="550e8400-e29b-41d4-a716-446655440000",
+            request_id="req-660e8400-e29b-41d4-a716-446655440000",
+            severity="HIGH",
+            service_info=service_info,
+            debug_info={
+                "stack_trace": ["Frame 1", "Frame 2"],
+                "error_context": {"key": "value"},
+                "exception_type": "CustomError",
+            },
+        )
+
+        # Verify all fields are set
+        assert error.error_code == "COMPLETE_ERROR"
+        assert error.message == "Complete error example"
+        assert error.details == {"field": "value", "code": 123}
+        assert error.correlation_id == "550e8400-e29b-41d4-a716-446655440000"
+        assert error.request_id == "req-660e8400-e29b-41d4-a716-446655440000"
+        assert error.severity == "HIGH"
+        assert error.service_info is not None
+        assert error.service_info.name == "Tributum"
+        assert error.debug_info is not None
+        assert error.debug_info["exception_type"] == "CustomError"
