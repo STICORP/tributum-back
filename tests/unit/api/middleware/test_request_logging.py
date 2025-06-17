@@ -1072,11 +1072,9 @@ class TestResponseBodyLogging:
         mock_request.query_params = {}
 
         # Create a response that yields string chunks
-        class StringChunkResponse:
+        class StringChunkResponse(Response):
             def __init__(self) -> None:
-                self.status_code = 200
-                self.headers = {"content-type": "text/plain"}
-                self.media_type = "text/plain"
+                super().__init__(content="", status_code=200, media_type="text/plain")
 
             @property
             def body_iterator(self) -> AsyncIterator[str | bytes]:
@@ -1090,7 +1088,7 @@ class TestResponseBodyLogging:
 
         # Mock call_next to return our custom response
         async def mock_call_next(_request: Request) -> Response:
-            return StringChunkResponse()  # type: ignore
+            return StringChunkResponse()
 
         # Call dispatch
         response = await middleware.dispatch(mock_request, mock_call_next)
