@@ -44,7 +44,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """Root endpoint returning a hello world message.
 
         Returns:
-            dict: A dictionary containing a welcome message.
+            dict[str, str]: A dictionary containing a welcome message.
         """
         return {"message": "Hello from Tributum!"}
 

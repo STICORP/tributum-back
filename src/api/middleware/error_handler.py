@@ -37,7 +37,7 @@ def get_service_info(settings: Settings) -> ServiceInfo:
         settings: Application settings
 
     Returns:
-        ServiceInfo instance with current service metadata
+        ServiceInfo: Instance with current service metadata
     """
     return ServiceInfo(
         name=settings.app_name,
@@ -57,7 +57,7 @@ async def tributum_error_handler(request: Request, exc: TributumError) -> Respon
         exc: The TributumError exception to handle
 
     Returns:
-        ORJSONResponse with error details
+        Response: ORJSONResponse with error details
     """
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
@@ -117,7 +117,7 @@ async def validation_error_handler(
         exc: The RequestValidationError exception to handle
 
     Returns:
-        ORJSONResponse with validation error details
+        Response: ORJSONResponse with validation error details
     """
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
@@ -174,7 +174,7 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> Respon
         exc: The HTTPException to handle
 
     Returns:
-        ORJSONResponse with error details
+        Response: ORJSONResponse with error details
     """
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
@@ -231,7 +231,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
         exc: The unhandled exception
 
     Returns:
-        ORJSONResponse with generic error message
+        Response: ORJSONResponse with generic error message
     """
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()

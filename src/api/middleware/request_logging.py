@@ -48,11 +48,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     - Response status code and duration
     - Errors that occur during request processing
 
-    Attributes:
+    Args:
         app: The ASGI application to wrap.
-        logger: The structlog logger instance.
         log_request_body: Whether to log request body (default: False).
         log_response_body: Whether to log response body (default: False).
+        max_body_size: Maximum size of body to log (in bytes).
     """
 
     def __init__(
@@ -63,14 +63,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         log_response_body: bool = False,
         max_body_size: int = MAX_BODY_SIZE,
     ) -> None:
-        """Initialize the request logging middleware.
-
-        Args:
-            app: The ASGI application to wrap.
-            log_request_body: Whether to log request body content.
-            log_response_body: Whether to log response body content.
-            max_body_size: Maximum size of body to log (in bytes).
-        """
         super().__init__(app)
         self.logger = get_logger(__name__)
         self.log_request_body = log_request_body
@@ -85,7 +77,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             headers: The headers to sanitize.
 
         Returns:
-            Dictionary of sanitized headers.
+            dict[str, str]: Dictionary of sanitized headers.
         """
         sanitized = {}
         for key, value in headers.items():
@@ -103,7 +95,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             headers: The request/response headers.
 
         Returns:
-            The content type without parameters (e.g., 'application/json').
+            str: The content type without parameters (e.g., 'application/json').
         """
         content_type = headers.get("content-type", "")
         # Remove parameters like charset
@@ -118,7 +110,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             body: The body content to truncate.
 
         Returns:
-            Truncated body as string.
+            str: Truncated body as string.
         """
         if isinstance(body, bytes):
             if len(body) <= self.max_body_size:
@@ -145,7 +137,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             body_bytes: Raw bytes of the request body.
 
         Returns:
-            Parsed JSON object if valid, otherwise truncated string representation.
+            Any: Parsed JSON object if valid, otherwise truncated string representation.
         """
         try:
             return json.loads(body_bytes)
@@ -159,7 +151,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             body_bytes: Raw bytes of the form-encoded request body.
 
         Returns:
-            Dictionary with parsed form data if valid, otherwise truncated string.
+            Any: Dictionary with parsed form data if valid, otherwise truncated string.
             Single-value lists are unwrapped for cleaner logging.
         """
         try:
@@ -179,7 +171,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             content_type: Content-Type header value.
 
         Returns:
-            Dictionary containing metadata about the binary content,
+            dict[str, Any]: Dictionary containing metadata about the binary content,
             including type, size, and an info message.
         """
         return {
@@ -195,7 +187,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             request: The incoming request.
 
         Returns:
-            Tuple of (parsed_body, raw_body_bytes).
+            tuple[Any, bytes | None]: Tuple of (parsed_body, raw_body_bytes).
         """
         try:
             # Read the body once
@@ -245,7 +237,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             headers: Optional request headers for logging when body logging is enabled.
 
         Returns:
-            Dictionary containing structured log data with sanitized values.
+            dict[str, Any]: Dictionary containing structured log data with sanitized
+                values.
         """
         log_data: dict[str, Any] = {
             "method": method,
@@ -274,7 +267,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             log_data: Dictionary to populate with parsed body data.
 
         Returns:
-            Raw body bytes if body was read, None otherwise.
+            bytes | None: Raw body bytes if body was read, None otherwise.
             Side effect: Updates log_data with parsed and sanitized body content.
         """
         if not self.log_request_body or request.method not in REQUEST_BODY_METHODS:
@@ -297,7 +290,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             response: The streaming response object.
 
         Returns:
-            Concatenated bytes of the entire response body.
+            bytes: Concatenated bytes of the entire response body.
         """
         body_bytes = b""
         if hasattr(response, "body_iterator"):
@@ -319,7 +312,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             headers: Response headers to determine content type.
 
         Returns:
-            None. Updates response_log_data in place with parsed or truncated body.
+            None: Updates response_log_data in place with parsed or truncated body.
         """
         content_type = RequestLoggingMiddleware._get_content_type(headers)
         if not body_bytes:
@@ -349,7 +342,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             call_next: The next middleware or route handler.
 
         Returns:
-            The HTTP response.
+            Response: The HTTP response.
+
+        Raises:
+            Exception: Re-raises any exception that occurs during request processing.
         """
         # Start timing the request
         start_time = time.time()
@@ -435,7 +431,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             response_log_data: Dictionary to populate with response data.
 
         Returns:
-            New Response object with the captured body content, preserving
+            Response: New Response object with the captured body content, preserving
             original status code, headers, and media type.
         """
         # Add response headers

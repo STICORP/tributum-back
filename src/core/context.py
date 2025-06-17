@@ -33,7 +33,7 @@ class RequestContext:
         """Get the correlation ID from the current context.
 
         Returns:
-            The correlation ID if set, None otherwise.
+            str | None: The correlation ID if set, None otherwise.
         """
         return _correlation_id_var.get()
 
@@ -54,7 +54,7 @@ def generate_correlation_id() -> str:
     across different services and components.
 
     Returns:
-        A string representation of a UUID4.
+        str: A string representation of a UUID4.
 
     Examples:
         >>> correlation_id = generate_correlation_id()

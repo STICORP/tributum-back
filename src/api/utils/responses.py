@@ -17,6 +17,9 @@ class ORJSONResponse(JSONResponse):
     This response class provides 2-10x faster JSON serialization compared to
     the standard JSONResponse, with proper handling of datetime objects,
     UUIDs, and Pydantic models.
+
+    Attributes:
+        media_type: The media type for the response.
     """
 
     media_type = "application/json"
@@ -28,7 +31,7 @@ class ORJSONResponse(JSONResponse):
             content: The content to serialize to JSON.
 
         Returns:
-            The JSON-encoded bytes.
+            bytes: The JSON-encoded bytes.
         """
         # Handle Pydantic models by calling model_dump()
         if isinstance(content, BaseModel):

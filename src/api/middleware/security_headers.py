@@ -16,7 +16,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     - X-XSS-Protection: 1; mode=block - Enables XSS filtering in older browsers
     - Strict-Transport-Security: max-age=31536000; includeSubDomains (if HSTS enabled)
 
-    Attributes:
+    Args:
         app: The ASGI application to wrap.
         hsts_enabled: Whether to include HSTS header (defaults to True).
         hsts_max_age: Max age for HSTS in seconds (defaults to 1 year).
@@ -33,15 +33,6 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         hsts_include_subdomains: bool = True,
         hsts_preload: bool = False,
     ) -> None:
-        """Initialize the security headers middleware.
-
-        Args:
-            app: The ASGI application to wrap.
-            hsts_enabled: Whether to include Strict-Transport-Security header.
-            hsts_max_age: Max age for HSTS in seconds.
-            hsts_include_subdomains: Whether to include subdomains in HSTS.
-            hsts_preload: Whether to include preload directive in HSTS.
-        """
         super().__init__(app)
         self.hsts_enabled = hsts_enabled
         self.hsts_max_age = hsts_max_age
@@ -52,7 +43,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         """Build the Strict-Transport-Security header value.
 
         Returns:
-            The HSTS header value string.
+            str: The HSTS header value string.
         """
         parts = [f"max-age={self.hsts_max_age}"]
 
@@ -76,7 +67,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             call_next: The next middleware or route handler.
 
         Returns:
-            The HTTP response with security headers added.
+            Response: The HTTP response with security headers added.
         """
         # Process the request
         response = await call_next(request)

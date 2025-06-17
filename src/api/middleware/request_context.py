@@ -21,14 +21,12 @@ class RequestContextMiddleware:
 
     This uses pure ASGI middleware to avoid issues with BaseHTTPMiddleware
     exception handling.
+
+    Args:
+        app: The ASGI application to wrap.
     """
 
     def __init__(self, app: ASGIApp) -> None:
-        """Initialize the middleware.
-
-        Args:
-            app: The ASGI application to wrap.
-        """
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -38,6 +36,9 @@ class RequestContextMiddleware:
             scope: The ASGI connection scope.
             receive: The ASGI receive callable.
             send: The ASGI send callable.
+
+        Raises:
+            Exception: Re-raises any exception that occurs during request processing.
         """
         if scope["type"] != "http":
             # Only handle HTTP requests
@@ -61,7 +62,11 @@ class RequestContextMiddleware:
         headers_sent = False
 
         async def send_wrapper(message: Message) -> None:
-            """Wrap the send callable to add correlation ID header."""
+            """Wrap the send callable to add correlation ID header.
+
+            Args:
+                message: The ASGI message to send.
+            """
             nonlocal headers_sent
 
             if message["type"] == "http.response.start" and not headers_sent:

@@ -61,7 +61,7 @@ def is_sensitive_field(field_name: str) -> bool:
         field_name: The field name to check
 
     Returns:
-        True if the field name matches any sensitive pattern
+        bool: True if the field name matches any sensitive pattern
     """
     field_lower = field_name.lower()
     return any(re.match(pattern, field_lower) for pattern in SENSITIVE_FIELD_PATTERNS)
@@ -85,7 +85,7 @@ def sanitize_context(context: Any) -> Any:
         context: The context dictionary to sanitize
 
     Returns:
-        A new dictionary with sensitive values replaced
+        Any: A new dictionary with sensitive values replaced
     """
     if not isinstance(context, dict):
         return context
@@ -129,7 +129,10 @@ def enrich_error(
         additional_context: Additional context to add
 
     Returns:
-        The same error instance with enriched context
+        TributumError: The same error instance with enriched context
+
+    Raises:
+        TypeError: If error is not an instance of TributumError
     """
     if not isinstance(error, TributumError):
         raise TypeError("Error must be an instance of TributumError")
@@ -151,13 +154,13 @@ def capture_request_context(request: "Request | None") -> dict[str, Any]:
         request: The FastAPI Request object, or None if not in HTTP context
 
     Returns:
-        Dictionary containing request context:
-        - method: HTTP method
-        - path: Request path
-        - headers: Sanitized headers (sensitive headers removed)
-        - query_params: Sanitized query parameters
-        - client: Client information (host, port)
-        Returns empty dict if request is None
+        dict[str, Any]: Dictionary containing request context:
+            - method: HTTP method
+            - path: Request path
+            - headers: Sanitized headers (sensitive headers removed)
+            - query_params: Sanitized query parameters
+            - client: Client information (host, port)
+            Returns empty dict if request is None
     """
     if request is None:
         return {}

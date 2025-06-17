@@ -25,15 +25,13 @@ class ORJSONRenderer:
     This renderer handles all types commonly used in logs including
     datetime, UUID, and exceptions, while providing significant
     performance improvements over the standard JSONRenderer.
+
+    Args:
+        **options: Additional options passed to orjson.dumps.
+                  Default includes OPT_SORT_KEYS for consistency.
     """
 
     def __init__(self, **options: Any) -> None:
-        """Initialize the renderer with orjson options.
-
-        Args:
-            **options: Additional options passed to orjson.dumps.
-                      Default includes OPT_SORT_KEYS for consistency.
-        """
         # Default options for consistency
         self._options = orjson.OPT_SORT_KEYS
 
@@ -51,7 +49,7 @@ class ORJSONRenderer:
             event_dict: The event dictionary to render.
 
         Returns:
-            JSON-encoded string of the event dictionary.
+            str: JSON-encoded string of the event dictionary.
         """
         _ = logger, name  # Required by structlog processor interface
 
@@ -70,7 +68,7 @@ class ORJSONRenderer:
             d: Dictionary to process.
 
         Returns:
-            Processed dictionary safe for orjson serialization.
+            dict[str, Any]: Processed dictionary safe for orjson serialization.
         """
         result: dict[str, Any] = {}
         for key, value in d.items():
@@ -119,7 +117,7 @@ def add_log_level_upper(
         event_dict: The event dictionary.
 
     Returns:
-        The modified event dictionary with uppercase log level.
+        EventDict: The modified event dictionary with uppercase log level.
     """
     _ = logger  # Required by structlog processor interface
     if method_name == "warn":
@@ -139,7 +137,7 @@ def inject_correlation_id(
         event_dict: The event dictionary.
 
     Returns:
-        The event dictionary with correlation ID if available.
+        EventDict: The event dictionary with correlation ID if available.
     """
     _ = logger, method_name  # Required by structlog processor interface
     correlation_id = RequestContext.get_correlation_id()
@@ -162,7 +160,7 @@ def inject_logger_context(
         event_dict: The event dictionary.
 
     Returns:
-        The event dictionary with additional context merged in.
+        EventDict: The event dictionary with additional context merged in.
     """
     _ = logger, method_name  # Required by structlog processor interface
     context = _logger_context_var.get()
@@ -278,7 +276,7 @@ def get_logger(name: str | None = None, **initial_context: Any) -> Any:
         **initial_context: Initial key-value pairs to bind to this logger instance.
 
     Returns:
-        A bound structlog logger instance with context from contextvars.
+        Any: A bound structlog logger instance with context from contextvars.
     """
     logger = structlog.get_logger(name)
     if initial_context:
@@ -297,7 +295,7 @@ def log_context(**bindings: Any) -> Iterator[Any]:
         **bindings: Key-value pairs to bind to the logger context.
 
     Yields:
-        A bound logger with the temporary context.
+        Any: A bound logger with the temporary context.
 
     Example:
         with log_context(user_id=123, request_id="abc") as logger:
