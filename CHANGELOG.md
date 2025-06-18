@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Regenerated README with comprehensive project documentation following strict current-state-only principles
 - Enhanced /readme command with stricter content validation to prevent future-looking documentation
 - Enforced stricter type checking by removing ANN401 ignore rule and documenting all Any type usage
+- Improved exception handling by removing BLE001 ignore rule and using specific exception types
 
 ### Fixed
 - Type safety issue in request logging test
