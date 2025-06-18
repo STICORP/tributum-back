@@ -2,6 +2,38 @@
 
 Generate or update a comprehensive, developer-focused README.md with intelligent diff-based updates and safe emoji usage.
 
+## Summary: Two Operating Modes
+
+1. **Initial Generation** (No README exists)
+   - Performs comprehensive discovery of ALL project features
+   - Checks configuration files, tools, CI/CD, automation
+   - Generates complete README with all applicable sections
+   - Ensures nothing is missed
+
+2. **Incremental Update** (README exists)
+   - Reads existing README and preserves structure
+   - Analyzes commits since last update
+   - Updates only changed sections
+   - Efficient and focused
+
+## Execution Mode: Initial Generation vs Incremental Update
+
+### Mode Detection
+```bash
+# FIRST: Determine which mode to use
+if [ ! -f README.md ] || [ $(wc -c < README.md) -lt 100 ]; then
+    echo "No README found - executing INITIAL GENERATION mode"
+    # Perform comprehensive discovery
+else
+    echo "README exists - executing INCREMENTAL UPDATE mode"
+    # Perform commit-based updates
+fi
+```
+
+### Two Distinct Modes:
+1. **Initial Generation Mode** - Comprehensive discovery and full README creation
+2. **Incremental Update Mode** - Commit-based updates to existing README
+
 ## CRITICAL: README Update Process
 
 ### ⚠️ MANDATORY FIRST STEP: READ THE ENTIRE README
@@ -32,7 +64,140 @@ When updating after many commits:
 
 This prevents context window overflow and ensures accurate updates.
 
+## Initial Generation Mode: Comprehensive Discovery
+
+### ⚠️ ONLY FOR NEW README CREATION
+
+When creating a README from scratch, perform comprehensive discovery BEFORE writing any content.
+
+### Discovery Checklist
+
+#### 1. **Project Configuration Analysis**
+```bash
+# Read entire pyproject.toml
+cat pyproject.toml
+
+# Check for:
+- [ ] All dependencies and versions
+- [ ] Development tools configuration (ruff, mypy, etc.)
+- [ ] Scripts and entry points
+- [ ] Isolated tools configuration
+- [ ] Project metadata (name, version, description)
+```
+
+#### 2. **Development Tools Discovery**
+```bash
+# Check for slash commands
+ls -la .claude/commands/
+
+# Check for automation scripts
+ls -la scripts/
+
+# Check pre-commit configuration
+cat .pre-commit-config.yaml
+
+# Check for Makefile commands
+grep -E '^[a-zA-Z_-]+:.*?##' Makefile | sort
+```
+
+#### 3. **CI/CD Pipeline Analysis**
+```bash
+# Check GitHub Actions workflows
+ls -la .github/workflows/
+cat .github/workflows/*.yml
+
+# Look for:
+- [ ] Build and test jobs
+- [ ] Security scanning
+- [ ] Deployment processes
+- [ ] Automated checks
+```
+
+#### 4. **Project Structure Mapping**
+```bash
+# Map source structure
+find src -type d | head -20
+
+# Check test organization
+find tests -type d
+
+# Look for infrastructure
+ls -la terraform/ 2>/dev/null || echo "No terraform found"
+```
+
+#### 5. **Version Management**
+```bash
+# Check for version management
+grep -A5 "bump-my-version" pyproject.toml
+
+# Check for changelog
+test -f CHANGELOG.md && echo "CHANGELOG.md exists"
+```
+
+### Required Sections for Initial Generation
+
+Based on discovery, ensure these sections exist if applicable:
+
+1. **Core Sections** (always include):
+   - Project Overview
+   - Tech Stack
+   - Quick Start
+   - Development Workflow
+   - Project Structure
+
+2. **Conditional Sections** (include if discovered):
+   - Developer Tools & Automation (if .claude/commands/ exists)
+   - CI/CD Pipeline (if .github/workflows/ exists)
+   - Command Reference (if Makefile exists)
+   - Version Management & Release Workflow (if bump-my-version configured)
+   - Infrastructure (if terraform/ exists)
+   - Security Architecture (if security tools configured)
+
+3. **Feature-Specific Sections**:
+   ```python
+   DISCOVERY_MAPPINGS = {
+       'has_claude_commands': 'Developer Tools & Automation',
+       'has_makefile': 'Command Reference',
+       'has_ci_workflows': 'CI/CD Pipeline',
+       'has_precommit': 'Development Workflow (enhanced)',
+       'has_isolated_tools': 'Development Tools (special note)',
+       'has_terraform': 'Infrastructure',
+       'has_benchmarks': 'Performance Characteristics',
+       'has_changelog': 'Version Management'
+   }
+   ```
+
+### Initial Generation Process
+
+1. **Run ALL discovery checks above**
+2. **Create comprehensive outline based on findings**
+3. **Generate all applicable sections**
+4. **Include discovered tools, commands, and workflows**
+5. **Set initial metadata with first commit**
+
+### DO NOT:
+- Skip any discovery steps
+- Rely on commit history for initial generation
+- Assume standard features exist without checking
+- Miss automation tools or CI/CD configuration
+
 ## Instructions
+
+### Mode Selection (MANDATORY FIRST STEP)
+
+```python
+# Determine execution mode
+if not os.path.exists('README.md') or os.path.getsize('README.md') < 100:
+    # Execute INITIAL GENERATION MODE
+    # 1. Perform comprehensive discovery (see section above)
+    # 2. Generate complete README with all discovered features
+    # 3. Do NOT use commit-based updates
+else:
+    # Execute INCREMENTAL UPDATE MODE
+    # 1. Read existing README
+    # 2. Analyze commits since last update
+    # 3. Update only affected sections
+```
 
 ### 0. **Emoji Safety & Character Encoding**
 
@@ -393,22 +558,40 @@ All configs validated at startup with clear error messages
 
 ### 3. **Smart Update Implementation**
 
-#### CRITICAL: Iterative Update Process
+#### Mode-Specific Implementation
 
-**IMPORTANT**: Always read the ENTIRE README first before making any changes. This provides context for what exists and how to integrate new information.
+**CRITICAL**: The implementation differs completely based on the mode:
+
+##### Initial Generation Mode (No Existing README)
+1. Perform comprehensive discovery first
+2. Generate all applicable sections
+3. Create complete, well-structured README
+4. Set metadata with current commit
+
+##### Incremental Update Mode (Existing README)
+1. Always read the ENTIRE README first
+2. Analyze commits since last update
+3. Update only changed sections
+4. Preserve manual edits
 
 #### Update Process
 ```python
 def update_readme(force=False):
-    # 1. ALWAYS read entire README first
+    # 1. FIRST: Determine mode
+    if not os.path.exists('README.md') or os.path.getsize('README.md') < 100:
+        # INITIAL GENERATION MODE
+        return generate_readme_from_scratch()
+
+    # INCREMENTAL UPDATE MODE
+    # 2. Read entire README first
     current_readme = read_entire_readme()
     metadata = extract_metadata(current_readme)
 
-    # 2. Get commit range to analyze
+    # 3. Get commit range to analyze
     last_commit = metadata.last_commit
     current_head = get_current_head()
 
-    # 3. Count commits to process
+    # 4. Count commits to process
     commit_count = count_commits(last_commit, current_head)
 
     if commit_count > 10:
@@ -417,6 +600,13 @@ def update_readme(force=False):
     else:
         # Process all at once for small updates
         return single_batch_update(last_commit, current_head)
+
+def generate_readme_from_scratch():
+    """Initial generation with comprehensive discovery"""
+    features = discover_all_features()
+    sections = map_features_to_sections(features)
+    readme_content = generate_all_sections(sections)
+    return readme_content
 ```
 
 #### Iterative Batch Processing
@@ -658,10 +848,13 @@ markdown-link-check README.md
 
 ## Benefits
 
-1. **Developer-Centric**: Technical depth without marketing fluff
-2. **Architecture-Focused**: Clear diagrams and design decisions
-3. **Performance-Aware**: Benchmarks and optimization strategies
-4. **Update Intelligence**: Only changes what needs changing
-5. **Manual Preservation**: Respects human edits
-6. **Emoji Safety**: Graceful fallbacks prevent Unicode errors
-7. **Framework Documentation**: Deep dive into internal systems
+1. **Dual Mode Operation**: Comprehensive discovery for new READMEs, efficient updates for existing ones
+2. **Never Miss Features**: Initial generation discovers ALL project features, not just visible code
+3. **Developer-Centric**: Technical depth without marketing fluff
+4. **Architecture-Focused**: Clear diagrams and design decisions
+5. **Performance-Aware**: Benchmarks and optimization strategies
+6. **Update Intelligence**: Only changes what needs changing
+7. **Manual Preservation**: Respects human edits
+8. **Emoji Safety**: Graceful fallbacks prevent Unicode errors
+9. **Framework Documentation**: Deep dive into internal systems
+10. **Efficiency**: Incremental updates remain fast and focused
