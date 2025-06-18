@@ -457,15 +457,17 @@ This project includes powerful AI-powered development commands that automate com
 #### `/readme` - Smart README Generation
 ```bash
 /readme
-# Reads existing README completely
-# Analyzes recent commits for changes
-# Updates only affected sections
+# Dual-mode operation:
+# - Initial Generation: Comprehensive discovery for new READMEs
+# - Incremental Update: Efficient commit-based updates for existing READMEs
 # Preserves manual edits
 # Handles large commit ranges iteratively
 ```
 
 **README features:**
-- Intelligent diff-based updates
+- Dual-mode operation (comprehensive discovery vs incremental updates)
+- Intelligent diff-based updates for existing READMEs
+- Full feature discovery for initial generation
 - Section hashing for change detection
 - Manual edit preservation
 - Emoji safety with fallbacks
@@ -488,6 +490,23 @@ This project includes powerful AI-powered development commands that automate com
 # Validates test coverage
 # Checks documentation completeness
 ```
+
+#### `/curate-makefile` - Intelligent Makefile Management
+```bash
+/curate-makefile
+# Analyzes existing Makefile structure
+# Organizes commands by category
+# Aligns with CI/CD and pre-commit hooks
+# Adds missing commands intelligently
+# Preserves custom commands
+```
+
+**Makefile curation features:**
+- Smart categorization of commands
+- Dependency-aware command organization
+- Integration with CI/CD workflows
+- Consistent naming conventions
+- Help documentation generation
 
 ### Isolated Tool Execution
 
@@ -653,29 +672,29 @@ on:
 
 **Matrix Testing**: Python 3.13 (expandable to multiple versions)
 
-**Steps executed:**
+**Steps executed (all using Makefile commands):**
 1. **Environment Setup**
    - Install uv with caching
    - Set up Python environment
-   - Install all dependencies
+   - `make install` - Install all dependencies
 
 2. **Code Quality Checks**
-   - Format verification (ruff format --check)
-   - Linting (ruff check)
-   - Type checking (mypy)
+   - `make format-check` - Format verification
+   - `make lint` - Linting checks
+   - `make type-check` - Type checking
 
 3. **Security Scanning**
-   - Bandit AST analysis
-   - Safety dependency scanning
-   - pip-audit vulnerability check
-   - Semgrep pattern-based analysis
+   - `make security-bandit` - AST analysis
+   - `make security-safety` - Dependency scanning
+   - `make security-pip-audit` - Vulnerability check
+   - `make security-semgrep` - Pattern-based analysis
 
 4. **Code Analysis**
-   - Dead code detection (vulture)
-   - Docstring quality (pydoclint)
+   - `make dead-code` - Dead code detection
+   - `make docstring-quality` - Docstring validation
 
 5. **Test Execution**
-   - Full test suite with pytest
+   - `make test-ci` - Optimized for CI
    - Fast fail on first error
 
 ### Pre-commit CI Job
@@ -687,11 +706,13 @@ Separate job ensures all pre-commit hooks pass:
 
 ### CI Features
 
+- **Makefile Integration**: All CI commands mirror local development for consistency
 - **Parallel Jobs**: Quality checks and pre-commit run simultaneously
 - **Fast Feedback**: Fail fast on first error
 - **Cached Dependencies**: Uses uv's lock file caching
 - **Comprehensive Coverage**: Every aspect of code quality validated
 - **Tool Isolation**: Uses `./scripts/tool` for conflict-free execution
+- **Unified Commands**: Same commands work locally and in CI (`make test`, `make lint`, etc.)
 
 ## 🛠️ Command Reference
 
@@ -713,6 +734,9 @@ Separate job ensures all pre-commit hooks pass:
 | `make security` | Run all security checks | Complete scan |
 | `make security-bandit` | AST security scan | Code analysis |
 | `make security-deps` | Dependency vulnerabilities | Package audit |
+| `make security-safety` | Safety vulnerability scan | Isolated tool |
+| `make security-pip-audit` | pip-audit scan | Direct audit |
+| `make security-semgrep` | Semgrep static analysis | Isolated tool |
 | **Testing** | | |
 | `make test` | Run all tests | Standard run |
 | `make test-unit` | Unit tests only | Fast feedback |
@@ -721,14 +745,18 @@ Separate job ensures all pre-commit hooks pass:
 | `make test-fast` | Parallel test execution | Speed |
 | `make test-verbose` | Detailed output | Debugging |
 | `make test-failed` | Re-run failed tests | Quick fixes |
+| `make test-precommit` | Fast tests for hooks | No coverage |
+| `make test-ci` | CI-optimized tests | Fast fail |
 | **Code Analysis** | | |
 | `make dead-code` | Find unused code | Clean up |
 | `make dead-code-report` | Detailed report | Analysis |
 | `make docstring-check` | Check all docstrings | Quality |
 | `make docstring-missing` | Find missing docs | Coverage |
 | `make docstring-quality` | Validate docstring format | Standards |
+| `make pylint-check` | Run pylint checks | Code quality |
 | **Utilities** | | |
 | `make pre-commit` | Run all hooks manually | Pre-push check |
+| `make pre-commit-ci` | Run hooks for CI | Show diffs |
 | `make all-checks` | Everything at once | Complete validation |
 | `make clean` | Remove temp files | Cleanup |
 
@@ -1003,8 +1031,8 @@ Some tools run in isolated environments to prevent dependency conflicts:
 ---
 
 <!-- README-METADATA
-Last Updated: 2025-01-17T21:45:00Z
-Last Commit: c8a2ce6
+Last Updated: 2025-06-18T03:21:55Z
+Last Commit: f758ed253c41ca1c6b0c613c50d3c4c9814ea0e3
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "a1b2c3d4", "manual": false},
@@ -1016,8 +1044,11 @@ Sections: {
   "quick-start": {"hash": "y5z6a7b8", "manual": false},
   "configuration": {"hash": "c9d0e1f2", "manual": false},
   "version-management": {"hash": "v1m2r3w4", "manual": false},
+  "developer-tools": {"hash": "d2t4o5l6", "manual": false},
   "testing": {"hash": "g3h4i5j6", "manual": false},
   "workflow": {"hash": "k7l8m9n1", "manual": false},
+  "ci-cd": {"hash": "c7i8c9d0", "manual": false},
+  "command-reference": {"hash": "c1m2r3f4", "manual": false},
   "troubleshooting": {"hash": "o1p2q3r4", "manual": false},
   "structure": {"hash": "s5t6u7v8", "manual": false},
   "api-docs": {"hash": "w9x0y1z2", "manual": false},
