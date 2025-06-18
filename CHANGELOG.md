@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Type safety issue in request logging test
+- Import organization and type annotation linting issues
 
 ## [0.2.0] - 2025-06-17
 
