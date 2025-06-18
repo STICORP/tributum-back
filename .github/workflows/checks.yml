@@ -26,38 +26,36 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: |
-        uv sync --all-extras --dev
-        uv pip install tomli  # For Python < 3.11 compatibility if needed
+      run: uv sync --all-extras --dev
 
     - name: Format check
-      run: ./scripts/tool ruff format --check .
+      run: uv run ruff format --check .
 
     - name: Lint check
-      run: ./scripts/tool ruff check .
+      run: uv run ruff check .
 
     - name: Type check
-      run: ./scripts/tool mypy .
+      run: uv run mypy .
 
     - name: Security - Bandit
-      run: ./scripts/tool bandit -r .
+      run: uv run bandit -r . -c pyproject.toml
 
     - name: Security - Safety
       run: ./scripts/tool safety scan || true
       continue-on-error: true  # Safety sometimes has issues with private packages
 
     - name: Security - pip-audit
-      run: ./scripts/tool pip-audit --ignore-vuln PYSEC-2022-42969
+      run: uv run pip-audit --ignore-vuln PYSEC-2022-42969
 
     - name: Static Analysis - Semgrep
-      run: ./scripts/tool semgrep . --error
+      run: ./scripts/tool semgrep . --config=auto --error
       continue-on-error: true  # Don't fail build on semgrep issues initially
 
     - name: Dead Code Check
-      run: ./scripts/tool vulture .
+      run: uv run vulture . --config=pyproject.toml
 
     - name: Docstring Quality
-      run: ./scripts/tool pydoclint src/
+      run: uv run pydoclint src/ --config=pyproject.toml
 
     - name: Run tests
       run: |
