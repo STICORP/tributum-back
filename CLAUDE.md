@@ -34,7 +34,7 @@ uv run pre-commit run --all-files  # Run all checks
 # Security
 uv run bandit -r . -c pyproject.toml
 ./scripts/tool safety scan   # Isolated tool
-uv run pip-audit --ignore-vuln PYSEC-2022-42969
+uv run pip-audit
 ./scripts/tool semgrep .     # Isolated tool
 
 # Version management
@@ -175,7 +175,6 @@ Each domain: schemas.py, models.py, repository.py, service.py, exceptions.py
 - To add isolated tools: edit `[tool.isolated-tools]` in pyproject.toml
 
 ## Known Issues
-- PYSEC-2022-42969: py package vulnerability (ignored)
 - Safety CLI requires auth
 
 ### Request Context & Correlation IDs
