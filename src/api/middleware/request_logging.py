@@ -117,14 +117,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             if len(body) <= self.max_body_size:
                 try:
                     return body.decode("utf-8", errors="replace")
-                except Exception:
+                except (UnicodeDecodeError, AttributeError):
                     return f"<binary data: {len(body)} bytes>"
             else:
                 truncated = body[: self.max_body_size]
                 try:
                     decoded = truncated.decode("utf-8", errors="replace")
                     return decoded + TRUNCATED_SUFFIX
-                except Exception:
+                except (UnicodeDecodeError, AttributeError):
                     return f"<binary data: {len(body)} bytes>{TRUNCATED_SUFFIX}"
         else:
             if len(body) <= self.max_body_size:
@@ -159,7 +159,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             parsed = parse_qs(body_bytes.decode("utf-8"))
             # Convert from list values to single values for logging
             return {k: v[0] if len(v) == 1 else v for k, v in parsed.items()}
-        except Exception:
+        except (UnicodeDecodeError, ValueError):
             return self._truncate_body(body_bytes)
 
     def _get_body_metadata(
@@ -210,7 +210,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             else:
                 parsed = self._get_body_metadata(body_bytes, content_type)
 
-        except Exception as e:
+        except (ValueError, RuntimeError, json.JSONDecodeError) as e:
             self.logger.warning(
                 "Failed to read request body",
                 error=str(e),
@@ -322,7 +322,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         if content_type in JSON_CONTENT_TYPES:
             try:
                 parsed = json.loads(body_bytes)
-            except Exception:
+            except (json.JSONDecodeError, ValueError, TypeError):
                 response_log_data["response_body"] = self._truncate_body(body_bytes)
             else:
                 response_log_data["response_body"] = sanitize_context({"body": parsed})[
