@@ -9,6 +9,7 @@ from urllib.parse import parse_qs
 from fastapi import Request, Response
 from starlette.datastructures import Headers
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response as StarletteResponse
 from starlette.types import ASGIApp
 
 from src.core.constants import (
@@ -446,8 +447,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         self._log_response_body(response_log_data, body_bytes, response.headers)
 
         # Create a new response with the same body
-        from starlette.responses import Response as StarletteResponse
-
         return StarletteResponse(
             content=body_bytes,
             status_code=response.status_code,

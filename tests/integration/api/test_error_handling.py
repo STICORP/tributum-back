@@ -4,12 +4,17 @@ Tests that the error handlers properly handle various exception types,
 return correct HTTP status codes, and format error responses consistently.
 """
 
+import json
+
 import pytest
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.testclient import TestClient
+from pydantic import BaseModel, model_validator
 
 from src.api.main import create_app
+from src.api.middleware.error_handler import generic_exception_handler
 from src.api.schemas.errors import ErrorResponse
+from src.core.config import get_settings
 from src.core.exceptions import (
     BusinessRuleError,
     ErrorCode,
@@ -65,8 +70,6 @@ def app_with_handlers() -> FastAPI:
     @app.get("/test/generic-exception")
     async def raise_generic_exception() -> None:
         raise RuntimeError("Something went wrong")
-
-    from pydantic import BaseModel
 
     class ValidationData(BaseModel):
         data: dict[str, int]
@@ -184,7 +187,6 @@ class TestRequestValidationError:
     ) -> None:
         """Test validation error at root level (no specific field)."""
         # Create an endpoint that has root-level validation
-        from pydantic import BaseModel, model_validator
 
         class RootValidationModel(BaseModel):
             value1: int
@@ -357,14 +359,11 @@ class TestGenericException:
         request = Request(scope)
 
         # Test the handler directly
-        from src.api.middleware.error_handler import generic_exception_handler
 
         test_exception = RuntimeError("Something went wrong")
         response = await generic_exception_handler(request, test_exception)
 
         assert response.status_code == 500
-
-        import json
 
         if isinstance(response.body, bytes):
             body_str = response.body.decode()
@@ -384,12 +383,10 @@ class TestGenericException:
         monkeypatch.setenv("ENVIRONMENT", "production")
 
         # Create a new app instance to pick up the environment change
-        from src.core.config import get_settings
 
         get_settings.cache_clear()  # Clear settings cache
 
         # Test the handler directly in production mode
-        from src.api.middleware.error_handler import generic_exception_handler
 
         # Create a mock request
         scope = {
@@ -410,8 +407,6 @@ class TestGenericException:
         response = await generic_exception_handler(request, test_exception)
 
         assert response.status_code == 500
-
-        import json
 
         if isinstance(response.body, bytes):
             body_str = response.body.decode()
@@ -532,8 +527,6 @@ class TestDebugInfoInDevelopment:
 
     def test_tributum_error_includes_debug_info(self, client: TestClient) -> None:
         """Test that TributumError includes debug info in development."""
-        from src.core.config import get_settings
-
         # Check current environment
         settings = get_settings()
 
@@ -588,12 +581,9 @@ class TestDebugInfoInDevelopment:
         request = Request(scope)
 
         # Test the handler directly
-        from src.api.middleware.error_handler import generic_exception_handler
 
         test_exception = RuntimeError("Test error with context")
         response = await generic_exception_handler(request, test_exception)
-
-        import json
 
         if isinstance(response.body, bytes):
             body_str = response.body.decode()
@@ -602,7 +592,6 @@ class TestDebugInfoInDevelopment:
         data = json.loads(body_str)
 
         # Check based on environment
-        from src.core.config import get_settings
 
         settings = get_settings()
 
@@ -633,12 +622,9 @@ class TestDebugInfoInDevelopment:
         # Set production environment
         monkeypatch.setenv("ENVIRONMENT", "production")
 
-        from src.core.config import get_settings
-
         get_settings.cache_clear()
 
         # Test the handler directly in production mode
-        from src.api.middleware.error_handler import generic_exception_handler
 
         # Create a mock request
         scope = {
@@ -657,8 +643,6 @@ class TestDebugInfoInDevelopment:
 
         test_exception = RuntimeError("Internal details")
         response = await generic_exception_handler(request, test_exception)
-
-        import json
 
         if isinstance(response.body, bytes):
             body_str = response.body.decode()

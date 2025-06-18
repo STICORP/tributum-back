@@ -2,7 +2,9 @@
 
 import asyncio
 import datetime
+import json
 import logging
+import uuid
 from collections.abc import Generator
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -1229,7 +1231,6 @@ class TestORJSONRenderer:
         result = renderer(logger, "test", event_dict)
 
         # Parse the result to verify it's valid JSON
-        import json
 
         parsed = json.loads(result)
         assert parsed["event"] == "test message"
@@ -1241,16 +1242,12 @@ class TestORJSONRenderer:
 
     def test_datetime_handling(self) -> None:
         """Test that datetime objects are serialized correctly."""
-        import datetime
-
         renderer = ORJSONRenderer()
         logger = MagicMock()
         now = datetime.datetime.now(datetime.UTC)
         event_dict = {"event": "test", "timestamp": now}
 
         result = renderer(logger, "test", event_dict)
-
-        import json
 
         parsed = json.loads(result)
         assert parsed["event"] == "test"
@@ -1260,16 +1257,12 @@ class TestORJSONRenderer:
 
     def test_uuid_handling(self) -> None:
         """Test that UUID objects are serialized correctly."""
-        import uuid
-
         renderer = ORJSONRenderer()
         logger = MagicMock()
         test_uuid = uuid.uuid4()
         event_dict = {"event": "test", "id": test_uuid}
 
         result = renderer(logger, "test", event_dict)
-
-        import json
 
         parsed = json.loads(result)
         assert parsed["event"] == "test"
@@ -1284,8 +1277,6 @@ class TestORJSONRenderer:
 
         result = renderer(logger, "test", event_dict)
 
-        import json
-
         parsed = json.loads(result)
         assert parsed["event"] == "error occurred"
         assert parsed["exception"] == "Test error"
@@ -1297,8 +1288,6 @@ class TestORJSONRenderer:
         event_dict = {"event": "test", "error_type": ValueError}
 
         result = renderer(logger, "test", event_dict)
-
-        import json
 
         parsed = json.loads(result)
         assert parsed["event"] == "test"
@@ -1320,8 +1309,6 @@ class TestORJSONRenderer:
 
         result = renderer(logger, "test", event_dict)
 
-        import json
-
         parsed = json.loads(result)
         assert parsed["event"] == "test"
         assert parsed["context"]["user"]["id"] == 123
@@ -1336,8 +1323,6 @@ class TestORJSONRenderer:
         event_dict = {"event": "test", "errors": errors, "numbers": [1, 2, 3]}
 
         result = renderer(logger, "test", event_dict)
-
-        import json
 
         parsed = json.loads(result)
         assert parsed["event"] == "test"
@@ -1356,8 +1341,6 @@ class TestORJSONRenderer:
         }
 
         result = renderer(logger, "test", event_dict)
-
-        import json
 
         parsed = json.loads(result)
         assert parsed["event"] == "test"
@@ -1400,7 +1383,6 @@ class TestORJSONRenderer:
         result2 = renderer2(logger, "test", event_dict)
 
         # Should still produce valid JSON
-        import json
 
         parsed = json.loads(result2)
         assert parsed["event"] == "test"
@@ -1429,7 +1411,6 @@ class TestORJSONRenderer:
 
         # Just verify it works correctly and produces valid output
         result = orjson_renderer(logger, "test", event_dict)
-        import json
 
         parsed = json.loads(result)
 
@@ -1441,9 +1422,6 @@ class TestORJSONRenderer:
 
     def test_complex_real_world_log(self) -> None:
         """Test with a complex log entry similar to real usage."""
-        import datetime
-        import uuid
-
         renderer = ORJSONRenderer()
         logger = MagicMock()
 
@@ -1471,7 +1449,6 @@ class TestORJSONRenderer:
         result = renderer(logger, "test", event_dict)
 
         # Should produce valid JSON
-        import json
 
         parsed = json.loads(result)
         assert parsed["event"] == "api_request_completed"

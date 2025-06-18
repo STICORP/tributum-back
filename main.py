@@ -2,6 +2,7 @@
 
 import uvicorn
 
+from src.api.main import app
 from src.core.config import get_settings
 
 
@@ -19,9 +20,7 @@ def main() -> None:
             log_level=settings.log_config.log_level.lower(),
         )
     else:
-        # In production, we can import and pass the app directly for better performance
-        from src.api.main import app
-
+        # In production, we can pass the app directly for better performance
         uvicorn.run(
             app,
             host=settings.api_host,

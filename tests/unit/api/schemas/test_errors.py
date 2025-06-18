@@ -261,7 +261,7 @@ class TestErrorResponse:
         assert "+" in timestamp_str or "Z" in timestamp_str  # Has timezone
 
         # Verify it can be parsed back
-        parsed_timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        parsed_timestamp = datetime.fromisoformat(timestamp_str)
         assert parsed_timestamp.tzinfo is not None
 
     def test_error_response_with_severity(self) -> None:

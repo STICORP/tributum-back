@@ -1,6 +1,7 @@
 """Integration tests for ORJSONResponse in FastAPI."""
 
 import json
+import time
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -72,7 +73,7 @@ async def test_error_response_serialization() -> None:
         # Verify timestamp is properly serialized
         # Should be ISO format with timezone
         timestamp_str = data["timestamp"]
-        parsed_timestamp = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+        parsed_timestamp = datetime.fromisoformat(timestamp_str)
         assert parsed_timestamp.tzinfo is not None
 
 
@@ -135,7 +136,6 @@ async def test_orjson_performance_improvement() -> None:
     }
 
     # Time standard json encoding
-    import time
 
     start = time.perf_counter()
     for _ in range(100):

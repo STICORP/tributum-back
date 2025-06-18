@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Isolated development tool execution system to prevent dependency conflicts
+- Unified command execution through Makefile for CI/CD, pre-commit, and local development
 
 ### Fixed
 - Type safety issue in request logging test

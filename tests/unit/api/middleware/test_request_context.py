@@ -1,5 +1,8 @@
 """Unit tests for RequestContextMiddleware."""
 
+from collections.abc import Awaitable, Callable, MutableMapping
+from typing import Any
+
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
@@ -119,9 +122,6 @@ class TestRequestContextMiddleware:
     @pytest.mark.asyncio
     async def test_non_http_request_passthrough(self) -> None:
         """Test that non-HTTP requests (like WebSocket) are passed through."""
-        from collections.abc import Awaitable, Callable, MutableMapping
-        from typing import Any
-
         # Create a mock app that tracks if it was called
         called = False
 

@@ -9,6 +9,7 @@ import pytest
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
+from starlette.datastructures import Headers
 
 from src.api.middleware.request_context import RequestContextMiddleware
 from src.api.middleware.request_logging import (
@@ -1179,7 +1180,6 @@ class TestMiddlewareConfiguration:
     def test_content_type_extraction(self) -> None:
         """Test content type extraction."""
         # Test the static method directly
-        from starlette.datastructures import Headers
 
         headers = Headers({"content-type": "application/json; charset=utf-8"})
         content_type = RequestLoggingMiddleware._get_content_type(headers)

@@ -17,6 +17,7 @@ from structlog.typing import EventDict, Processor
 
 from src.core.config import get_settings
 from src.core.context import RequestContext
+from src.core.exceptions import TributumError
 
 
 class ORJSONRenderer:
@@ -332,8 +333,6 @@ def log_exception(
         except TributumError as e:
             log_exception(logger, e, "Operation failed")
     """
-    from src.core.exceptions import TributumError
-
     # Prepare the log context
     context = dict(extra_context)
 

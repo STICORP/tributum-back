@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import main as main_module
 from main import main
 
 
@@ -60,7 +61,5 @@ def test_main_function_runs_uvicorn_in_production_mode() -> None:
 @pytest.mark.unit
 def test_main_module_can_be_imported() -> None:
     """Test that the main module can be imported without errors."""
-    import main
-
-    assert hasattr(main, "main")
-    assert callable(main.main)
+    assert hasattr(main_module, "main")
+    assert callable(main_module.main)
