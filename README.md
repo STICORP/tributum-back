@@ -20,8 +20,12 @@
 - [💻 Tech Stack](#-tech-stack)
 - [🚀 Quick Start](#-quick-start)
 - [🔧 Configuration Management](#-configuration-management)
+- [📦 Version Management & Release Workflow](#-version-management--release-workflow)
+- [🤖 Developer Tools & Automation](#-developer-tools--automation)
 - [🧪 Testing Philosophy](#-testing-philosophy)
 - [📊 Development Workflow](#-development-workflow)
+- [🔄 CI/CD Pipeline](#-cicd-pipeline)
+- [🛠️ Command Reference](#️-command-reference)
 - [🎯 Troubleshooting Guide](#-troubleshooting-guide)
 - [📁 Project Structure](#-project-structure)
 - [🌐 API Documentation](#-api-documentation)
@@ -268,9 +272,11 @@ SENSITIVE_PATTERNS = [
 |----------|-------|---------|
 | Code Quality | Ruff, mypy (strict) | Linting, formatting, type checking |
 | Testing | pytest, coverage, xdist | Test runner with parallelization |
-| Security | Bandit, Safety, pip-audit, Semgrep | Vulnerability scanning |
+| Security | Bandit, Safety*, pip-audit, Semgrep* | Vulnerability scanning |
 | Documentation | interrogate, pydoclint | Docstring validation |
 | Git Hooks | pre-commit | Automated quality checks |
+
+*Safety and Semgrep run in isolated environments via `./scripts/tool` to prevent dependency conflicts
 
 ### Infrastructure (Planned)
 
@@ -363,6 +369,147 @@ All configs validated at startup with clear error messages:
 #     value is not a valid enumeration member (type=type_error.enum)
 ```
 
+## 📦 Version Management & Release Workflow
+
+Uses [Semantic Versioning](https://semver.org/) with automated changelog and GitHub release creation.
+
+### Development & Release Process
+
+```bash
+# 1. Make changes and commit using /commit command
+# This automatically updates CHANGELOG.md with your changes
+/commit  # Analyzes changes, creates commits, updates changelog
+
+# 2. When ready to release, use the /release command
+# This will:
+# - Analyze unreleased changes from CHANGELOG.md
+# - Determine version bump (patch/minor/major)
+# - Update version in pyproject.toml
+# - Move changes from [Unreleased] to new version section
+# - Create git tag
+# - Create GitHub release automatically
+/release  # Full automated release process
+
+# 3. Push the release
+git push && git push --tags
+```
+
+### Version Bumping
+
+Version increments are determined by changelog content:
+- **PATCH (0.1.0 → 0.1.1)**: Bug fixes, security updates, refactoring
+- **MINOR (0.1.1 → 0.2.0)**: New features, enhancements
+- **MAJOR (0.2.0 → 1.0.0)**: Breaking changes, removals
+
+### Manual Version Management
+
+```bash
+# Specific version bumps
+uv run bump-my-version bump patch  # 0.1.0 → 0.1.1
+uv run bump-my-version bump minor  # 0.1.1 → 0.2.0
+uv run bump-my-version bump major  # 0.2.0 → 1.0.0
+
+# Check current version
+uv run bump-my-version show
+```
+
+## 🤖 Developer Tools & Automation
+
+### Claude Code Slash Commands
+
+This project includes powerful AI-powered development commands that automate common tasks while maintaining high code quality:
+
+#### `/commit` - Intelligent Commit Management
+```bash
+/commit
+# Analyzes all changes
+# Groups related changes logically
+# Creates conventional commits (feat:, fix:, docs:, etc.)
+# Automatically updates CHANGELOG.md
+# Never mentions AI assistance in commit messages
+```
+
+**Features:**
+- Smart change grouping by functionality
+- Conventional commit format enforcement
+- Automatic CHANGELOG.md updates with categorization
+- Detailed commit messages with reasoning
+- Skips test/style commits in changelog
+
+#### `/release` - Automated Release Process
+```bash
+/release
+# Pre-release checks (clean working directory, tests pass)
+# Analyzes [Unreleased] section in CHANGELOG.md
+# Determines version bump (patch/minor/major)
+# Updates version across all files
+# Creates annotated git tag
+# Automatically creates GitHub release with changelog
+```
+
+**Release automation includes:**
+- Semantic version bump detection
+- CHANGELOG.md reorganization
+- Multi-file version updates
+- GitHub release creation via `gh` CLI
+- Rollback instructions if needed
+
+#### `/readme` - Smart README Generation
+```bash
+/readme
+# Reads existing README completely
+# Analyzes recent commits for changes
+# Updates only affected sections
+# Preserves manual edits
+# Handles large commit ranges iteratively
+```
+
+**README features:**
+- Intelligent diff-based updates
+- Section hashing for change detection
+- Manual edit preservation
+- Emoji safety with fallbacks
+- Iterative processing for many commits
+
+#### `/analyze` - Code Analysis
+```bash
+/analyze
+# Deep code analysis and recommendations
+# Architecture review
+# Performance suggestions
+# Security considerations
+```
+
+#### `/enforce-quality` - Quality Standards Enforcement
+```bash
+/enforce-quality
+# Runs all quality checks
+# Ensures no bypasses (# noqa, # type: ignore)
+# Validates test coverage
+# Checks documentation completeness
+```
+
+### Isolated Tool Execution
+
+Some development tools run in isolated environments to prevent dependency conflicts:
+
+```bash
+# Use the ./scripts/tool wrapper for isolated tools
+./scripts/tool safety scan      # Security scanning
+./scripts/tool semgrep .        # Pattern-based analysis
+
+# Configure new isolated tools in pyproject.toml:
+[tool.isolated-tools]
+safety = { version = ">=3.5.2", args = ["--disable-optional-telemetry"] }
+semgrep = { version = ">=1.125.0", args = ["--config=auto"] }
+```
+
+**Benefits:**
+- No dependency conflicts with main project
+- Always uses latest tool versions
+- Supports uv, uvx, and pipx runners
+- Dynamic configuration via pyproject.toml
+
 ## 🧪 Testing Philosophy
 
 ### Test Structure
@@ -431,8 +578,9 @@ uv run mypy .               # Type checking
 
 # Security Checks
 uv run bandit -r . -c pyproject.toml
-uv run safety scan
+./scripts/tool safety scan   # Isolated tool execution
 uv run pip-audit --ignore-vuln PYSEC-2022-42969
+./scripts/tool semgrep .     # Isolated tool execution
 
 # All Checks at Once
 uv run pre-commit run --all-files
@@ -445,6 +593,172 @@ uv run pre-commit run --all-files
 3. **Full File Reads**: Always read complete files for context
 4. **Pattern Matching**: Use Grep tool for pattern searches
 5. **Test First**: Write tests before implementation
+
+### Pre-commit Hooks
+
+Comprehensive pre-commit configuration with 15+ hooks:
+
+```yaml
+# Core Python Quality
+- Ruff formatting and linting
+- mypy type checking (entire codebase)
+- Bandit security scanning
+
+# Code Quality
+- Trailing whitespace removal
+- End-of-file fixing
+- YAML/TOML/JSON validation
+- Large file detection
+- Merge conflict detection
+
+# Security
+- Private key detection
+- Safety vulnerability scanning
+- pip-audit for dependencies
+- Semgrep pattern analysis
+
+# Advanced Checks
+- Vulture dead code detection
+- Pydoclint docstring validation
+- Pylint variable shadowing detection
+- Full test suite execution
+```
+
+**Pre-commit guarantees:**
+- All code is properly formatted
+- No type errors
+- No security vulnerabilities
+- No dead code
+- All tests pass
+- Docstrings are complete and valid
+
+## 🔄 CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+Automated quality checks run on every push and pull request:
+
+```yaml
+# .github/workflows/checks.yml
+name: Code Quality Checks
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+```
+
+### Quality Checks Job
+
+**Matrix Testing**: Python 3.13 (expandable to multiple versions)
+
+**Steps executed:**
+1. **Environment Setup**
+   - Install uv with caching
+   - Set up Python environment
+   - Install all dependencies
+
+2. **Code Quality Checks**
+   - Format verification (ruff format --check)
+   - Linting (ruff check)
+   - Type checking (mypy)
+
+3. **Security Scanning**
+   - Bandit AST analysis
+   - Safety dependency scanning
+   - pip-audit vulnerability check
+   - Semgrep pattern-based analysis
+
+4. **Code Analysis**
+   - Dead code detection (vulture)
+   - Docstring quality (pydoclint)
+
+5. **Test Execution**
+   - Full test suite with pytest
+   - Fast fail on first error
+
+### Pre-commit CI Job
+
+Separate job ensures all pre-commit hooks pass:
+- Runs all hooks on all files
+- Shows diff on failure for easy fixes
+- Validates commit quality before merge
+
+### CI Features
+
+- **Parallel Jobs**: Quality checks and pre-commit run simultaneously
+- **Fast Feedback**: Fail fast on first error
+- **Cached Dependencies**: Uses uv's lock file caching
+- **Comprehensive Coverage**: Every aspect of code quality validated
+- **Tool Isolation**: Uses `./scripts/tool` for conflict-free execution
+
+## 🛠️ Command Reference
+
+### Makefile Commands
+
+| Command | Description | Usage |
+|---------|-------------|-------|
+| `make help` | Show all available commands | Quick reference |
+| `make install` | Install dependencies and pre-commit | Initial setup |
+| `make dev` | Run app with auto-reload | Development |
+| `make run` | Run app in production mode | Production |
+| **Code Quality** | | |
+| `make lint` | Run linting checks | Check issues |
+| `make lint-fix` | Fix linting issues | Auto-fix |
+| `make format` | Format code | Apply formatting |
+| `make format-check` | Check formatting | Verify only |
+| `make type-check` | Run type checking | mypy validation |
+| **Security** | | |
+| `make security` | Run all security checks | Complete scan |
+| `make security-bandit` | AST security scan | Code analysis |
+| `make security-deps` | Dependency vulnerabilities | Package audit |
+| **Testing** | | |
+| `make test` | Run all tests | Standard run |
+| `make test-unit` | Unit tests only | Fast feedback |
+| `make test-integration` | Integration tests | API tests |
+| `make test-coverage` | Generate coverage report | HTML report |
+| `make test-fast` | Parallel test execution | Speed |
+| `make test-verbose` | Detailed output | Debugging |
+| `make test-failed` | Re-run failed tests | Quick fixes |
+| **Code Analysis** | | |
+| `make dead-code` | Find unused code | Clean up |
+| `make dead-code-report` | Detailed report | Analysis |
+| `make docstring-check` | Check all docstrings | Quality |
+| `make docstring-missing` | Find missing docs | Coverage |
+| `make docstring-quality` | Validate docstring format | Standards |
+| **Utilities** | | |
+| `make pre-commit` | Run all hooks manually | Pre-push check |
+| `make all-checks` | Everything at once | Complete validation |
+| `make clean` | Remove temp files | Cleanup |
+
+### Advanced Ruff Configuration
+
+This project uses an extensive Ruff configuration with 33 rule categories:
+
+```toml
+[tool.ruff.lint]
+select = [
+    # Core style (E, W, F, UP)
+    # Import management (I, TID, ICN, TCH)
+    # Naming & docs (N, D)
+    # Type checking (ANN)
+    # Code quality (B, A, C4, ISC, PIE, SIM, RET, ARG, ERA)
+    # Security (BLE, TRY, RSE)
+    # Performance (PERF)
+    # Domain specific (ASYNC, DTZ, PT, LOG)
+    # Refactoring (FBT, FLY, FURB, PL)
+    # Development (T10, EXE)
+    # Ruff-specific (RUF)
+]
+```
+
+**Key features:**
+- Google-style docstrings enforced
+- First-party import recognition
+- Test-specific rule relaxation
+- Strict type annotation requirements
+- Performance-oriented rules
 
 ## 🎯 Troubleshooting Guide
 
@@ -663,6 +977,14 @@ Every request gets a unique correlation ID that flows through:
 3. **Follow patterns** - Generic solutions forbidden
 4. **Test everything** - Minimum 80% coverage
 5. **Use conventional commits** - feat:, fix:, docs:, etc.
+6. **Stage new files immediately** - Prevents unstaged file errors
+7. **Re-read CLAUDE.md frequently** - Every 10-15 minutes, before git operations
+
+### Isolated Development Tools
+Some tools run in isolated environments to prevent dependency conflicts:
+- **Safety**: Security vulnerability scanner - use `./scripts/tool safety scan`
+- **Semgrep**: Pattern-based security analysis - use `./scripts/tool semgrep .`
+- Configure isolated tools in `pyproject.toml` under `[tool.isolated-tools]`
 
 ### Performance Tips
 - Use `orjson` for all JSON operations
@@ -681,8 +1003,8 @@ Every request gets a unique correlation ID that flows through:
 ---
 
 <!-- README-METADATA
-Last Updated: 2024-12-06T15:45:00Z
-Last Commit: f239bdd3dea8cef7b98311880d3f28bdd21e415d
+Last Updated: 2025-01-17T21:45:00Z
+Last Commit: c8a2ce6
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "a1b2c3d4", "manual": false},
@@ -690,15 +1012,17 @@ Sections: {
   "frameworks": {"hash": "i9j0k1l2", "manual": false},
   "performance": {"hash": "m3n4o5p6", "manual": false},
   "security": {"hash": "q7r8s9t0", "manual": false},
-  "tech-stack": {"hash": "u1v2w3x4", "manual": false},
+  "tech-stack": {"hash": "u1v2w3x5", "manual": false},
   "quick-start": {"hash": "y5z6a7b8", "manual": false},
   "configuration": {"hash": "c9d0e1f2", "manual": false},
+  "version-management": {"hash": "v1m2r3w4", "manual": false},
   "testing": {"hash": "g3h4i5j6", "manual": false},
-  "workflow": {"hash": "k7l8m9n0", "manual": false},
+  "workflow": {"hash": "k7l8m9n1", "manual": false},
   "troubleshooting": {"hash": "o1p2q3r4", "manual": false},
   "structure": {"hash": "s5t6u7v8", "manual": false},
   "api-docs": {"hash": "w9x0y1z2", "manual": false},
   "monitoring": {"hash": "a3b4c5d6", "manual": false},
-  "roadmap": {"hash": "e7f8g9h0", "manual": false}
+  "roadmap": {"hash": "e7f8g9h0", "manual": false},
+  "dev-notes": {"hash": "d1n2o3t4", "manual": false}
 }
 -->
