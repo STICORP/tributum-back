@@ -2,6 +2,16 @@
 
 Generate or update a comprehensive, developer-focused README.md with intelligent diff-based updates and safe emoji usage.
 
+## 🚨 ABSOLUTE RULES - READ FIRST 🚨
+
+1. **CURRENT STATE ONLY**: Document ONLY what exists and works RIGHT NOW
+2. **NO FUTURE CONTENT**: Zero tolerance for roadmaps, plans, or "coming soon"
+3. **USE Write TOOL**: NEVER use bash echo/cat for writing (causes encoding errors)
+4. **VALIDATE BEFORE WRITING**: Run mandatory content validation
+5. **FORBIDDEN SECTIONS**: No Technical Roadmap, Future Plans, TODOs, Technical Debt
+
+**Violating these rules = FAILED command execution**
+
 ## Summary: Two Operating Modes
 
 1. **Initial Generation** (No README exists)
@@ -167,6 +177,13 @@ Based on discovery, ensure these sections exist if applicable:
    }
    ```
 
+### CRITICAL: Current State Only
+- Document ONLY what is implemented and working
+- NO planned features or future roadmaps
+- NO "coming soon" or "in progress" items
+- NO TODO lists or technical debt tracking
+- If a feature is partially implemented, document ONLY the working parts
+
 ### Initial Generation Process
 
 1. **Run ALL discovery checks above**
@@ -180,8 +197,99 @@ Based on discovery, ensure these sections exist if applicable:
 - Rely on commit history for initial generation
 - Assume standard features exist without checking
 - Miss automation tools or CI/CD configuration
+- Include ANY future plans, roadmaps, or "coming soon" features
+- Mention planned implementations or TODO items
+- Reference work that hasn't been completed yet
+
+## 🚨 CRITICAL: ABSOLUTELY FORBIDDEN CONTENT 🚨
+
+### NEVER Include These Sections or Words:
+1. **Technical Roadmap** - FORBIDDEN
+2. **Future Considerations** - FORBIDDEN
+3. **Coming Soon** - FORBIDDEN
+4. **Planned Features** - FORBIDDEN
+5. **TODO** or **To Do** - FORBIDDEN
+6. **Technical Debt** - FORBIDDEN
+7. **Next Sprint/Quarter** - FORBIDDEN
+8. **In Progress** - FORBIDDEN
+9. **Will be implemented** - FORBIDDEN
+10. **Under development** (unless describing current active state) - FORBIDDEN
+
+### Examples of FORBIDDEN Content:
+```markdown
+❌ WRONG: "Authentication system (planned)"
+❌ WRONG: "- [ ] Implement caching layer"
+❌ WRONG: "### Technical Roadmap"
+❌ WRONG: "Coming in v2.0"
+❌ WRONG: "Future improvements include..."
+❌ WRONG: "TODO: Add rate limiting"
+```
+
+### Examples of CORRECT Content:
+```markdown
+✅ CORRECT: "Authentication system with JWT tokens"
+✅ CORRECT: "✅ Caching layer with Redis"
+✅ CORRECT: "### Current Implementation"
+✅ CORRECT: "Version 1.5.0 includes..."
+✅ CORRECT: "The system currently supports..."
+```
 
 ## Instructions
+
+### CRITICAL: CURRENT STATE ONLY - NO FUTURE FEATURES
+**The README must reflect the EXACT CURRENT state of the project. DO NOT include:**
+- Future roadmaps or planned features
+- "Coming soon" or "in progress" items
+- TODO lists or technical debt
+- Any reference to work that hasn't been completed
+- Sprint planning or future quarter goals
+
+**ONLY document what is implemented, tested, and working in the codebase RIGHT NOW.**
+
+### 🛑 MANDATORY PRE-WRITE VALIDATION CHECKLIST 🛑
+
+Before writing ANY content to README.md, you MUST complete this checklist:
+
+```python
+# MANDATORY: Run this validation before writing
+def validate_readme_content(content):
+    """MUST pass ALL checks before writing README"""
+
+    # 1. Check for forbidden words/sections
+    FORBIDDEN_TERMS = [
+        'roadmap', 'planned', 'coming soon', 'todo', 'to do', 'to-do',
+        'future', 'will be', 'in progress', 'upcoming', 'next sprint',
+        'next quarter', 'technical debt', 'later', 'eventually',
+        'not yet implemented', 'partially implemented', 'work in progress'
+    ]
+
+    content_lower = content.lower()
+    for term in FORBIDDEN_TERMS:
+        if term in content_lower:
+            raise ValueError(f"FORBIDDEN TERM FOUND: '{term}' - Remove ALL future references!")
+
+    # 2. Check for forbidden sections
+    FORBIDDEN_SECTIONS = [
+        '## Technical Roadmap', '## Future', '## TODO', '## Coming Soon',
+        '## Planned Features', '## Technical Debt', '## Next Steps'
+    ]
+
+    for section in FORBIDDEN_SECTIONS:
+        if section.lower() in content_lower:
+            raise ValueError(f"FORBIDDEN SECTION FOUND: '{section}' - Remove entire section!")
+
+    # 3. Check for task lists with unchecked items
+    if '- [ ]' in content:
+        raise ValueError("FORBIDDEN: Unchecked task items found - Remove or mark as completed!")
+
+    # 4. Validate all features are described as existing
+    if 'will ' in content or "won't " in content:
+        raise ValueError("FORBIDDEN: Future tense detected - Use present tense only!")
+
+    return True
+
+# MANDATORY: If validation fails, DO NOT WRITE THE FILE
+```
 
 ### Mode Selection (MANDATORY FIRST STEP)
 
@@ -227,7 +335,7 @@ SAFE_EMOJIS = {
 }
 ```
 
-#### Encoding Check
+#### Encoding Check & Safe Writing
 Before writing README:
 ```bash
 # Test emoji rendering
@@ -239,6 +347,50 @@ else
 fi
 rm .emoji_test
 ```
+
+#### Safe UTF-8 Writing
+When writing the README:
+```bash
+# Ensure UTF-8 encoding
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8
+
+# Write with explicit UTF-8 encoding
+echo '# README Content' | iconv -f UTF-8 -t UTF-8 > README.md
+
+# Alternative: Use Python for guaranteed UTF-8
+python3 -c "
+import codecs
+content = '''# Your README content with emojis 🚀'''
+with codecs.open('README.md', 'w', encoding='utf-8') as f:
+    f.write(content)
+"
+```
+
+#### Emoji Writing Best Practices
+1. **Always use Python or explicit UTF-8 encoding** when writing files with emojis
+2. **Test emoji rendering** before including them
+3. **Use fallback ASCII** if encoding issues detected
+4. **Validate file encoding** after writing: `file -b README.md`
+
+### 🚨 CRITICAL: ALWAYS USE Write TOOL FOR README 🚨
+
+**NEVER use bash echo or cat commands to write README.md with emojis!**
+
+```python
+# ❌ WRONG - DO NOT USE:
+# Bash("echo '# Tributum 🚀' > README.md")
+# This can cause encoding issues!
+
+# ✅ CORRECT - ALWAYS USE:
+# Write(file_path="README.md", content="# Tributum 🚀\n...")
+# The Write tool handles UTF-8 encoding properly
+```
+
+**MANDATORY**: When writing README.md, you MUST:
+1. Use the `Write` tool exclusively
+2. Never use bash echo/cat commands
+3. This prevents encoding errors with emojis
 
 ### 1. **Enhanced Update Strategy: Semantic Diff Analysis**
 
@@ -286,10 +438,16 @@ graph TD
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)](https://fastapi.tiangolo.com)
 [![Code Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](./coverage)
 [![Type Coverage](https://img.shields.io/badge/mypy-100%25-brightgreen.svg)](./mypy.ini)
-[![Performance](https://img.shields.io/badge/p99_latency-<50ms-green.svg)](./benchmarks)
+# ONLY add performance badge if benchmarks/ directory exists with results:
+# [![Performance](https://img.shields.io/badge/p99_latency-XXms-green.svg)](./benchmarks)
 
 **Status**: Active Development | **Team**: Engineering Only | **Visibility**: Private
 ```
+
+**CRITICAL Badge Rules:**
+- ✅ Include coverage badge ONLY if coverage reports exist
+- ✅ Include performance badges ONLY if benchmark results exist
+- ❌ NEVER include aspirational metrics or targets
 
 #### 📚 Table of Contents
 Auto-generated with emoji indicators for section types
@@ -297,8 +455,13 @@ Auto-generated with emoji indicators for section types
 #### 🎯 Project Overview
 - **Purpose**: Technical problem statement
 - **Architecture Philosophy**: Design principles (DDD, clean architecture)
-- **Performance Goals**: Specific metrics
-- **Scale Requirements**: Expected load
+- **Current Performance**: Measured metrics (ONLY if benchmark files exist)
+- **Current Scale**: Actual tested load capacity (ONLY if load tests exist)
+
+**CRITICAL**: For performance metrics:
+- ✅ CORRECT: "Based on benchmarks/api_test.py: 15ms p99 latency"
+- ❌ WRONG: "Target: <50ms p99 latency" (no target/goals)
+- ❌ WRONG: "Handles 10k RPS" (unless proven by actual tests)
 
 #### 🏗️ Architecture Deep Dive
 
@@ -399,18 +562,25 @@ correlation_id = RequestContext.get_correlation_id()
 
 #### 🔥 Performance Characteristics
 
+**ONLY include this section if benchmark files exist!**
+
 ##### Benchmarks
+```markdown
+# ONLY if you find actual benchmark results:
 | Endpoint | p50 | p95 | p99 | RPS |
 |----------|-----|-----|-----|-----|
-| /health | 1ms | 3ms | 5ms | 10k |
-| /api/info | 2ms | 5ms | 10ms | 5k |
-| Complex | 20ms | 45ms | 80ms | 1k |
+| /health | XXms | XXms | XXms | XXX |
+
+# DO NOT make up numbers!
+# Numbers must come from actual test files or benchmark results
+```
 
 ##### Optimization Strategies
-- orjson for 2-3x faster JSON serialization
-- Connection pooling for database
-- Async/await throughout
-- Minimal middleware overhead
+**Document ONLY implemented optimizations:**
+- ✅ "Uses orjson for JSON serialization" (if orjson in dependencies)
+- ✅ "Implements connection pooling" (if pool config exists)
+- ❌ "Targets sub-50ms latency" (no targets!)
+- ❌ "Handles 10k RPS" (unless proven)
 
 #### 🛡️ Security Architecture
 
@@ -539,22 +709,27 @@ All configs validated at startup with clear error messages
    - Review slow query logs
    - Profile with `py-spy`
 
-#### 🗺️ Technical Roadmap
+#### 📊 Current Implementation Status
 
-##### Current Sprint
-- [ ] Database schema implementation
-- [ ] Authentication service
-- [ ] API versioning strategy
+##### What's Implemented
+- ✅ FastAPI application with /info endpoint
+- ✅ Exception framework with severity levels
+- ✅ Structured logging with correlation IDs
+- ✅ Request context management
+- ✅ Configuration management with Pydantic Settings v2
+- ✅ Development tooling and pre-commit hooks
 
-##### Next Quarter
-- [ ] Multi-tenant support
-- [ ] Event sourcing for audit
-- [ ] GraphQL API layer
+##### Architecture Components
+Describe ONLY what exists in the codebase:
+- Implemented middleware stack
+- Existing API endpoints
+- Current domain models (if src/domain/ has actual code)
+- Active integrations
 
-##### Technical Debt
-- [ ] Migrate from X to Y
-- [ ] Refactor module Z
-- [ ] Upgrade dependency A
+**Example of handling empty directories:**
+- ✅ CORRECT: "Domain layer structure prepared" (if dir exists but empty)
+- ❌ WRONG: "Domain layer with user management (planned)"
+- ❌ WRONG: "DDD implementation in progress"
 
 ### 3. **Smart Update Implementation**
 
@@ -755,10 +930,11 @@ COMMIT_PATTERNS = {
 ##### First Generation
 Creates comprehensive README with all sections, focusing on:
 - Technical depth for developers
-- Performance metrics
-- Security considerations
-- Architecture diagrams
+- Performance metrics (if benchmarks exist)
+- Security considerations (current implementation only)
+- Architecture diagrams (existing components only)
 - Code examples from actual codebase
+- NO future plans or roadmaps
 
 ##### Incremental Updates (Iterative Process)
 ```bash
@@ -825,7 +1001,35 @@ This is what the generator wants to add...
 4. **Focus on changed sections only**
 5. **Summarize at the end of all iterations**
 
-### 5. **Quality Assurance**
+### 5. **FINAL MANDATORY VALIDATION BEFORE WRITING**
+
+#### 🛑 STOP: Complete This Checklist Before Using Write Tool 🛑
+
+```python
+# THIS IS MANDATORY - DO NOT SKIP
+before_writing_checklist = {
+    "no_future_content": False,  # Set True after verifying NO future tense
+    "no_roadmaps": False,        # Set True after verifying NO roadmap sections
+    "no_todos": False,           # Set True after verifying NO TODO items
+    "no_planned": False,         # Set True after verifying NO "planned" mentions
+    "using_write_tool": False,   # Set True to confirm using Write tool
+    "validated_content": False   # Set True after running validate_readme_content()
+}
+
+# All must be True before proceeding
+if not all(before_writing_checklist.values()):
+    raise Exception("CANNOT WRITE: Validation checklist incomplete!")
+```
+
+#### Content Validation Process
+1. **Search for forbidden terms** in your generated content
+2. **Remove ANY future references** - even subtle ones
+3. **Convert future tense to present** where applicable
+4. **Delete entire sections** about future plans
+5. **Run validation function** on complete content
+6. **Use Write tool** (never bash echo)
+
+### 6. **Quality Assurance**
 
 #### Pre-write Checks
 1. Validate all code examples compile
@@ -833,6 +1037,7 @@ This is what the generator wants to add...
 3. Check all links are valid
 4. Ensure emoji safety
 5. Validate Mermaid diagrams
+6. **RUN FORBIDDEN CONTENT CHECK**
 
 #### Post-write Validation
 ```bash
@@ -844,6 +1049,9 @@ markdownlint README.md
 
 # Check for broken links
 markdown-link-check README.md
+
+# Final content check
+grep -i "roadmap\|planned\|todo\|coming soon" README.md && echo "FAILED: Forbidden content found!" || echo "PASSED: No forbidden content"
 ```
 
 ## Benefits
