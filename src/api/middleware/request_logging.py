@@ -131,7 +131,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 return body
             return body[: self.max_body_size] + TRUNCATED_SUFFIX
 
-    def _parse_json_body(self, body_bytes: bytes) -> Any:
+    def _parse_json_body(self, body_bytes: bytes) -> Any:  # noqa: ANN401 - returns JSON-compatible types
         """Parse JSON body content.
 
         Args:
@@ -145,7 +145,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         except json.JSONDecodeError:
             return self._truncate_body(body_bytes)
 
-    def _parse_form_body(self, body_bytes: bytes) -> Any:
+    def _parse_form_body(self, body_bytes: bytes) -> Any:  # noqa: ANN401 - returns form data as dict
         """Parse form-encoded body content.
 
         Args:

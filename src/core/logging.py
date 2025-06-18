@@ -32,7 +32,7 @@ class ORJSONRenderer:
                   Default includes OPT_SORT_KEYS for consistency.
     """
 
-    def __init__(self, **options: Any) -> None:
+    def __init__(self, **options: Any) -> None:  # noqa: ANN401 - orjson options are flexible
         # Default options for consistency
         self._options = orjson.OPT_SORT_KEYS
 
@@ -266,7 +266,7 @@ def configure_structlog() -> None:
     )
 
 
-def get_logger(name: str | None = None, **initial_context: Any) -> Any:
+def get_logger(name: str | None = None, **initial_context: Any) -> Any:  # noqa: ANN401 - structlog.BoundLogger lacks stable typing
     """Get a structlog logger instance with automatic context binding.
 
     This function returns a logger that automatically includes any context
@@ -286,7 +286,7 @@ def get_logger(name: str | None = None, **initial_context: Any) -> Any:
 
 
 @contextmanager
-def log_context(**bindings: Any) -> Iterator[Any]:
+def log_context(**bindings: Any) -> Iterator[Any]:  # noqa: ANN401 - structlog.BoundLogger lacks stable typing
     """Context manager for temporary log context bindings.
 
     This allows adding temporary context to all log messages within
@@ -311,10 +311,10 @@ def log_context(**bindings: Any) -> Iterator[Any]:
 
 
 def log_exception(
-    logger: Any,
+    logger: Any,  # noqa: ANN401 - structlog.BoundLogger lacks stable typing
     error: Exception,
     message: str | None = None,
-    **extra_context: Any,
+    **extra_context: Any,  # noqa: ANN401 - flexible logging context
 ) -> None:
     """Log an exception with full context and stack trace.
 
@@ -370,7 +370,7 @@ def log_exception(
     log_method(log_message, exc_info=error, **context)
 
 
-def bind_logger_context(**bindings: Any) -> None:
+def bind_logger_context(**bindings: Any) -> None:  # noqa: ANN401 - flexible logging context
     """Bind additional context to all loggers in the current async context.
 
     This function adds key-value pairs to the logger context that will be

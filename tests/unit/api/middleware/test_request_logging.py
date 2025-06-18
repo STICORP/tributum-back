@@ -1157,10 +1157,10 @@ class TestMiddlewareConfiguration:
 
         # Create a custom bytes class that raises exception on decode
         class BadBytes(bytes):
-            def decode(self, *_args: Any, **_kwargs: Any) -> str:
+            def decode(self, *_args: Any, **_kwargs: Any) -> str:  # noqa: ANN401 - test mock accepts any args
                 raise Exception("Simulated decode error")
 
-            def __getitem__(self, key: Any) -> Any:
+            def __getitem__(self, key: Any) -> Any:  # noqa: ANN401 - test mock for bytes operations
                 # Ensure slicing returns BadBytes to maintain the decode override
                 result = super().__getitem__(key)
                 if isinstance(key, slice):

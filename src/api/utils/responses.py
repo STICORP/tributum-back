@@ -24,7 +24,7 @@ class ORJSONResponse(JSONResponse):
 
     media_type = "application/json"
 
-    def render(self, content: Any) -> bytes:
+    def render(self, content: Any) -> bytes:  # noqa: ANN401 - accepts any JSON-serializable content
         """Render the content as JSON using orjson.
 
         Args:

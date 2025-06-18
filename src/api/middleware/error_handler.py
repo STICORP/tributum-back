@@ -5,9 +5,8 @@ ensuring consistent error responses and proper logging of exceptions.
 """
 
 import traceback
-from typing import Any
 
-from fastapi import Request, status
+from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
 from starlette.exceptions import HTTPException
@@ -47,7 +46,7 @@ def get_service_info(settings: Settings) -> ServiceInfo:
     )
 
 
-async def tributum_error_handler(request: Request, exc: TributumError) -> Response:
+async def tributum_error_handler(request: Request, exc: Exception) -> Response:
     """Handle TributumError exceptions.
 
     Converts TributumError instances to ErrorResponse with full context,
@@ -59,7 +58,14 @@ async def tributum_error_handler(request: Request, exc: TributumError) -> Respon
 
     Returns:
         Response: ORJSONResponse with error details
+
+    Raises:
+        TypeError: If exc is not a TributumError instance
     """
+    # Type narrowing - we know this handler only receives TributumError
+    if not isinstance(exc, TributumError):
+        raise TypeError(f"Expected TributumError, got {type(exc).__name__}")
+
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
 
@@ -122,9 +128,7 @@ async def tributum_error_handler(request: Request, exc: TributumError) -> Respon
     )
 
 
-async def validation_error_handler(
-    request: Request, exc: RequestValidationError
-) -> Response:
+async def validation_error_handler(request: Request, exc: Exception) -> Response:
     """Handle FastAPI RequestValidationError exceptions.
 
     Converts validation errors to ErrorResponse with field-level details,
@@ -136,7 +140,14 @@ async def validation_error_handler(
 
     Returns:
         Response: ORJSONResponse with validation error details
+
+    Raises:
+        TypeError: If exc is not a RequestValidationError instance
     """
+    # Type narrowing - we know this handler only receives RequestValidationError
+    if not isinstance(exc, RequestValidationError):
+        raise TypeError(f"Expected RequestValidationError, got {type(exc).__name__}")
+
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
 
@@ -183,7 +194,7 @@ async def validation_error_handler(
     )
 
 
-async def http_exception_handler(request: Request, exc: HTTPException) -> Response:
+async def http_exception_handler(request: Request, exc: Exception) -> Response:
     """Handle Starlette HTTPException.
 
     Converts HTTPException to our standard ErrorResponse format.
@@ -194,7 +205,14 @@ async def http_exception_handler(request: Request, exc: HTTPException) -> Respon
 
     Returns:
         Response: ORJSONResponse with error details
+
+    Raises:
+        TypeError: If exc is not an HTTPException instance
     """
+    # Type narrowing - we know this handler only receives HTTPException
+    if not isinstance(exc, HTTPException):
+        raise TypeError(f"Expected HTTPException, got {type(exc).__name__}")
+
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
 
@@ -302,7 +320,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
     )
 
 
-def register_exception_handlers(app: Any) -> None:
+def register_exception_handlers(app: FastAPI) -> None:
     """Register all exception handlers with the FastAPI application.
 
     This function should be called during application initialization to
