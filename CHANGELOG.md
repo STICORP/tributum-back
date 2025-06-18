@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type safety issue in request logging test
 - Import organization and type annotation linting issues
 
+### Security
+- Updated urllib3 to 2.5.0 to address security vulnerabilities
+
 ## [0.2.0] - 2025-06-17
 
 ### Added
