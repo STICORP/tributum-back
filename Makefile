@@ -1,11 +1,11 @@
-.PHONY: help install run dev lint format type-check security test test-unit test-integration test-coverage test-fast test-verbose test-failed clean
+.PHONY: help install run dev lint lint-fix format format-check type-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check all-checks
 
 help:  ## Show this help message
 	@echo "Available commands:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 install:  ## Install all dependencies
-	uv sync
+	uv sync --all-extras --dev
 	uv run pre-commit install
 
 run:  ## Run the FastAPI application
@@ -30,20 +30,32 @@ type-check:  ## Run type checking
 	uv run mypy .
 
 security:  ## Run all security checks
-	uv run bandit -r . -c pyproject.toml
-	uv run pip-audit
-	@echo "Note: 'safety check' is deprecated. Use 'safety scan' instead."
-	./scripts/tool safety scan || true
+	$(MAKE) security-bandit
+	$(MAKE) security-pip-audit
+	$(MAKE) security-safety
+	$(MAKE) security-semgrep
 
 security-bandit:  ## Run Bandit security scan
 	uv run bandit -r . -c pyproject.toml
 
 security-deps:  ## Check dependencies for vulnerabilities
+	$(MAKE) security-pip-audit
+	$(MAKE) security-safety
+
+security-safety:  ## Run safety vulnerability scan
+	./scripts/tool safety scan --continue-on-error || true
+
+security-pip-audit:  ## Run pip-audit vulnerability scan
 	uv run pip-audit
-	./scripts/tool safety scan || true
+
+security-semgrep:  ## Run semgrep static analysis
+	./scripts/tool semgrep . --config=auto --error
 
 pre-commit:  ## Run all pre-commit hooks
 	uv run pre-commit run --all-files
+
+pre-commit-ci:  ## Run pre-commit hooks for CI (with diff on failure)
+	uv run pre-commit run --all-files --show-diff-on-failure
 
 test:  ## Run all tests
 	uv run pytest
@@ -67,6 +79,12 @@ test-verbose:  ## Run tests with verbose output
 test-failed:  ## Re-run only failed tests
 	uv run pytest --lf
 
+test-precommit:  ## Run tests for pre-commit (fast, no coverage)
+	uv run pytest -x --tb=short --no-cov
+
+test-ci:  ## Run tests for CI (stop on first failure)
+	uv run pytest -x --tb=short
+
 clean:  ## Clean up temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
@@ -81,22 +99,25 @@ clean:  ## Clean up temporary files
 	find . -type f -name "dead-code-report.txt" -delete
 
 dead-code:  ## Check for dead code using vulture
-	uv run vulture .
+	uv run vulture . --config=pyproject.toml
 
 dead-code-report:  ## Generate detailed dead code report
-	uv run vulture . --sort-by-size > dead-code-report.txt
+	uv run vulture . --config=pyproject.toml --sort-by-size > dead-code-report.txt
 	@echo "Dead code report saved to dead-code-report.txt"
 
 docstring-check:  ## Check docstring presence and quality
 	@echo "Checking for missing docstrings..."
 	uv run ruff check . --select D100,D101,D102,D103,D104 || true
 	@echo "\nChecking docstring quality..."
-	uv run pydoclint src/
+	uv run pydoclint src/ --config=pyproject.toml
 
 docstring-missing:  ## Show only missing docstrings
 	uv run ruff check . --select D100,D101,D102,D103,D104
 
 docstring-quality:  ## Check only docstring quality (not presence)
-	uv run pydoclint src/
+	uv run pydoclint src/ --config=pyproject.toml
 
-all-checks: lint format-check type-check security dead-code docstring-check  ## Run all checks including dead code and docstring quality
+pylint-check:  ## Run pylint for code quality checks
+	uv run pylint --rcfile=pyproject.toml src/
+
+all-checks: format-check lint type-check security dead-code docstring-check pylint-check  ## Run all checks including dead code and docstring quality

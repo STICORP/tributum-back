@@ -26,40 +26,39 @@ jobs:
       run: uv python install ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: uv sync --all-extras --dev
+      run: make install
 
     - name: Format check
-      run: uv run ruff format --check .
+      run: make format-check
 
     - name: Lint check
-      run: uv run ruff check .
+      run: make lint
 
     - name: Type check
-      run: uv run mypy .
+      run: make type-check
 
     - name: Security - Bandit
-      run: uv run bandit -r . -c pyproject.toml
+      run: make security-bandit
 
     - name: Security - Safety
-      run: ./scripts/tool safety scan || true
+      run: make security-safety
       continue-on-error: true  # Safety sometimes has issues with private packages
 
     - name: Security - pip-audit
-      run: uv run pip-audit --ignore-vuln PYSEC-2022-42969
+      run: make security-pip-audit
 
     - name: Static Analysis - Semgrep
-      run: ./scripts/tool semgrep . --config=auto --error
+      run: make security-semgrep
       continue-on-error: true  # Don't fail build on semgrep issues initially
 
     - name: Dead Code Check
-      run: uv run vulture . --config=pyproject.toml
+      run: make dead-code
 
     - name: Docstring Quality
-      run: uv run pydoclint src/ --config=pyproject.toml
+      run: make docstring-quality
 
     - name: Run tests
-      run: |
-        uv run pytest -x --tb=short
+      run: make test-ci
 
   pre-commit:
     runs-on: ubuntu-latest
@@ -76,8 +75,7 @@ jobs:
       run: uv python install
 
     - name: Install dependencies
-      run: uv sync --all-extras --dev
+      run: make install
 
     - name: Run pre-commit
-      run: |
-        uv run pre-commit run --all-files --show-diff-on-failure
+      run: make pre-commit-ci

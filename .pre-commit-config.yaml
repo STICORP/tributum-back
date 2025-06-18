@@ -1,9 +1,13 @@
 repos:
-  # Run ruff-format first to handle all Python formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.13
+  # Format check using Makefile
+  - repo: local
     hooks:
-      - id: ruff-format
+      - id: format-check
+        name: ruff format check
+        entry: make format-check
+        language: system
+        pass_filenames: false
+        types: [python]
 
   # Then run general pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -25,77 +29,90 @@ repos:
       - id: name-tests-test  # Ensure test files are named correctly
         args: [--pytest-test-first]
 
-  # Then run ruff linting after formatting
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.11.13
+  # Lint check using Makefile
+  - repo: local
     hooks:
-      - id: ruff
-        args: [--fix]
+      - id: lint-check
+        name: ruff lint check
+        entry: make lint
+        language: system
+        pass_filenames: false
+        types: [python]
 
   # Type checking - runs on entire codebase to catch cascading type errors
   - repo: local
     hooks:
       - id: mypy-all
         name: mypy (entire codebase)
-        entry: uv run mypy .
+        entry: make type-check
         language: system
         pass_filenames: false
         always_run: true
         types: [python]
 
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.3
+  # Security check using Makefile
+  - repo: local
     hooks:
-      - id: bandit
-        args: [-c, pyproject.toml]
-        additional_dependencies: ["bandit[toml]"]
-        exclude: ^tests/
+      - id: bandit-check
+        name: bandit security scan
+        entry: make security-bandit
+        language: system
+        pass_filenames: false
+        types: [python]
 
   - repo: local
     hooks:
       - id: safety-check
         name: safety check
-        entry: sh -c './scripts/tool safety scan --continue-on-error || true'
+        entry: make security-safety
         language: system
         pass_filenames: false
         files: ^(pyproject\.toml|uv\.lock)$
 
       - id: pip-audit
         name: pip audit
-        # No vulnerabilities currently ignored
-        entry: uv run pip-audit
+        entry: make security-pip-audit
         language: system
         pass_filenames: false
         files: ^(pyproject\.toml|uv\.lock)$
 
-  - repo: https://github.com/semgrep/semgrep
-    rev: v1.125.0
+  # Semgrep using isolated tool
+  - repo: local
     hooks:
-      - id: semgrep
-        args: ['--config=auto', '--error']
+      - id: semgrep-check
+        name: semgrep static analysis
+        entry: make security-semgrep
+        language: system
+        pass_filenames: false
         exclude: ^tests/
 
-  - repo: https://github.com/jendrikseipp/vulture
-    rev: v2.14
+  # Dead code check using Makefile
+  - repo: local
     hooks:
-      - id: vulture
-        args: [--config=pyproject.toml]
+      - id: vulture-check
+        name: vulture dead code check
+        entry: make dead-code
+        language: system
+        pass_filenames: false
 
-  - repo: https://github.com/jsh9/pydoclint
-    rev: 0.6.6
+  # Docstring quality check using Makefile
+  - repo: local
     hooks:
-      - id: pydoclint
-        args: [--config=pyproject.toml]
+      - id: pydoclint-check
+        name: pydoclint docstring quality
+        entry: make docstring-quality
+        language: system
+        pass_filenames: false
         exclude: ^(tests/|htmlcov/)
 
   # Pylint for catching variable shadowing issues
-  - repo: https://github.com/pylint-dev/pylint
-    rev: v3.3.7
+  - repo: local
     hooks:
-      - id: pylint
+      - id: pylint-check
         name: pylint (shadowing check)
-        args: [--rcfile=pyproject.toml]
-        additional_dependencies: [pydantic, fastapi]  # Add runtime deps for import resolution
+        entry: make pylint-check
+        language: system
+        pass_filenames: false
         exclude: ^tests/  # Exclude test files as shadowing is common in fixtures
 
   # Run all tests to catch breaking changes
@@ -103,15 +120,10 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: uv run pytest
+        entry: make test-precommit
         language: system
         pass_filenames: false  # Run all tests
         always_run: true  # Run even if no test files changed
-        args: [
-          "-x",  # Stop on first failure
-          "--tb=short",  # Short traceback
-          "--no-cov",  # Disable coverage for speed in pre-commit
-        ]
 
 ci:
   autofix_commit_msg: "style: auto fixes from pre-commit.com hooks"
