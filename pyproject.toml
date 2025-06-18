@@ -1,3 +1,7 @@
+# ===========================
+# Project Metadata
+# ===========================
+
 [project]
 name = "tributum"
 version = "0.2.0"
@@ -40,6 +44,10 @@ dependencies = [
 "Bug Tracker" = "https://github.com/daniel-jorge/tributum-back/issues"
 "Changelog" = "https://github.com/daniel-jorge/tributum-back/blob/main/CHANGELOG.md"
 
+# ===========================
+# Development Dependencies
+# ===========================
+
 [dependency-groups]
 dev = [
     # Code quality tools
@@ -68,6 +76,11 @@ dev = [
     "bump-my-version>=0.32.0",
 ]
 
+# ===========================
+# Code Quality Tools Configuration
+# ===========================
+
+# --- Ruff Configuration ---
 [tool.ruff]
 line-length = 88
 target-version = "py313"
@@ -151,12 +164,20 @@ convention = "google"
 [tool.ruff.lint.isort]
 known-first-party = ["tributum"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "PLR2004",  # Magic values are OK in tests
+    "TRY002",   # Creating generic exceptions is OK in tests
+    "TRY301",   # Raising exceptions in tests is OK
+]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
+# --- MyPy Configuration ---
 [tool.mypy]
 python_version = "3.13"
 strict = true
@@ -201,13 +222,26 @@ disallow_any_generics = false
 module = "pydantic_settings"
 ignore_missing_imports = true
 
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = [
-    "PLR2004",  # Magic values are OK in tests
-    "TRY002",   # Creating generic exceptions is OK in tests
-    "TRY301",   # Raising exceptions in tests is OK
-]
+# --- Pydoclint Configuration ---
+[tool.pydoclint]
+style = "google"  # Matches your Ruff pydocstyle convention
+arg-type-hints-in-docstring = false  # Don't require type hints in docstrings (they're in signatures)
+check-class-attributes = true
+check-protected-class-methods = true
+# All other checks are enabled by default
 
+# --- Pylint Configuration ---
+[tool.pylint.messages_control]
+disable = "all"
+enable = ["redefined-outer-name"]
+
+[tool.pylint.basic]
+good-names = ["i", "j", "k", "ex", "Run", "_", "id", "ok"]
+
+[tool.pylint.format]
+max-line-length = 88  # Match Ruff's line length
+
+# --- Bandit Configuration ---
 [tool.bandit]
 targets = ["src/", "main.py"]
 exclude_dirs = ["tests", "venv", ".venv"]
@@ -222,6 +256,19 @@ max-lines = 5
 format = "txt"
 # Verbose output
 verbose = true
+
+# --- Vulture Configuration ---
+[tool.vulture]
+paths = ["src", "tests", "main.py", "vulture_whitelist.py"]
+exclude = ["htmlcov/", "*.egg-info/", "build/", "dist/", ".venv/", "venv/"]
+min_confidence = 80
+ignore_decorators = ["@app.route", "@pytest.fixture", "@pytest.mark.*"]
+ignore_names = ["test_*", "_*"]
+sort_by_size = true
+
+# ===========================
+# Testing Configuration
+# ===========================
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -257,30 +304,9 @@ exclude_lines = [
     "raise NotImplementedError",
 ]
 
-[tool.vulture]
-paths = ["src", "tests", "main.py", "vulture_whitelist.py"]
-exclude = ["htmlcov/", "*.egg-info/", "build/", "dist/", ".venv/", "venv/"]
-min_confidence = 80
-ignore_decorators = ["@app.route", "@pytest.fixture", "@pytest.mark.*"]
-ignore_names = ["test_*", "_*"]
-sort_by_size = true
-
-[tool.pydoclint]
-style = "google"  # Matches your Ruff pydocstyle convention
-arg-type-hints-in-docstring = false  # Don't require type hints in docstrings (they're in signatures)
-check-class-attributes = true
-check-protected-class-methods = true
-# All other checks are enabled by default
-
-[tool.pylint.messages_control]
-disable = "all"
-enable = ["redefined-outer-name"]
-
-[tool.pylint.basic]
-good-names = ["i", "j", "k", "ex", "Run", "_", "id", "ok"]
-
-[tool.pylint.format]
-max-line-length = 88  # Match Ruff's line length
+# ===========================
+# Version Management
+# ===========================
 
 [tool.bumpversion]
 current_version = "0.2.0"
@@ -315,6 +341,10 @@ regex = false
 filename = "VERSION"
 search = "{current_version}"
 replace = "{new_version}"
+
+# ===========================
+# Isolated Tools
+# ===========================
 
 [tool.isolated-tools]
 # Development tools that run in isolated environments to avoid dependency conflicts
