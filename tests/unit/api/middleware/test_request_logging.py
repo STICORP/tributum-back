@@ -316,6 +316,37 @@ class TestRequestLoggingMiddleware:
         assert call_kwargs["query_params"]["password"] == "[REDACTED]"
 
     @patch("src.api.middleware.request_logging.get_logger")
+    def test_empty_response_body(self, mock_get_logger: Mock) -> None:
+        """Test handling of empty response body."""
+        mock_logger = Mock()
+        mock_get_logger.return_value = mock_logger
+
+        # Create app with response body logging enabled
+        app = create_test_app(log_response_body=True)
+
+        # Add endpoint that returns empty body
+        @app.get("/empty-body")
+        async def empty_body() -> Response:
+            return Response(content=b"", media_type="application/json")
+
+        client = TestClient(app)
+        response = client.get("/empty-body")
+
+        assert response.status_code == 200
+
+        # Find the request_completed call
+        completed_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_completed"
+        ]
+        assert len(completed_calls) == 1
+
+        # Should not have response_body in log data when body is empty
+        call_kwargs = completed_calls[0][1]
+        assert "response_body" not in call_kwargs
+
+    @patch("src.api.middleware.request_logging.get_logger")
     def test_logs_errors(self, mock_get_logger: Mock) -> None:
         """Test that middleware logs errors."""
         mock_logger = Mock()

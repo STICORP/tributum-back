@@ -12,7 +12,12 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel, model_validator
 
 from src.api.main import create_app
-from src.api.middleware.error_handler import generic_exception_handler
+from src.api.middleware.error_handler import (
+    generic_exception_handler,
+    http_exception_handler,
+    tributum_error_handler,
+    validation_error_handler,
+)
 from src.api.schemas.errors import ErrorResponse
 from src.core.config import get_settings
 from src.core.exceptions import (
@@ -520,6 +525,136 @@ class TestSensitiveDataSanitization:
         # Non-sensitive fields should be preserved
         assert details["username"] == "john.doe"
         assert details["safe_field"] == "visible_value"
+
+
+class TestErrorHandlerTypeErrors:
+    """Test TypeError handling in error handlers."""
+
+    async def test_tributum_error_handler_type_error(self) -> None:
+        """Test that tributum_error_handler raises TypeError for non-TributumError."""
+        # Create a mock request
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "query_string": b"",
+            "headers": [],
+            "server": ("testserver", 80),
+            "client": ("testclient", 12345),
+            "asgi": {"version": "3.0"},
+            "scheme": "http",
+            "root_path": "",
+        }
+        request = Request(scope)
+
+        # Pass a non-TributumError exception
+        regular_exception = ValueError("Not a TributumError")
+
+        with pytest.raises(TypeError) as exc_info:
+            await tributum_error_handler(request, regular_exception)
+
+        assert "Expected TributumError, got ValueError" in str(exc_info.value)
+
+    async def test_validation_error_handler_type_error(self) -> None:
+        """Test validation_error_handler TypeError for non-RequestValidationError."""
+        # Create a mock request
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "query_string": b"",
+            "headers": [],
+            "server": ("testserver", 80),
+            "client": ("testclient", 12345),
+            "asgi": {"version": "3.0"},
+            "scheme": "http",
+            "root_path": "",
+        }
+        request = Request(scope)
+
+        # Pass a non-RequestValidationError exception
+        regular_exception = ValueError("Not a RequestValidationError")
+
+        with pytest.raises(TypeError) as exc_info:
+            await validation_error_handler(request, regular_exception)
+
+        assert "Expected RequestValidationError, got ValueError" in str(exc_info.value)
+
+    async def test_http_exception_handler_type_error(self) -> None:
+        """Test that http_exception_handler raises TypeError for non-HTTPException."""
+        # Create a mock request
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/test",
+            "query_string": b"",
+            "headers": [],
+            "server": ("testserver", 80),
+            "client": ("testclient", 12345),
+            "asgi": {"version": "3.0"},
+            "scheme": "http",
+            "root_path": "",
+        }
+        request = Request(scope)
+
+        # Pass a non-HTTPException
+        regular_exception = ValueError("Not an HTTPException")
+
+        with pytest.raises(TypeError) as exc_info:
+            await http_exception_handler(request, regular_exception)
+
+        assert "Expected HTTPException, got ValueError" in str(exc_info.value)
+
+
+class TestTributumErrorWithCause:
+    """Test handling of TributumError with a cause."""
+
+    def test_tributum_error_with_cause_in_debug_info(
+        self, app_with_handlers: FastAPI, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that exception cause is included in debug info."""
+        # Ensure we're in development mode
+        monkeypatch.setenv("ENVIRONMENT", "development")
+        get_settings.cache_clear()
+
+        # Add test endpoint that raises an error with a cause
+        @app_with_handlers.get("/test/error-with-cause")
+        async def raise_error_with_cause() -> None:
+            try:
+                # This will raise a ValueError
+                int("not-a-number")
+            except ValueError as e:
+                # Raise a TributumError with the ValueError as cause
+                raise ValidationError(
+                    "Failed to process input",
+                    context={"input": "not-a-number"},
+                    cause=e,  # Pass the cause explicitly to the constructor
+                ) from e
+
+        client = TestClient(app_with_handlers)
+        response = client.get("/test/error-with-cause")
+
+        assert response.status_code == 400
+
+        data = response.json()
+
+        # Check current environment
+        settings = get_settings()
+        assert settings.environment == "development", (
+            f"Expected development, got {settings.environment}"
+        )
+
+        # We're in development mode by default, so debug_info should include cause
+        assert "debug_info" in data
+        debug_info = data["debug_info"]
+        assert debug_info is not None, f"debug_info should not be None, got: {data}"
+        assert "exception_type" in debug_info
+        assert debug_info["exception_type"] == "ValidationError"
+
+        # Now the cause should be included since we passed it to the constructor
+        assert "cause" in debug_info
+        assert debug_info["cause"]["type"] == "ValueError"
+        assert "invalid literal for int()" in debug_info["cause"]["message"]
 
 
 class TestDebugInfoInDevelopment:
