@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced /readme command with dual-mode operation: comprehensive discovery for initial generation and efficient incremental updates
 - /curate-makefile command for intelligent Makefile analysis and improvement
 - /analyze-project command for comprehensive project configuration and quality analysis
+- JSON logging for staging environment to match production configuration
 
 ### Changed
 - Enhanced CLAUDE.md with actionable development guidance including specific test commands, error patterns, and debugging tips
