@@ -32,8 +32,7 @@ class TestConfigurationIntegration:
 
     def test_info_endpoint_with_settings(self) -> None:
         """Test that /info endpoint returns correct settings."""
-        # Clear the cache to ensure fresh settings
-        get_settings.cache_clear()
+        # Note: clear_settings_cache fixture automatically handles cache clearing
 
         settings = Settings(
             app_name="Integration Test App",
@@ -63,16 +62,16 @@ class TestConfigurationIntegration:
         app.dependency_overrides.clear()
 
     def test_app_with_environment_variables(
-        self, monkeypatch: pytest.MonkeyPatch
+        self, monkeypatch: pytest.MonkeyPatch, production_env: None
     ) -> None:
         """Test that app correctly uses environment variables."""
-        # Clear cache first
-        get_settings.cache_clear()
+        # Note: clear_settings_cache fixture automatically handles cache clearing
+        # production_env fixture sets up production environment
+        _ = production_env  # Fixture used for its side effects
 
+        # Additional environment overrides on top of production environment
         monkeypatch.setenv("APP_NAME", "Env Test App")
         monkeypatch.setenv("APP_VERSION", "3.0.0")
-        monkeypatch.setenv("ENVIRONMENT", "production")
-        monkeypatch.setenv("DEBUG", "false")
         monkeypatch.setenv("DOCS_URL", "")  # Should be converted to None
         monkeypatch.setenv("REDOC_URL", "")
         monkeypatch.setenv("OPENAPI_URL", "")
@@ -82,7 +81,7 @@ class TestConfigurationIntegration:
 
         assert app.title == "Env Test App"
         assert app.version == "3.0.0"
-        assert app.debug is False
+        assert app.debug is False  # Production env sets debug=false
         assert app.docs_url is None
         assert app.redoc_url is None
         assert app.openapi_url is None

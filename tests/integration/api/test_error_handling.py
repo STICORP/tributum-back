@@ -380,16 +380,11 @@ class TestGenericException:
         assert data["details"]["error"] == "Something went wrong"
         assert data["severity"] == "CRITICAL"
 
-    async def test_generic_exception_production(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_generic_exception_production(self, production_env: None) -> None:
         """Test generic exception in production hides details."""
-        # Set production environment
-        monkeypatch.setenv("ENVIRONMENT", "production")
-
-        # Create a new app instance to pick up the environment change
-
-        get_settings.cache_clear()  # Clear settings cache
+        # Note: production_env fixture sets up production environment
+        # clear_settings_cache fixture automatically handles cache clearing
+        _ = production_env  # Fixture used for its side effects
 
         # Test the handler directly in production mode
 
@@ -610,12 +605,12 @@ class TestTributumErrorWithCause:
     """Test handling of TributumError with a cause."""
 
     def test_tributum_error_with_cause_in_debug_info(
-        self, app_with_handlers: FastAPI, monkeypatch: pytest.MonkeyPatch
+        self, app_with_handlers: FastAPI, development_env: None
     ) -> None:
         """Test that exception cause is included in debug info."""
-        # Ensure we're in development mode
-        monkeypatch.setenv("ENVIRONMENT", "development")
-        get_settings.cache_clear()
+        # Note: development_env fixture ensures we're in development mode
+        # clear_settings_cache fixture automatically handles cache clearing
+        _ = development_env  # Fixture used for its side effects
 
         # Add test endpoint that raises an error with a cause
         @app_with_handlers.get("/test/error-with-cause")
@@ -750,14 +745,11 @@ class TestDebugInfoInDevelopment:
             # Should be None in production
             assert data["debug_info"] is None
 
-    async def test_no_debug_info_in_production(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    async def test_no_debug_info_in_production(self, production_env: None) -> None:
         """Test that debug info is NOT included in production."""
-        # Set production environment
-        monkeypatch.setenv("ENVIRONMENT", "production")
-
-        get_settings.cache_clear()
+        # Note: production_env fixture sets up production environment
+        # clear_settings_cache fixture automatically handles cache clearing
+        _ = production_env  # Fixture used for its side effects
 
         # Test the handler directly in production mode
 
