@@ -4,7 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green.svg)](https://fastapi.tiangolo.com)
-[![Code Coverage](https://img.shields.io/badge/coverage-80%25-yellow.svg)](./htmlcov/index.html)
+[![Code Coverage](https://img.shields.io/badge/coverage-98%25-brightgreen.svg)](./htmlcov/index.html)
 [![Type Coverage](https://img.shields.io/badge/mypy-strict-brightgreen.svg)](./pyproject.toml)
 
 **Status**: Active Development | **Team**: Engineering Only | **Visibility**: Private
@@ -57,7 +57,7 @@
 
 ### Development Tools
 - **UV**: Fast Python package manager (10x faster than pip)
-- **Ruff**: Lightning-fast Python linter and formatter
+- **Ruff**: Lightning-fast Python linter and formatter with ALL rules enabled by default
 - **MyPy**: Static type checker with strict mode
 - **Pre-commit**: Git hooks for code quality
 - **Pytest**: Testing framework with async support
@@ -309,12 +309,13 @@ graph LR
 ### Pre-commit Hooks
 
 1. **Format Check**: Ruff format validation
-2. **Lint Check**: Ruff with 40+ rule sets
+2. **Lint Check**: Ruff with ALL rule sets enabled
 3. **Type Check**: MyPy strict mode
-4. **Security Scan**: Bandit, Safety, Semgrep
-5. **Docstring Quality**: Pydoclint (Google style)
-6. **Dead Code**: Vulture analysis
-7. **Tests**: Fast test suite execution
+4. **Complexity Check**: McCabe cyclomatic complexity (max 10)
+5. **Security Scan**: Bandit, Safety, Semgrep
+6. **Docstring Quality**: Pydoclint (Google style)
+7. **Dead Code**: Vulture analysis
+8. **Tests**: Fast test suite execution
 
 ### Development Best Practices
 
@@ -331,7 +332,7 @@ graph LR
 Located in `.claude/commands/`:
 
 - **`/analyze-project`**: Comprehensive project analysis and recommendations
-- **`/commit`**: Intelligent commit with changelog updates
+- **`/commit`**: Intelligent commit with changelog updates and AI attribution prevention
 - **`/release`**: Automated version bumping and release creation
 - **`/readme`**: Smart README generation with incremental updates
 - **`/curate-makefile`**: Makefile optimization and standardization
@@ -356,8 +357,9 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 
 **Jobs**:
 1. **quality-checks**: Comprehensive code quality validation
-   - Format and lint checking
+   - Format and lint checking with ALL Ruff rules
    - Type checking with MyPy
+   - Complexity checking (McCabe max 10)
    - Security scanning (Bandit, Safety, pip-audit, Semgrep)
    - Dead code detection
    - Docstring quality validation
@@ -391,6 +393,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 | `make lint` | Run linting checks |
 | `make lint-fix` | Fix linting issues automatically |
 | `make type-check` | Run MyPy type checking |
+| `make complexity-check` | Check McCabe cyclomatic complexity |
 | `make all-checks` | Run all quality checks |
 
 ### Testing Commands
@@ -559,7 +562,8 @@ src/
 │   ├── context.py        # Request context
 │   ├── error_context.py  # Error enrichment
 │   ├── exceptions.py     # Exception hierarchy
-│   └── logging.py        # Structured logging
+│   ├── logging.py        # Structured logging
+│   └── types.py          # Type definitions
 └── domain/               # Business logic (DDD structure prepared)
 
 tests/
@@ -649,7 +653,8 @@ make dev
 - Global error handling middleware
 
 #### Development Experience
-- Comprehensive pre-commit hooks
+- Comprehensive pre-commit hooks with ALL Ruff rules enabled
+- McCabe cyclomatic complexity checking (max 10)
 - Strict code quality enforcement (Ruff, MyPy)
 - Security scanning pipeline
 - Automated testing with coverage
@@ -676,6 +681,7 @@ make dev
 - Logging setup
 - Context management
 - Shared constants
+- Type definitions
 
 #### Domain Layer (`src/domain/`)
 - Directory structure prepared for DDD implementation
@@ -688,26 +694,26 @@ make dev
 - Async test support
 
 <!-- README-METADATA
-Last Updated: 2025-06-18T16:30:00Z
-Last Commit: e98cd57
+Last Updated: 2025-06-19T15:30:00Z
+Last Commit: fffc9e7
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "a1b2c3", "manual": false},
-  "tech-stack": {"hash": "d4e5f6", "manual": false},
+  "tech-stack": {"hash": "d4e5f7", "manual": false},
   "quick-start": {"hash": "g7h8i9", "manual": false},
   "architecture": {"hash": "j1k2l3", "manual": false},
   "frameworks": {"hash": "m4n5o6", "manual": false},
   "security": {"hash": "p7q8r9", "manual": false},
   "testing": {"hash": "s1t2u3", "manual": false},
-  "workflow": {"hash": "v4w5x6", "manual": false},
+  "workflow": {"hash": "v4w5x7", "manual": false},
   "tools": {"hash": "y7z8a9", "manual": false},
-  "cicd": {"hash": "b1c2d3", "manual": false},
-  "commands": {"hash": "e4f5g6", "manual": false},
+  "cicd": {"hash": "b1c2d4", "manual": false},
+  "commands": {"hash": "e4f5g7", "manual": false},
   "version": {"hash": "h7i8j9", "manual": false},
   "infrastructure": {"hash": "k1l2m3", "manual": false},
   "config": {"hash": "n4o5p6", "manual": false},
-  "structure": {"hash": "q7r8s9", "manual": false},
+  "structure": {"hash": "q7r8s0", "manual": false},
   "troubleshooting": {"hash": "t1u2v3", "manual": false},
-  "status": {"hash": "w4x5y6", "manual": false}
+  "status": {"hash": "w4x5y7", "manual": false}
 }
 -->
