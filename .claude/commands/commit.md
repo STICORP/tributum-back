@@ -2,6 +2,27 @@
 
 Analyze project changes and create logical commits using conventional commit messaging.
 
+## CRITICAL: Prohibited Content in Commit Messages
+
+**You MUST NEVER include ANY of the following in commit messages:**
+
+### Prohibited Patterns:
+- `🤖` emoji or any AI-related emojis
+- `Generated with [Claude Code]` or similar attribution
+- `Co-Authored-By: Claude` or any AI co-author lines
+- References to being "AI-generated", "AI-assisted", "automated"
+- Any mention of Anthropic, Claude (except when legitimately part of the change description, e.g., "update CLAUDE.md")
+
+### Why This Matters:
+- Commit history should reflect human decisions and reasoning
+- AI attribution is not relevant to the change itself
+- Professional repositories don't include tool attribution in commits
+
+### Self-Check Before Committing:
+After composing a commit message, you MUST ask yourself:
+"Does this message contain ANY attribution to AI tools?"
+If yes, remove it before proceeding.
+
 ## Instructions
 
 When analyzing changes:
@@ -40,8 +61,9 @@ When analyzing changes:
    - Include design decisions and reasoning
    - Describe the problem being solved
    - Mention any trade-offs or alternatives considered
-   - Never mention AI assistance or automated generation
-   - Never include references to Claude Code, Anthropic, or AI tools
+   - **FORBIDDEN**: Never mention AI assistance or automated generation
+   - **FORBIDDEN**: Never include references to Claude Code, Anthropic, or AI tools
+   - **FORBIDDEN**: No 🤖 emojis or "Co-Authored-By: Claude" lines
 
 6. **Multiple file handling**:
    - If changes span multiple files but serve one purpose, commit together
@@ -62,6 +84,8 @@ When analyzing changes:
 
    This establishes the foundation for user authentication across
    the application and enables secure API access.
+
+   [END OF COMMIT MESSAGE - NO ADDITIONAL CONTENT BELOW THIS LINE]
    ```
 
 ## Automatic CHANGELOG Updates
@@ -135,12 +159,39 @@ After creating each commit, automatically update CHANGELOG.md:
    the next release.
    ```
 
+## Pre-Commit Validation (MANDATORY - DO NOT SKIP)
+
+Before executing ANY git commit command, you MUST:
+
+1. **Show the complete commit message** you plan to use (display it in a code block)
+2. **Explicitly verify** it contains NONE of these:
+   - 🤖 emoji
+   - "Generated with [Claude" or any variation
+   - "Co-Authored-By: Claude" or any AI attribution
+   - Any reference to AI/Anthropic/automated generation
+3. **State your verification** by saying: "Verified: No AI attribution in commit message"
+4. **Only proceed** with git commit after this verification
+
+Example validation:
+```
+Planned commit message:
+```
+feat(auth): implement JWT authentication
+
+Added JWT-based authentication...
+```
+
+Verified: No AI attribution in commit message ✓
+```
+
 ## Usage
 
 When I ask you to commit changes, follow these steps:
 1. Analyze all uncommitted changes
 2. Group them logically
-3. Create atomic commits with descriptive messages
-4. After each commit, check if it should update CHANGELOG.md
-5. If yes, stage and commit the changelog update with a descriptive message following the format above
-6. Explain what was done and why, focusing on the reasoning behind the implementation
+3. Compose commit message following the format above
+4. **MANDATORY: Complete Pre-Commit Validation (see section above)**
+5. Execute the commit only after verification
+6. After each commit, check if it should update CHANGELOG.md
+7. If yes, stage and commit the changelog update (also verify no AI attribution)
+8. Explain what was done and why, focusing on the reasoning behind the implementation
