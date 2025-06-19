@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforced stricter type checking by removing ANN401 ignore rule and documenting all Any type usage
 - Improved exception handling by removing BLE001 ignore rule and using specific exception types
 - Added stricter linting rules (G, INP, T20) for improved code quality and security
+- Refactored linting configuration to enable all Ruff rules by default with targeted exclusions
 
 ### Fixed
 - Type safety issue in request logging test
