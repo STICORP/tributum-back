@@ -1,238 +1,216 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
-Tributum - Financial/tax/payment system (Python 3.13, FastAPI, Pydantic Settings v2, Terraform/GCP)
-GCP Project: tributum-new
 
-## Current Status
-- Basic FastAPI app with configuration management
-- Exception infrastructure implemented with severity levels and context support
-- API error response patterns defined
-- Structured logging with structlog with correlation ID support
-- Correlation ID generator and request context implemented (UUID4-based, contextvars)
-- RequestContextMiddleware for correlation ID propagation (pure ASGI implementation)
-- RequestLoggingMiddleware with request/response body logging
-- Global exception handlers for all exception types with proper logging
-- High-performance JSON serialization with orjson for logs and API responses
-- Domain-driven design structure planned (not fully implemented)
-- Centralized constants module for shared values
-- Comprehensive Ruff linting with strict rules enabled
-- Pydoclint for docstring validation (Google style)
+Tributum is a high-performance financial/tax/payment system built with FastAPI, focusing on enterprise-scale operations with strict type safety, comprehensive error handling, and structured observability.
 
-## Essential Commands
-```bash
-# Setup (one-time)
-uv sync --all-extras --dev   # Install all dependencies
-uv run pre-commit install    # Install git hooks
+## Common Development Commands
 
-# Quality checks
-uv run ruff format .         # Format code
-uv run ruff check . --fix    # Lint and fix
-uv run mypy .                # Type check
-uv run pre-commit run --all-files  # Run all checks
+### Core Development
+- `make install` - Install dependencies and setup pre-commit hooks
+- `make dev` - Run FastAPI with auto-reload on 127.0.0.1:8000
+- `make run` - Run the application normally
+- `make test` - Run all tests with coverage (80% minimum required)
+- `make test-unit` - Run unit tests only
+- `make test-integration` - Run integration tests only
 
-# Security
-uv run bandit -r . -c pyproject.toml
-./scripts/tool safety scan   # Isolated tool
-uv run pip-audit
-./scripts/tool semgrep .     # Isolated tool
+### Code Quality (Required Before Commits)
+- `make all-checks` - Run all quality checks (format, lint, type-check, security, dead-code, docstring)
+- `make format` - Format code with Ruff
+- `make lint` - Run comprehensive linting with 40+ rule sets
+- `make type-check` - Run MyPy in strict mode (no ignores allowed)
+- `make security` - Run all security scans (bandit, safety, pip-audit, semgrep)
 
-# Version management
-uv run bump-my-version bump patch  # 0.1.0 → 0.1.1
-uv run bump-my-version bump minor  # 0.1.1 → 0.2.0
-uv run bump-my-version bump major  # 0.2.0 → 1.0.0
+### Testing Commands
+- `make test-fast` - Run tests in parallel with pytest-xdist
+- `make test-coverage` - Generate HTML coverage report in htmlcov/
+- `make test-failed` - Re-run only failed tests
 
-```
+## Architecture Overview
 
-## CRITICAL DEVELOPMENT RULES
-
-### 1. Re-read This Section MANDATORY
-- Before writing ANY code
-- Before ANY git operations
-- Every 10-15 minutes
-- When switching tasks
-- **ESPECIALLY: Re-read section 7 before EVER running git commands**
-
-### 2. Write Quality Code From Start
-- Read `pyproject.toml` and `.pre-commit-config.yaml` FIRST
-- Code must pass ALL checks on first try
-- Pre-commit hooks are safety net, not crutch
-
-### 3. NEVER Bypass Checks
-**FORBIDDEN:**
-- `# type: ignore` - Fix the type issue
-- `# noqa` - Fix the lint issue
-- `# nosec` - Fix the security issue
-- `--no-verify` - Fix the failures
-- Disabling rules - Fix the code
-
-**MANDATORY: Task is NOT complete until ALL checks pass. Fix EVERY failure.**
-
-### 4. ALWAYS Read Complete Files
-**MANDATORY:**
-- NO partial reads under 2000 lines
-- NO `limit` or `offset` unless file >2000 lines
-- Read ENTIRE file for context
-- Partial reads = bugs
-
-### 5. Strategic context7 Usage
-- ONLY when needed for specific feature
-- Small token limits (1000-3000)
-- Never preload docs
-- Never exceed 5000 tokens
-
-### 6. Pre-Implementation Analysis MANDATORY
-Before ANY code:
-1. Search existing patterns: `Grep(pattern="contextvar", include="*.py")`
-2. Identify conventions (error handling, naming, testing)
-3. Check existing utilities
-4. If unclear: ASK, don't assume
-5. Generic solutions FORBIDDEN
-
-### 7. Git Commits
-- NO AI references ("Claude", "Generated with", etc.)
-- Use conventional commit format
-- **NEVER commit without explicit user request**
-- **AUTHORIZATION RULE: Only commit immediately after /commit slash command in user's LAST prompt**
-  - If /commit was used: authorized to run `git commit`
-  - If ANY other interaction happened after /commit: authorization expired
-  - Must wait for new /commit command
-- When /commit is NOT in the last prompt: ONLY stage files and show commit message
-- **File Creation Rule**: ALWAYS stage new files immediately after creation
-  - Use: `Write(file) && Bash("git add <file>")` pattern
-  - Or: `Bash("echo 'content' > file && git add file")`
-  - Exception: Temporary/scratch files that will be deleted
-  - This prevents "unstaged files detected" errors during commits
-
-### 8. Dependencies
-- ALWAYS use latest versions when adding
-- Check version: `curl -s https://pypi.org/pypi/PACKAGE/json | grep -o '"version":"[^"]*"' | head -1`
-
-### 9. Minimal Project Note
-- Ask for preferences when no patterns exist
-- First implementation sets the pattern
-
-## Project Structure (Current)
+### Layer Structure
 ```
 src/
-├── api/
-│   ├── main.py         # FastAPI app with /info endpoint, uses ORJSONResponse
-│   ├── middleware/
-│   │   └── request_context.py  # Correlation ID middleware
-│   ├── schemas/
-│   │   └── errors.py   # ErrorResponse model
-│   └── utils/
-│       └── responses.py # ORJSONResponse for high-performance JSON
-├── core/
-│   ├── config.py       # Pydantic Settings
-│   ├── constants.py    # Shared constants (ErrorCode, Severity, sensitive fields)
-│   ├── context.py      # Correlation ID generation, RequestContext
-│   ├── exceptions.py   # Base exceptions (uses constants from constants.py)
-│   ├── error_context.py # Context utilities, sanitization
-│   └── logging.py      # Structured logging with structlog
-└── domain/            # Empty (planned for business domains)
-
-tests/
-├── unit/
-└── integration/
+├── api/              # HTTP/FastAPI layer
+│   ├── main.py       # FastAPI app with ORJSONResponse default
+│   ├── middleware/   # Pure ASGI middleware stack
+│   ├── schemas/      # Pydantic response models
+│   └── utils/        # API utilities (ORJSONResponse)
+├── core/             # Shared business-agnostic utilities
+│   ├── config.py     # Pydantic Settings v2 with nested validation
+│   ├── exceptions.py # Severity-based exception hierarchy
+│   ├── logging.py    # Structured logging with orjson renderer
+│   ├── context.py    # Request context with correlation IDs
+│   └── constants.py  # Shared constants
+└── domain/           # Business logic (DDD structure prepared)
 ```
 
-## Target Architecture (DDD)
-- **api/**: HTTP layer (middleware, routing, schemas)
-- **core/**: Shared utilities (config, exceptions, logging)
-- **domain/**: Business logic per domain (auth/, users/, etc.)
-- **infrastructure/**: Technical implementations (database, cache)
-Each domain: schemas.py, models.py, repository.py, service.py, exceptions.py
+### Key Architectural Patterns
 
-## Core Patterns
+1. **Middleware Stack** (Pure ASGI, not BaseHTTPMiddleware):
+   - `RequestContextMiddleware` - Correlation ID management
+   - Global exception handlers registered before middleware
+   - All middleware uses pure ASGI pattern for performance
 
-### Configuration
-- Settings via Pydantic: `get_settings()` dependency
-- Env vars: APP_NAME, APP_VERSION, ENVIRONMENT, DEBUG, API_HOST, API_PORT
-- Nested: LOG_CONFIG__LOG_LEVEL, LOG_CONFIG__LOG_FORMAT, LOG_CONFIG__RENDER_JSON_LOGS
+2. **Exception System**:
+   - Base `TributumError` with severity levels (LOW, MEDIUM, HIGH, CRITICAL)
+   - Automatic context capture and fingerprinting for error grouping
+   - Specific exceptions: `ValidationError`, `NotFoundError`, `UnauthorizedError`, `BusinessRuleError`
+   - Global exception handlers convert to standardized API responses
 
-### Exceptions
-- Base: TributumError with error_code, message, context, severity, stack_trace
-- Types: ValidationError, NotFoundError, UnauthorizedError, BusinessRuleError
-- Auto-captures: stack trace, fingerprint, severity (LOW/MEDIUM/HIGH/CRITICAL)
-- Usage: `raise ValidationError("msg", context={"field": "email"})`
+3. **Logging System**:
+   - Structured logging with `structlog` and custom `ORJSONRenderer`
+   - Automatic correlation ID injection from request context
+   - Console format (dev) vs JSON format (production)
+   - Context propagation across async boundaries with contextvars
 
-### API Errors
-- ErrorResponse: error_code, message, details, correlation_id, severity, timestamp
-- ServiceInfo: name, version, environment
-- Auto-populated from TributumError attributes
+4. **Configuration**:
+   - Pydantic Settings v2 with nested models (e.g., `LogConfig`)
+   - Environment variable support with `__` delimiter for nesting
+   - Cached settings via `@lru_cache` decorator in `get_settings()`
 
-## Implementation Workflow
-1. Check existing patterns first
-2. Use context7 ONLY for specific needs (low tokens)
-3. Follow discovered patterns exactly
-4. Ask if patterns unclear
-5. Verify code consistency
+## Development Standards
 
-## Isolated Dev Tools
-- **safety** and **semgrep** run via `./scripts/tool` to avoid dependency conflicts
-- Other tools use regular `uv run`
-- To add isolated tools: edit `[tool.isolated-tools]` in pyproject.toml
+### Code Quality Requirements
+- **No Quality Bypasses**: Never use `# type: ignore`, `# noqa`, or `--no-verify`
+- **100% Type Safety**: MyPy strict mode with no any types allowed
+- **Comprehensive Testing**: 80% minimum coverage enforced in CI
+- **Security First**: All security scans must pass (bandit, safety, pip-audit, semgrep)
+- **Documentation**: Google-style docstrings required for all public APIs
 
-## Known Issues
-- Safety CLI requires auth
+### Exception Handling Patterns
+```python
+# Use specific exception types with context
+raise ValidationError(
+    "Invalid email format",
+    context={"field": "email", "value": redacted_value},
+    severity=Severity.MEDIUM
+)
 
-### Request Context & Correlation IDs
-- Middleware: RequestContextMiddleware (X-Correlation-ID header)
-- Access: `RequestContext.get_correlation_id()`
-- Auto-propagates via contextvars
-
-### Logging
-- Setup: `configure_structlog()` at startup
-- Usage: `logger = get_logger()` then `logger.info("msg", key=value)`
-- Context: `with log_context(user_id=123) as logger:` or `bind_logger_context()`
-- Exceptions: `log_exception(logger, exc, "msg")`
-- Auto-includes: correlation_id, timestamp, location, severity
-- Format: Console (dev) / JSON with orjson (prod)
-
-## Version Management & Release Workflow
-
-Uses [Semantic Versioning](https://semver.org/) with automated changelog tracking.
-
-### Development Workflow
-1. **Develop & Commit**: Use `/commit` - automatically updates CHANGELOG.md
-2. **Push**: Regular `git push` after commits
-3. **Release**: Use `/release` when ready to tag a version
-
-### Automated Changelog
-- `/commit` adds entries to `[Unreleased]` section automatically
-- Meaningful commits (feat, fix, refactor) tracked
-- Test/style commits skipped
-- No manual changelog editing needed
-
-### Release Process
-```bash
-/release  # Analyzes changes, bumps version, creates tag
-git push && git push --tags  # Push release
+# Exception logging with structured context
+log_exception(logger, error, "Operation failed", user_id=123)
 ```
 
-Version bump decided by changelog content:
-- **PATCH**: Bug fixes, security updates
-- **MINOR**: New features (any "Added" entries)
-- **MAJOR**: Breaking changes, removals
+### Logging Patterns
+```python
+# Get logger with context
+logger = get_logger(__name__)
 
-### Request/Response Logging
-- Middleware: RequestLoggingMiddleware(log_request_body=True, log_response_body=True)
-- Logs: method, path, status, duration, headers, bodienos (sanitized)
-- Auto-sanitizes: passwords, tokens, auth headers
-- Truncates: >10KB bodies
+# Context manager for temporary bindings
+with log_context(user_id=123, action="payment") as logger:
+    logger.info("Processing payment", amount=100.00)
 
-### Global Exception Handling
-- TributumError → HTTP 400/401/404/422 based on type
-- RequestValidationError → HTTP 422 with field errors
-- HTTPException → Standardized ErrorResponse
-- Generic Exception → HTTP 500 (details hidden in prod)
-- All include: correlation_id, timestamp, severity, service_info
+# Bind context for entire async scope
+bind_logger_context(user_id=123, request_id="abc-123")
+```
 
-### Error Context & Debug Info
-- Capture HTTP context: `enrich_error(exc, capture_request_context(request))`
-- Debug info (dev only): stack_trace, error_context, cause
-- Auto-sanitizes: password, token, key, auth fields
+### Configuration Access
+```python
+# Dependency injection pattern
+@app.get("/info")
+async def info(settings: Annotated[Settings, Depends(get_settings)]):
+    return {"version": settings.app_version}
 
-## Notes
-Update this file as project grows with new patterns and implementations.
+# Direct access (cached)
+settings = get_settings()
+```
+
+## Testing Architecture
+
+### Test Organization
+- `tests/unit/` - Fast isolated tests by module
+- `tests/integration/` - Component interaction tests
+- `tests/conftest.py` - Shared fixtures and test utilities
+
+### Testing Standards
+- Async test support with `pytest-asyncio`
+- Parallel execution with `pytest-xdist`
+- Rich output formatting with `pytest-rich`
+- Coverage reports in `htmlcov/` directory
+- Test markers: `@pytest.mark.unit`, `@pytest.mark.integration`
+
+## Security Architecture
+
+### Multi-Layer Security
+1. **Input Validation**: Pydantic models with strict mode
+2. **Dependency Scanning**: safety, pip-audit for known vulnerabilities
+3. **Static Analysis**: bandit (AST-based), semgrep (pattern-based)
+4. **Response Sanitization**: Automatic PII removal from logs/errors
+5. **Security Headers**: HSTS, X-Content-Type-Options, etc.
+
+### Sensitive Data Patterns
+Automatically redacted in logs and error responses:
+- `password`, `token`, `secret`, `key`
+- `authorization`, `x-api-key`, `ssn`, `cpf`
+
+## Development Tools
+
+### Package Management
+- **UV Package Manager**: 10x faster than pip, use `uv run` and `uv sync`
+- **Isolated Tools**: Some security tools run in isolation via `./scripts/tool`
+
+### Pre-commit Hooks
+Comprehensive quality pipeline runs on every commit:
+1. Ruff formatting and linting (40+ rule sets)
+2. MyPy strict type checking
+3. Security scanning (bandit, safety, semgrep)
+4. Docstring quality validation
+5. Dead code detection with vulture
+6. Fast test execution
+
+### Version Management
+- Semantic versioning with `bump-my-version`
+- Automated CHANGELOG.md updates
+- Version sync across `pyproject.toml`, `src/core/config.py`, and `VERSION`
+
+## Infrastructure
+
+### Terraform Structure
+- `terraform/bootstrap/` - GCP project setup
+- `terraform/environments/` - Environment-specific configs (dev/staging/production)
+- State management with GCS backend
+
+### Environment Configuration
+Key environment variables:
+- `ENVIRONMENT` - development/staging/production
+- `LOG_CONFIG__LOG_LEVEL` - DEBUG/INFO/WARNING/ERROR/CRITICAL
+- `LOG_CONFIG__LOG_FORMAT` - console/json
+- `DEBUG` - Enable debug mode and detailed error responses
+
+## Performance Optimizations
+
+### JSON Serialization
+- Default `ORJSONResponse` for 3x faster JSON encoding
+- Custom `ORJSONRenderer` for structured logs
+- Handles datetime, UUID, and custom types automatically
+
+### Caching
+- Settings cached with `@lru_cache` for single load per process
+- Structlog logger caching enabled
+
+### Async Architecture
+- Pure ASGI middleware for optimal performance
+- Context variable propagation across async boundaries
+- Proper exception handling without BaseHTTPMiddleware issues
+
+## Important Notes
+
+### When Running Commands
+- Always use `uv run` prefix for Python commands
+- Run `make all-checks` before committing
+- Coverage must be 80%+ or builds fail
+- Use `make test-fast` for quick feedback during development
+
+### Code Patterns to Follow
+- Read existing middleware/exception/logging patterns before implementing new features
+- Use dependency injection for settings access
+- Always include correlation IDs in error responses
+- Follow the exception hierarchy for consistent error handling
+- Use structured logging with appropriate context
+
+### Files to Never Modify Manually
+- `uv.lock` - Managed by UV package manager
+- Version numbers in multiple files - Use `bump-my-version` tool
+- Pre-commit hook configurations - Use standard setup
