@@ -37,6 +37,9 @@ jobs:
     - name: Type check
       run: make type-check
 
+    - name: Complexity check
+      run: make complexity-check
+
     - name: Security - Bandit
       run: make security-bandit
 

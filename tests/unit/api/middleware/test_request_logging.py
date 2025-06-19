@@ -28,6 +28,82 @@ class UserModel(BaseModel):
     email: str | None = None
 
 
+def _add_basic_endpoints(app: FastAPI) -> None:
+    """Add basic test endpoints to the app."""
+
+    @app.get("/test")
+    async def test_endpoint() -> dict[str, str]:
+        """Test endpoint that returns success."""
+        return {"status": "ok"}
+
+    @app.get("/test-with-params")
+    async def test_params_endpoint(name: str, age: int) -> dict[str, Any]:
+        """Test endpoint with query parameters."""
+        return {"name": name, "age": age}
+
+
+def _add_error_endpoints(app: FastAPI) -> None:
+    """Add error test endpoints to the app."""
+
+    @app.get("/error")
+    async def error_endpoint() -> None:
+        """Test endpoint that raises an error."""
+        raise HTTPException(status_code=500, detail="Test error")
+
+    @app.get("/unhandled-error")
+    async def unhandled_error_endpoint() -> None:
+        """Test endpoint that raises an unhandled exception."""
+        raise ValueError("This is an unhandled error")
+
+
+def _add_auth_endpoints(app: FastAPI) -> None:
+    """Add authentication test endpoints to the app."""
+
+    @app.post("/auth/login")
+    async def login_endpoint() -> dict[str, str]:
+        """Sensitive endpoint for testing sanitization."""
+        return {"token": "secret-token"}
+
+    @app.get("/api/v1/auth/token")
+    async def token_endpoint() -> dict[str, str]:
+        """Another sensitive endpoint."""
+        return {"token": "another-secret"}
+
+
+def _add_body_endpoints(app: FastAPI) -> None:
+    """Add body handling test endpoints to the app."""
+
+    @app.post("/json-endpoint")
+    async def json_endpoint(user: UserModel) -> dict[str, Any]:
+        """Test endpoint that accepts JSON body."""
+        return {"received": user.model_dump()}
+
+    @app.post("/form-endpoint")
+    async def form_endpoint(
+        username: str = Form(), password: str = Form(), age: int = Form()
+    ) -> dict[str, Any]:
+        """Test endpoint that accepts form data."""
+        # Password is intentionally not returned to test sanitization
+        _ = password  # Mark as intentionally unused
+        return {"username": username, "age": age}
+
+    @app.post("/raw-text")
+    async def raw_text_endpoint(request: Request) -> dict[str, str]:
+        """Test endpoint that accepts raw text."""
+        body = await request.body()
+        return {"received": body.decode("utf-8")}
+
+    @app.post("/binary-upload")
+    async def binary_upload_endpoint(file: bytes = File()) -> dict[str, int]:
+        """Test endpoint that accepts binary file."""
+        return {"size": len(file)}
+
+    @app.post("/echo", response_model=UserModel)
+    async def echo_endpoint(user: UserModel) -> UserModel:
+        """Test endpoint that echoes back the input."""
+        return user
+
+
 def create_test_app(
     add_logging_middleware: bool = True,
     log_request_body: bool = False,
@@ -47,65 +123,11 @@ def create_test_app(
         )
     test_app.add_middleware(RequestContextMiddleware)
 
-    @test_app.get("/test")
-    async def test_endpoint() -> dict[str, str]:
-        """Test endpoint that returns success."""
-        return {"status": "ok"}
-
-    @test_app.get("/test-with-params")
-    async def test_params_endpoint(name: str, age: int) -> dict[str, Any]:
-        """Test endpoint with query parameters."""
-        return {"name": name, "age": age}
-
-    @test_app.get("/error")
-    async def error_endpoint() -> None:
-        """Test endpoint that raises an error."""
-        raise HTTPException(status_code=500, detail="Test error")
-
-    @test_app.post("/auth/login")
-    async def login_endpoint() -> dict[str, str]:
-        """Sensitive endpoint for testing sanitization."""
-        return {"token": "secret-token"}
-
-    @test_app.get("/api/v1/auth/token")
-    async def token_endpoint() -> dict[str, str]:
-        """Another sensitive endpoint."""
-        return {"token": "another-secret"}
-
-    @test_app.get("/unhandled-error")
-    async def unhandled_error_endpoint() -> None:
-        """Test endpoint that raises an unhandled exception."""
-        raise ValueError("This is an unhandled error")
-
-    @test_app.post("/json-endpoint")
-    async def json_endpoint(user: UserModel) -> dict[str, Any]:
-        """Test endpoint that accepts JSON body."""
-        return {"received": user.model_dump()}
-
-    @test_app.post("/form-endpoint")
-    async def form_endpoint(
-        username: str = Form(), password: str = Form(), age: int = Form()
-    ) -> dict[str, Any]:
-        """Test endpoint that accepts form data."""
-        # Password is intentionally not returned to test sanitization
-        _ = password  # Mark as intentionally unused
-        return {"username": username, "age": age}
-
-    @test_app.post("/raw-text")
-    async def raw_text_endpoint(request: Request) -> dict[str, str]:
-        """Test endpoint that accepts raw text."""
-        body = await request.body()
-        return {"received": body.decode("utf-8")}
-
-    @test_app.post("/binary-upload")
-    async def binary_upload_endpoint(file: bytes = File()) -> dict[str, int]:
-        """Test endpoint that accepts binary file."""
-        return {"size": len(file)}
-
-    @test_app.post("/echo", response_model=UserModel)
-    async def echo_endpoint(user: UserModel) -> UserModel:
-        """Test endpoint that echoes back the input."""
-        return user
+    # Add all test endpoints
+    _add_basic_endpoints(test_app)
+    _add_error_endpoints(test_app)
+    _add_auth_endpoints(test_app)
+    _add_body_endpoints(test_app)
 
     return test_app
 

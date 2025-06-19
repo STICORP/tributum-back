@@ -17,10 +17,11 @@ Tributum is a high-performance financial/tax/payment system built with FastAPI, 
 - `make test-integration` - Run integration tests only
 
 ### Code Quality (Required Before Commits)
-- `make all-checks` - Run all quality checks (format, lint, type-check, security, dead-code, docstring)
+- `make all-checks` - Run all quality checks (format, lint, type-check, complexity, security, dead-code, docstring)
 - `make format` - Format code with Ruff
 - `make lint` - Run comprehensive linting with 40+ rule sets
 - `make type-check` - Run MyPy in strict mode (no ignores allowed)
+- `make complexity-check` - Check McCabe cyclomatic complexity (max 10)
 - `make security` - Run all security scans (bandit, safety, pip-audit, semgrep)
 
 ### Testing Commands
@@ -79,6 +80,7 @@ src/
 - **Comprehensive Testing**: 80% minimum coverage enforced in CI
 - **Security First**: All security scans must pass (bandit, safety, pip-audit, semgrep)
 - **Documentation**: Google-style docstrings required for all public APIs
+- **Code Complexity**: McCabe cyclomatic complexity max 10 (C90 rules enforced)
 
 ### Exception Handling Patterns
 ```python
@@ -153,12 +155,13 @@ Automatically redacted in logs and error responses:
 
 ### Pre-commit Hooks
 Comprehensive quality pipeline runs on every commit:
-1. Ruff formatting and linting (40+ rule sets)
+1. Ruff formatting and linting (40+ rule sets including C90 complexity)
 2. MyPy strict type checking
-3. Security scanning (bandit, safety, semgrep)
-4. Docstring quality validation
-5. Dead code detection with vulture
-6. Fast test execution
+3. McCabe complexity check (max complexity 10)
+4. Security scanning (bandit, safety, semgrep)
+5. Docstring quality validation
+6. Dead code detection with vulture
+7. Fast test execution
 
 ### Version Management
 - Semantic versioning with `bump-my-version`

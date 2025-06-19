@@ -67,6 +67,27 @@ def is_sensitive_field(field_name: str) -> bool:
     return any(re.match(pattern, field_lower) for pattern in SENSITIVE_FIELD_PATTERNS)
 
 
+def _sanitize_dict(data: dict[str, Any]) -> None:
+    """Recursively sanitize a dictionary in place."""
+    for key in list(data.keys()):  # Use list() to avoid mutation during iteration
+        value = data[key]
+        if is_sensitive_field(key):
+            data[key] = REDACTED
+        elif isinstance(value, dict):
+            _sanitize_dict(value)
+        elif isinstance(value, list):
+            _sanitize_list(value)
+
+
+def _sanitize_list(data: list[Any]) -> None:
+    """Recursively sanitize items in a list."""
+    for item in data:
+        if isinstance(item, dict):
+            _sanitize_dict(item)
+        elif isinstance(item, list):
+            _sanitize_list(item)
+
+
 @overload
 def sanitize_context(context: dict[str, Any]) -> dict[str, Any]: ...
 
@@ -92,26 +113,6 @@ def sanitize_context(context: Any) -> Any:
 
     # Create a deep copy to avoid modifying the original
     sanitized = deepcopy(context)
-
-    def _sanitize_dict(data: dict[str, Any]) -> None:
-        """Recursively sanitize a dictionary in place."""
-        for key in list(data.keys()):  # Use list() to avoid mutation during iteration
-            value = data[key]
-            if is_sensitive_field(key):
-                data[key] = REDACTED
-            elif isinstance(value, dict):
-                _sanitize_dict(value)
-            elif isinstance(value, list):
-                _sanitize_list(value)
-
-    def _sanitize_list(data: list[Any]) -> None:
-        """Recursively sanitize items in a list."""
-        for item in data:
-            if isinstance(item, dict):
-                _sanitize_dict(item)
-            elif isinstance(item, list):
-                _sanitize_list(item)
-
     _sanitize_dict(sanitized)
     return sanitized
 

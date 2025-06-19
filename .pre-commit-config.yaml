@@ -50,6 +50,16 @@ repos:
         always_run: true
         types: [python]
 
+  # Complexity check
+  - repo: local
+    hooks:
+      - id: complexity-check
+        name: mccabe complexity check
+        entry: make complexity-check
+        language: system
+        pass_filenames: false
+        types: [python]
+
   # Security check using Makefile
   - repo: local
     hooks:

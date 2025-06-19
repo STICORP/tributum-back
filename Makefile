@@ -1,4 +1,4 @@
-.PHONY: help install run dev lint lint-fix format format-check type-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check all-checks
+.PHONY: help install run dev lint lint-fix format format-check type-check complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check all-checks
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -28,6 +28,9 @@ format-check:  ## Check code formatting
 
 type-check:  ## Run type checking
 	uv run mypy .
+
+complexity-check:  ## Check code complexity (McCabe)
+	uv run ruff check . --select C90
 
 security:  ## Run all security checks
 	$(MAKE) security-bandit
@@ -120,4 +123,4 @@ docstring-quality:  ## Check only docstring quality (not presence)
 pylint-check:  ## Run pylint for code quality checks
 	uv run pylint --rcfile=pyproject.toml src/
 
-all-checks: format-check lint type-check security dead-code docstring-check pylint-check  ## Run all checks including dead code and docstring quality
+all-checks: format-check lint type-check complexity-check security dead-code docstring-check pylint-check  ## Run all checks including dead code and docstring quality

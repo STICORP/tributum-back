@@ -136,6 +136,7 @@ select = [
     "FLY",    # flynt (f-string formatting)
     "FURB",   # refurb (refactoring)
     "PL",     # pylint
+    "C90",    # mccabe complexity
 
     # Development and debugging
     "T10",    # flake8-debugger
@@ -161,6 +162,9 @@ convention = "google"
 
 [tool.ruff.lint.isort]
 known-first-party = ["tributum"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
