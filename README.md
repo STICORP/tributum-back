@@ -1,4 +1,4 @@
-# Tributum
+# Tributum 🚀
 
 > High-performance financial/tax/payment system built for scale and reliability
 
@@ -9,27 +9,27 @@
 
 **Status**: Active Development | **Team**: Engineering Only | **Visibility**: Private
 
-## Table of Contents
+## 📚 Table of Contents
 
-- [Project Overview](#project-overview)
-- [Tech Stack](#tech-stack)
-- [Quick Start](#quick-start)
-- [Architecture Deep Dive](#architecture-deep-dive)
-- [Internal Frameworks Explained](#internal-frameworks-explained)
-- [Security Architecture](#security-architecture)
-- [Testing Philosophy](#testing-philosophy)
-- [Development Workflow](#development-workflow)
-- [Developer Tools & Automation](#developer-tools--automation)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [Command Reference](#command-reference)
-- [Version Management & Release Workflow](#version-management--release-workflow)
-- [Infrastructure](#infrastructure)
-- [Configuration Management](#configuration-management)
-- [Project Structure](#project-structure)
-- [Troubleshooting Guide](#troubleshooting-guide)
-- [Current Implementation Status](#current-implementation-status)
+- [🎯 Project Overview](#-project-overview)
+- [⚙️ Tech Stack](#️-tech-stack)
+- [🚀 Quick Start](#-quick-start)
+- [🏗️ Architecture Deep Dive](#️-architecture-deep-dive)
+- [🔧 Internal Frameworks Explained](#-internal-frameworks-explained)
+- [🛡️ Security Architecture](#️-security-architecture)
+- [🧪 Testing Philosophy](#-testing-philosophy)
+- [💻 Development Workflow](#-development-workflow)
+- [🎨 Developer Tools & Automation](#-developer-tools--automation)
+- [🔄 CI/CD Pipeline](#-cicd-pipeline)
+- [📋 Command Reference](#-command-reference)
+- [📦 Version Management & Release Workflow](#-version-management--release-workflow)
+- [🏢 Infrastructure](#-infrastructure)
+- [⚙️ Configuration Management](#️-configuration-management)
+- [📁 Project Structure](#-project-structure)
+- [🔍 Troubleshooting Guide](#-troubleshooting-guide)
+- [✅ Current Implementation Status](#-current-implementation-status)
 
-## Project Overview
+## 🎯 Project Overview
 
 **Purpose**: High-performance financial/tax/payment system designed for enterprise-scale operations with a focus on reliability, observability, and security.
 
@@ -46,7 +46,7 @@
 - **Performance**: ORJSONResponse for 3x faster JSON serialization
 - **Quality**: Comprehensive testing with 100% code coverage achieved
 
-## Tech Stack
+## ⚙️ Tech Stack
 
 ### Core Framework
 - **Python 3.13**: Latest Python with performance improvements
@@ -62,6 +62,7 @@
 - **Pre-commit**: Git hooks for code quality
 - **Pytest**: Testing framework with async support
 - **Pytest-mock**: Improved mocking for cleaner test code
+- **Pytest-env**: Centralized test environment configuration
 
 ### Security Tools
 - **Bandit**: AST-based security scanner
@@ -74,7 +75,7 @@
 - **Google Cloud Platform**: Cloud provider
 - **GitHub Actions**: CI/CD pipeline
 
-## Quick Start
+## 🚀 Quick Start
 
 ```bash
 # Clone repository
@@ -110,7 +111,7 @@ make security       # Run all security scans
 make security-deps  # Check dependencies only
 ```
 
-## Architecture Deep Dive
+## 🏗️ Architecture Deep Dive
 
 ### System Design
 
@@ -173,7 +174,7 @@ sequenceDiagram
 5. **Middleware Stack**: Pure ASGI implementation for performance
 6. **Response Serialization**: ORJSONResponse default for 3x faster JSON encoding
 
-## Internal Frameworks Explained
+## 🔧 Internal Frameworks Explained
 
 ### Exception Framework
 
@@ -232,7 +233,7 @@ correlation_id = RequestContext.get_correlation_id()
 - X-Correlation-ID header support
 - UUID4 generation with validation
 
-## Security Architecture
+## 🛡️ Security Architecture
 
 ### Security Layers
 
@@ -262,7 +263,7 @@ make security              # Run all security checks
 └── semgrep              # Custom security rules
 ```
 
-## Testing Philosophy
+## 🧪 Testing Philosophy
 
 ### Test Structure
 
@@ -270,7 +271,8 @@ make security              # Run all security checks
 tests/
 ├── unit/           # Fast, isolated tests
 ├── integration/    # Component interaction tests
-├── conftest.py     # Shared fixtures
+├── fixtures/       # Environment-specific test fixtures
+├── conftest.py     # Shared fixtures and auto-clearing cache
 └── coverage/       # Coverage reports (100% achieved)
 ```
 
@@ -282,6 +284,29 @@ tests/
 - **Parallel Execution**: pytest-xdist for faster test runs
 - **Rich Output**: pytest-rich for better test visualization
 - **Mocking**: pytest-mock for cleaner, more maintainable test code
+- **Environment Management**: pytest-env for consistent test configuration
+
+### Test Environment Configuration
+
+The project uses `pytest-env` to provide consistent test environment:
+
+```python
+# Base test environment configured in pyproject.toml [tool.pytest_env]
+# Sets LOG_CONFIG__LOG_LEVEL="WARNING" for cleaner test output
+
+# Use environment fixtures for specific scenarios:
+def test_production_behavior(production_env):
+    """Test with production environment settings."""
+    settings = get_settings()
+    assert settings.environment == "production"
+```
+
+Available environment fixtures:
+- `production_env` - Production environment settings
+- `development_env` - Development environment settings
+- `staging_env` - Staging environment settings
+- `custom_app_env` - Custom app name/version for testing
+- `no_docs_env` - Disabled API documentation endpoints
 
 ### Running Tests
 
@@ -293,7 +318,7 @@ make test-fast        # Parallel execution
 make test-coverage    # With HTML report
 ```
 
-## Development Workflow
+## 💻 Development Workflow
 
 ### Code Quality Pipeline
 
@@ -327,7 +352,7 @@ graph LR
 4. **Test everything**: Write tests for all new features
 5. **Document code**: Google-style docstrings required
 
-## Developer Tools & Automation
+## 🎨 Developer Tools & Automation
 
 ### Claude Code Commands
 
@@ -339,6 +364,7 @@ Located in `.claude/commands/`:
 - **`/readme`**: Smart README generation with incremental updates
 - **`/curate-makefile`**: Makefile optimization and standardization
 - **`/enforce-quality`**: Strict quality enforcement without bypasses
+- **`/do`**: Execute complex tasks with expert-level guidance
 
 ### Isolated Development Tools
 
@@ -351,7 +377,7 @@ Some tools run in isolated environments to prevent dependency conflicts:
 
 Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 
-## CI/CD Pipeline
+## 🔄 CI/CD Pipeline
 
 ### GitHub Actions Workflow
 
@@ -375,7 +401,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 - Parallel job execution
 - Continue-on-error for non-critical tools
 
-## Command Reference
+## 📋 Command Reference
 
 ### Development Commands
 
@@ -430,7 +456,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 | `make docstring-quality` | Validate docstring format |
 | `make pylint-check` | Check for code issues |
 
-## Version Management & Release Workflow
+## 📦 Version Management & Release Workflow
 
 Uses [Semantic Versioning](https://semver.org/) with automated changelog tracking.
 
@@ -468,7 +494,7 @@ Version bump decided by changelog content:
 - **MINOR**: New features (any "Added" entries)
 - **MAJOR**: Breaking changes, removals
 
-## Infrastructure
+## 🏢 Infrastructure
 
 ### Terraform Structure
 
@@ -503,7 +529,7 @@ terraform plan
 terraform apply
 ```
 
-## Configuration Management
+## ⚙️ Configuration Management
 
 ### Environment Variables
 
@@ -543,7 +569,7 @@ All configs validated at startup using Pydantic Settings v2:
 - Nested configuration support
 - Environment-specific defaults
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 src/
@@ -571,10 +597,11 @@ src/
 tests/
 ├── unit/                 # Isolated unit tests
 ├── integration/          # Integration tests
-└── conftest.py          # Shared fixtures
+├── fixtures/             # Environment-specific test fixtures
+└── conftest.py          # Shared fixtures with auto-clearing cache
 ```
 
-## Troubleshooting Guide
+## 🔍 Troubleshooting Guide
 
 ### Common Issues
 
@@ -624,7 +651,7 @@ export LOG_CONFIG__LOG_LEVEL=DEBUG
 make dev
 ```
 
-## Current Implementation Status
+## ✅ Current Implementation Status
 
 ### Implemented Features
 
@@ -660,7 +687,8 @@ make dev
 - Strict code quality enforcement (Ruff, MyPy)
 - Security scanning pipeline
 - 100% test coverage achieved with pytest-mock migration
-- Claude Code automation commands
+- pytest-env integration for streamlined test environment management
+- Claude Code automation commands including new `/do` command
 
 #### CI/CD & Infrastructure
 - GitHub Actions workflow for quality checks
@@ -692,31 +720,33 @@ make dev
 #### Test Suite (`tests/`)
 - Unit tests with 100% coverage achieved
 - Integration tests for API endpoints
-- Shared fixtures and utilities
+- Environment-specific test fixtures
+- Shared fixtures with auto-clearing cache
 - Async test support
 - Migrated to pytest-mock for cleaner mocking
+- pytest-env for centralized test configuration
 
 <!-- README-METADATA
-Last Updated: 2025-06-19T16:45:00Z
-Last Commit: 3c44886
+Last Updated: 2025-06-19T23:55:00Z
+Last Commit: b8044d7
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "a1b2c3", "manual": false},
-  "tech-stack": {"hash": "d4e5f8", "manual": false},
+  "tech-stack": {"hash": "d4e5f9", "manual": false},
   "quick-start": {"hash": "g7h8i9", "manual": false},
   "architecture": {"hash": "j1k2l3", "manual": false},
   "frameworks": {"hash": "m4n5o6", "manual": false},
   "security": {"hash": "p7q8r9", "manual": false},
-  "testing": {"hash": "s1t2u3", "manual": false},
+  "testing": {"hash": "s1t2u4", "manual": false},
   "workflow": {"hash": "v4w5x7", "manual": false},
-  "tools": {"hash": "y7z8a9", "manual": false},
+  "tools": {"hash": "y7z8a0", "manual": false},
   "cicd": {"hash": "b1c2d4", "manual": false},
   "commands": {"hash": "e4f5g7", "manual": false},
   "version": {"hash": "h7i8j9", "manual": false},
   "infrastructure": {"hash": "k1l2m3", "manual": false},
   "config": {"hash": "n4o5p6", "manual": false},
-  "structure": {"hash": "q7r8s0", "manual": false},
+  "structure": {"hash": "q7r8s1", "manual": false},
   "troubleshooting": {"hash": "t1u2v3", "manual": false},
-  "status": {"hash": "w4x5y7", "manual": false}
+  "status": {"hash": "w4x5y8", "manual": false}
 }
 -->
