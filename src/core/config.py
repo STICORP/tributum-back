@@ -70,7 +70,7 @@ class Settings(BaseSettings):
         super().model_post_init(__context)
         # In production, default to JSON logs only if not explicitly set
         if (
-            self.environment == "production"
+            self.environment in ("production", "staging")
             and self.log_config.log_format == "console"
             and not self.log_config.render_json_logs
         ):
