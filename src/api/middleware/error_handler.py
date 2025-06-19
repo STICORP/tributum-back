@@ -234,7 +234,7 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
 
     # Log the exception
     logger.warning(
-        f"HTTP exception: {exc.status_code}",
+        "HTTP exception",
         request_method=request.method,
         request_path=str(request.url.path),
         status_code=exc.status_code,

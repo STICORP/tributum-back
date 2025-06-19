@@ -140,7 +140,12 @@ select = [
 
     # Development and debugging
     "T10",    # flake8-debugger
+    "T20",    # flake8-print
     "EXE",    # flake8-executable
+
+    # Additional quality checks
+    "G",      # flake8-logging-format
+    "INP",    # flake8-no-pep420
 
     # Ruff-specific
     "RUF",    # Ruff-specific rules
@@ -171,6 +176,10 @@ max-complexity = 10
     "PLR2004",  # Magic values are OK in tests
     "TRY002",   # Creating generic exceptions is OK in tests
     "TRY301",   # Raising exceptions in tests is OK
+    "T20",      # Print statements are OK in tests
+]
+"scripts/**/*.py" = [
+    "T20",      # Print statements are OK in utility scripts
 ]
 
 [tool.ruff.format]
