@@ -1,7 +1,5 @@
 """Unit tests for configuration management."""
 
-import os
-
 import pytest
 from pydantic import ValidationError
 
@@ -46,7 +44,7 @@ class TestSettings:
         # Application settings
         assert settings.app_name == "Tributum"
         assert settings.app_version == "0.2.0"
-        assert settings.environment == "development"
+        assert settings.environment == "development"  # pytest-env sets this
         assert settings.debug is True
 
         # API settings
@@ -56,12 +54,12 @@ class TestSettings:
         assert settings.redoc_url == "/redoc"
         assert settings.openapi_url == "/openapi.json"
 
-        # Logging
+        # Logging (with pytest-env overrides)
         assert isinstance(settings.log_config, LogConfig)
-        assert settings.log_config.log_level == "INFO"
+        assert settings.log_config.log_level == "WARNING"  # Set by pytest-env
         assert settings.log_config.log_format == "console"
         assert settings.log_config.render_json_logs is False
-        assert settings.log_config.add_timestamp is True
+        assert settings.log_config.add_timestamp is False  # Set by pytest-env
         assert settings.log_config.timestamper_format == "iso"
 
     def test_environment_variable_override(
@@ -130,23 +128,23 @@ class TestSettings:
         assert settings.redoc_url is None
         assert settings.openapi_url is None
 
-    def test_production_environment_json_logs(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test that production environment automatically sets JSON logs."""
-        monkeypatch.setenv("ENVIRONMENT", "production")
+    def test_production_environment_json_logs(self, production_env: None) -> None:
+        """Test that production environment automatically sets JSON logs.
 
+        Uses the production_env fixture to set up production environment.
+        """
+        _ = production_env  # Fixture sets up environment
         settings = Settings()
         assert settings.environment == "production"
         assert settings.log_config.log_format == "json"
         assert settings.log_config.render_json_logs is True
 
-    def test_development_environment_console_logs(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test that development environment keeps console logs."""
-        monkeypatch.setenv("ENVIRONMENT", "development")
+    def test_development_environment_console_logs(self, development_env: None) -> None:
+        """Test that development environment keeps console logs.
 
+        Uses the development_env fixture to set up development environment.
+        """
+        _ = development_env  # Fixture sets up environment
         settings = Settings()
         assert settings.environment == "development"
         assert settings.log_config.log_format == "console"
@@ -157,23 +155,27 @@ class TestGetSettings:
     """Test cases for get_settings function."""
 
     def test_get_settings_caching(self) -> None:
-        """Test that get_settings returns the same instance (cached)."""
+        """Test that get_settings returns the same instance (cached).
+
+        Note: The clear_settings_cache fixture automatically clears cache
+        before and after each test, so we test caching within a single test.
+        """
         settings1 = get_settings()
         settings2 = get_settings()
 
         assert settings1 is settings2
 
     def test_get_settings_cache_clear(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Test that cache can be cleared to get new settings."""
-        # Clear any existing cache first
-        get_settings.cache_clear()
+        """Test that cache can be cleared to get new settings.
 
-        # Get settings with default values
-        for key in list(os.environ.keys()):
-            monkeypatch.delenv(key, raising=False)
+        The clear_settings_cache fixture handles automatic clearing,
+        but we test manual clearing within a test.
+        """
+        # Get initial settings
         settings1 = get_settings()
+        initial_name = settings1.app_name
 
-        # Clear the cache
+        # Clear the cache manually
         get_settings.cache_clear()
 
         # Modify environment and get new settings
@@ -181,5 +183,5 @@ class TestGetSettings:
         settings2 = get_settings()
 
         assert settings1 is not settings2
-        assert settings1.app_name == "Tributum"
         assert settings2.app_name == "Modified App"
+        assert initial_name == "Tributum"  # Verify initial was default

@@ -72,6 +72,7 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-rich>=0.2.0",
     "pytest-mock>=3.14.1",
+    "pytest-env>=1.1.5",
 
     # Version management
     "bump-my-version>=0.32.0",
@@ -318,6 +319,26 @@ regex = false
 filename = "VERSION"
 search = "{current_version}"
 replace = "{new_version}"
+
+# ===========================
+# Test Environment Configuration
+# ===========================
+
+[tool.pytest_env]
+# Base test environment configuration
+# Only set values that don't conflict with test expectations
+# Don't override APP_NAME or APP_VERSION - let tests verify the defaults
+
+# Set environment to development to match default behavior
+ENVIRONMENT = "development"
+DEBUG = "true"
+
+# Logging configuration for tests - less verbose output
+LOG_CONFIG__LOG_LEVEL = "WARNING"  # Less verbose for tests
+LOG_CONFIG__ADD_TIMESTAMP = "false"  # Cleaner test output
+
+# Don't set API_HOST, API_PORT, or doc URLs - let them use defaults
+# This allows tests to verify the actual default values
 
 # ===========================
 # Isolated Tools
