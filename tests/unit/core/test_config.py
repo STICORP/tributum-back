@@ -1,7 +1,6 @@
 """Unit tests for configuration management."""
 
 import os
-from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
@@ -65,92 +64,93 @@ class TestSettings:
         assert settings.log_config.add_timestamp is True
         assert settings.log_config.timestamper_format == "iso"
 
-    def test_environment_variable_override(self) -> None:
+    def test_environment_variable_override(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that environment variables override default settings."""
-        with patch.dict(
-            os.environ,
-            {
-                "APP_NAME": "Test App",
-                "APP_VERSION": "2.0.0",
-                "ENVIRONMENT": "production",
-                "DEBUG": "false",
-                "API_PORT": "9000",
-                "LOG_CONFIG__LOG_LEVEL": "DEBUG",
-                "LOG_CONFIG__LOG_FORMAT": "json",
-            },
-        ):
-            settings = Settings()
+        monkeypatch.setenv("APP_NAME", "Test App")
+        monkeypatch.setenv("APP_VERSION", "2.0.0")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("DEBUG", "false")
+        monkeypatch.setenv("API_PORT", "9000")
+        monkeypatch.setenv("LOG_CONFIG__LOG_LEVEL", "DEBUG")
+        monkeypatch.setenv("LOG_CONFIG__LOG_FORMAT", "json")
 
-            assert settings.app_name == "Test App"
-            assert settings.app_version == "2.0.0"
-            assert settings.environment == "production"
-            assert settings.debug is False
-            assert settings.api_port == 9000
-            assert settings.log_config.log_level == "DEBUG"
-            # In production, console format should be overridden to json
-            assert settings.log_config.log_format == "json"
-            assert settings.log_config.render_json_logs is True
+        settings = Settings()
 
-    def test_case_insensitive_env_vars(self) -> None:
+        assert settings.app_name == "Test App"
+        assert settings.app_version == "2.0.0"
+        assert settings.environment == "production"
+        assert settings.debug is False
+        assert settings.api_port == 9000
+        assert settings.log_config.log_level == "DEBUG"
+        # In production, console format should be overridden to json
+        assert settings.log_config.log_format == "json"
+        assert settings.log_config.render_json_logs is True
+
+    def test_case_insensitive_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that environment variables are case-insensitive."""
-        with patch.dict(
-            os.environ, {"app_name": "Lower Case App", "API_HOST": "127.0.0.1"}
-        ):
-            settings = Settings()
+        monkeypatch.setenv("app_name", "Lower Case App")
+        monkeypatch.setenv("API_HOST", "127.0.0.1")
 
-            assert settings.app_name == "Lower Case App"
-            assert settings.api_host == "127.0.0.1"
+        settings = Settings()
 
-    def test_invalid_environment_value(self) -> None:
+        assert settings.app_name == "Lower Case App"
+        assert settings.api_host == "127.0.0.1"
+
+    def test_invalid_environment_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that invalid environment values raise validation errors."""
-        with (
-            patch.dict(os.environ, {"ENVIRONMENT": "invalid_env"}),
-            pytest.raises(
-                ValidationError,
-                match="Input should be 'development', 'staging' or 'production'",
-            ),
+        monkeypatch.setenv("ENVIRONMENT", "invalid_env")
+
+        with pytest.raises(
+            ValidationError,
+            match="Input should be 'development', 'staging' or 'production'",
         ):
             Settings()
 
-    def test_invalid_log_level(self) -> None:
+    def test_invalid_log_level(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that invalid log levels raise validation errors."""
-        with (
-            patch.dict(os.environ, {"LOG_CONFIG__LOG_LEVEL": "INVALID"}),
-            pytest.raises(
-                ValidationError,
-                match=(
-                    "Input should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'"
-                ),
-            ),
+        monkeypatch.setenv("LOG_CONFIG__LOG_LEVEL", "INVALID")
+
+        with pytest.raises(
+            ValidationError,
+            match=("Input should be 'DEBUG', 'INFO', 'WARNING', 'ERROR' or 'CRITICAL'"),
         ):
             Settings()
 
-    def test_nullable_doc_urls(self) -> None:
+    def test_nullable_doc_urls(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that documentation URLs can be set to None."""
-        with patch.dict(
-            os.environ, {"DOCS_URL": "", "REDOC_URL": "", "OPENAPI_URL": ""}
-        ):
-            settings = Settings()
+        monkeypatch.setenv("DOCS_URL", "")
+        monkeypatch.setenv("REDOC_URL", "")
+        monkeypatch.setenv("OPENAPI_URL", "")
 
-            assert settings.docs_url is None
-            assert settings.redoc_url is None
-            assert settings.openapi_url is None
+        settings = Settings()
 
-    def test_production_environment_json_logs(self) -> None:
+        assert settings.docs_url is None
+        assert settings.redoc_url is None
+        assert settings.openapi_url is None
+
+    def test_production_environment_json_logs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that production environment automatically sets JSON logs."""
-        with patch.dict(os.environ, {"ENVIRONMENT": "production"}):
-            settings = Settings()
-            assert settings.environment == "production"
-            assert settings.log_config.log_format == "json"
-            assert settings.log_config.render_json_logs is True
+        monkeypatch.setenv("ENVIRONMENT", "production")
 
-    def test_development_environment_console_logs(self) -> None:
+        settings = Settings()
+        assert settings.environment == "production"
+        assert settings.log_config.log_format == "json"
+        assert settings.log_config.render_json_logs is True
+
+    def test_development_environment_console_logs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that development environment keeps console logs."""
-        with patch.dict(os.environ, {"ENVIRONMENT": "development"}):
-            settings = Settings()
-            assert settings.environment == "development"
-            assert settings.log_config.log_format == "console"
-            assert settings.log_config.render_json_logs is False
+        monkeypatch.setenv("ENVIRONMENT", "development")
+
+        settings = Settings()
+        assert settings.environment == "development"
+        assert settings.log_config.log_format == "console"
+        assert settings.log_config.render_json_logs is False
 
 
 class TestGetSettings:
@@ -163,21 +163,22 @@ class TestGetSettings:
 
         assert settings1 is settings2
 
-    def test_get_settings_cache_clear(self) -> None:
+    def test_get_settings_cache_clear(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that cache can be cleared to get new settings."""
         # Clear any existing cache first
         get_settings.cache_clear()
 
         # Get settings with default values
-        with patch.dict(os.environ, {}, clear=True):
-            settings1 = get_settings()
+        for key in list(os.environ.keys()):
+            monkeypatch.delenv(key, raising=False)
+        settings1 = get_settings()
 
         # Clear the cache
         get_settings.cache_clear()
 
         # Modify environment and get new settings
-        with patch.dict(os.environ, {"APP_NAME": "Modified App"}, clear=True):
-            settings2 = get_settings()
+        monkeypatch.setenv("APP_NAME", "Modified App")
+        settings2 = get_settings()
 
         assert settings1 is not settings2
         assert settings1.app_name == "Tributum"

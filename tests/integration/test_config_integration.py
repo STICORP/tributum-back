@@ -1,8 +1,6 @@
 """Integration tests for configuration with FastAPI."""
 
-import os
-from unittest.mock import patch
-
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import create_app
@@ -64,32 +62,30 @@ class TestConfigurationIntegration:
         # Clean up
         app.dependency_overrides.clear()
 
-    def test_app_with_environment_variables(self) -> None:
+    def test_app_with_environment_variables(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test that app correctly uses environment variables."""
         # Clear cache first
         get_settings.cache_clear()
 
-        with patch.dict(
-            os.environ,
-            {
-                "APP_NAME": "Env Test App",
-                "APP_VERSION": "3.0.0",
-                "ENVIRONMENT": "production",
-                "DEBUG": "false",
-                "DOCS_URL": "",  # Should be converted to None
-                "REDOC_URL": "",
-                "OPENAPI_URL": "",
-            },
-        ):
-            settings = get_settings()
-            app = create_app(settings)
+        monkeypatch.setenv("APP_NAME", "Env Test App")
+        monkeypatch.setenv("APP_VERSION", "3.0.0")
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("DEBUG", "false")
+        monkeypatch.setenv("DOCS_URL", "")  # Should be converted to None
+        monkeypatch.setenv("REDOC_URL", "")
+        monkeypatch.setenv("OPENAPI_URL", "")
 
-            assert app.title == "Env Test App"
-            assert app.version == "3.0.0"
-            assert app.debug is False
-            assert app.docs_url is None
-            assert app.redoc_url is None
-            assert app.openapi_url is None
+        settings = get_settings()
+        app = create_app(settings)
+
+        assert app.title == "Env Test App"
+        assert app.version == "3.0.0"
+        assert app.debug is False
+        assert app.docs_url is None
+        assert app.redoc_url is None
+        assert app.openapi_url is None
 
     def test_docs_disabled_with_empty_strings(self) -> None:
         """Test that empty string environment variables disable docs."""

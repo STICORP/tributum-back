@@ -3,12 +3,12 @@
 import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
-from unittest.mock import Mock, patch
 
 import pytest
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
+from pytest_mock import MockerFixture
 from starlette.datastructures import Headers
 
 from src.api.middleware.request_context import RequestContextMiddleware
@@ -147,11 +147,12 @@ def client(app: FastAPI) -> TestClient:
 class TestRequestLoggingMiddleware:
     """Test cases for RequestLoggingMiddleware."""
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_request_started(self, mock_get_logger: Mock) -> None:
+    def test_logs_request_started(self, mocker: MockerFixture) -> None:
         """Test that middleware logs request start."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -176,11 +177,12 @@ class TestRequestLoggingMiddleware:
             CORRELATION_ID_HEADER
         )
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_request_completed(self, mock_get_logger: Mock) -> None:
+    def test_logs_request_completed(self, mocker: MockerFixture) -> None:
         """Test that middleware logs request completion."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -208,11 +210,12 @@ class TestRequestLoggingMiddleware:
             CORRELATION_ID_HEADER
         )
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_query_parameters(self, mock_get_logger: Mock) -> None:
+    def test_logs_query_parameters(self, mocker: MockerFixture) -> None:
         """Test that middleware logs query parameters."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -233,11 +236,12 @@ class TestRequestLoggingMiddleware:
         assert "query_params" in call_kwargs
         assert call_kwargs["query_params"] == {"name": "John", "age": "30"}
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_sanitizes_sensitive_query_params(self, mock_get_logger: Mock) -> None:
+    def test_sanitizes_sensitive_query_params(self, mocker: MockerFixture) -> None:
         """Test that middleware sanitizes sensitive query parameters."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -261,11 +265,12 @@ class TestRequestLoggingMiddleware:
         assert call_kwargs["query_params"]["refresh_token"] == "[REDACTED]"
         assert call_kwargs["query_params"]["user"] == "john"  # Non-sensitive
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_all_paths_including_sensitive(self, mock_get_logger: Mock) -> None:
+    def test_logs_all_paths_including_sensitive(self, mocker: MockerFixture) -> None:
         """Test that middleware logs all paths including auth endpoints."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -289,11 +294,12 @@ class TestRequestLoggingMiddleware:
         # Should still have correlation ID
         assert "correlation_id" in call_kwargs
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_sanitizes_password_in_query(self, mock_get_logger: Mock) -> None:
+    def test_sanitizes_password_in_query(self, mocker: MockerFixture) -> None:
         """Test that password in query params is sanitized."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -315,11 +321,12 @@ class TestRequestLoggingMiddleware:
         assert call_kwargs["query_params"]["username"] == "john"
         assert call_kwargs["query_params"]["password"] == "[REDACTED]"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_empty_response_body(self, mock_get_logger: Mock) -> None:
+    def test_empty_response_body(self, mocker: MockerFixture) -> None:
         """Test handling of empty response body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app with response body logging enabled
         app = create_test_app(log_response_body=True)
@@ -346,11 +353,12 @@ class TestRequestLoggingMiddleware:
         call_kwargs = completed_calls[0][1]
         assert "response_body" not in call_kwargs
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_errors(self, mock_get_logger: Mock) -> None:
+    def test_logs_errors(self, mocker: MockerFixture) -> None:
         """Test that middleware logs errors."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -383,11 +391,12 @@ class TestRequestLoggingMiddleware:
         assert len(completed_calls) == 1
         assert completed_calls[0][1]["status_code"] == 500
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_duration_calculation(self, mock_get_logger: Mock) -> None:
+    def test_duration_calculation(self, mocker: MockerFixture) -> None:
         """Test that duration is calculated correctly."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -438,11 +447,12 @@ class TestRequestLoggingMiddleware:
             != response2.headers[CORRELATION_ID_HEADER]
         )
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_unhandled_exceptions(self, mock_get_logger: Mock) -> None:
+    def test_logs_unhandled_exceptions(self, mocker: MockerFixture) -> None:
         """Test that middleware logs unhandled exceptions."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app and client after patching
         app = create_test_app()
@@ -481,11 +491,12 @@ class TestRequestLoggingMiddleware:
 class TestRequestBodyLogging:
     """Test cases for request body logging functionality."""
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_json_request_body(self, mock_get_logger: Mock) -> None:
+    def test_logs_json_request_body(self, mocker: MockerFixture) -> None:
         """Test that middleware logs JSON request body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -516,11 +527,12 @@ class TestRequestBodyLogging:
             "headers" in call_kwargs
         )  # Headers should be logged when body logging is enabled
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_form_data_request_body(self, mock_get_logger: Mock) -> None:
+    def test_logs_form_data_request_body(self, mocker: MockerFixture) -> None:
         """Test that middleware logs form data request body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -544,11 +556,12 @@ class TestRequestBodyLogging:
         assert call_kwargs["body"]["password"] == "[REDACTED]"
         assert call_kwargs["body"]["age"] == "25"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_text_request_body(self, mock_get_logger: Mock) -> None:
+    def test_logs_text_request_body(self, mocker: MockerFixture) -> None:
         """Test that middleware logs text request body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -572,11 +585,12 @@ class TestRequestBodyLogging:
         assert "body" in call_kwargs
         assert call_kwargs["body"] == text_body
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_binary_request_metadata(self, mock_get_logger: Mock) -> None:
+    def test_logs_binary_request_metadata(self, mocker: MockerFixture) -> None:
         """Test that middleware logs binary request metadata only."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -601,11 +615,12 @@ class TestRequestBodyLogging:
         assert "_size" in call_kwargs["body"]
         assert call_kwargs["body"]["_info"] == "Binary content not logged"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_truncates_large_request_body(self, mock_get_logger: Mock) -> None:
+    def test_truncates_large_request_body(self, mocker: MockerFixture) -> None:
         """Test that middleware truncates large request bodies."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         # Create app with small max body size
         app = create_test_app(log_request_body=True, max_body_size=50)
@@ -632,13 +647,14 @@ class TestRequestBodyLogging:
         assert call_kwargs["body"].endswith(TRUNCATED_SUFFIX)
         assert call_kwargs["body"].startswith("A" * 50)
 
-    @patch("src.api.middleware.request_logging.get_logger")
     def test_sanitizes_headers_when_body_logging_enabled(
-        self, mock_get_logger: Mock
+        self, mocker: MockerFixture
     ) -> None:
         """Test that headers are sanitized when body logging is enabled."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -668,11 +684,12 @@ class TestRequestBodyLogging:
         assert call_kwargs["headers"]["content-type"] == "application/json"
         assert call_kwargs["headers"]["user-agent"] == "TestClient"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_handles_invalid_json_gracefully(self, mock_get_logger: Mock) -> None:
+    def test_handles_invalid_json_gracefully(self, mocker: MockerFixture) -> None:
         """Test that middleware handles invalid JSON gracefully."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -697,13 +714,14 @@ class TestRequestBodyLogging:
         assert "body" in call_kwargs
         assert "Invalid JSON {" in str(call_kwargs["body"])
 
-    @patch("src.api.middleware.request_logging.get_logger")
     def test_request_body_still_available_to_endpoint(
-        self, mock_get_logger: Mock
+        self, mocker: MockerFixture
     ) -> None:
         """Test that request body is still available to the endpoint."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -717,11 +735,12 @@ class TestRequestBodyLogging:
         assert response.json()["received"]["username"] == "test"
         assert response.json()["received"]["email"] == "test@example.com"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_receive_function_works_correctly(self, mock_get_logger: Mock) -> None:
+    def test_receive_function_works_correctly(self, mocker: MockerFixture) -> None:
         """Test that the receive function properly returns the body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
 
@@ -746,11 +765,12 @@ class TestRequestBodyLogging:
         assert result["second"] == "test content"
         assert result["equal"] is True
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_no_body_logging_when_disabled(self, mock_get_logger: Mock) -> None:
+    def test_no_body_logging_when_disabled(self, mocker: MockerFixture) -> None:
         """Test that body is not logged when disabled."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=False)  # Body logging disabled
         client = TestClient(app)
@@ -772,11 +792,12 @@ class TestRequestBodyLogging:
         assert "body" not in call_kwargs
         assert "headers" not in call_kwargs
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_body_logging_only_for_write_methods(self, mock_get_logger: Mock) -> None:
+    def test_body_logging_only_for_write_methods(self, mocker: MockerFixture) -> None:
         """Test that body logging only happens for POST/PUT/PATCH."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -798,11 +819,12 @@ class TestRequestBodyLogging:
         # Headers might still be logged
         assert "headers" in call_kwargs
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_handles_request_body_read_failure(self, mock_get_logger: Mock) -> None:
+    def test_handles_request_body_read_failure(self, mocker: MockerFixture) -> None:
         """Test that middleware handles request body read failures gracefully."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
 
@@ -811,7 +833,7 @@ class TestRequestBodyLogging:
             raise RuntimeError("Failed to read body")
 
         # Create a mock request
-        mock_request = Mock(spec=Request)
+        mock_request = mocker.Mock(spec=Request)
         mock_request.method = "POST"
         mock_request.url.path = "/test"
         mock_request.query_params = {}
@@ -832,11 +854,12 @@ class TestRequestBodyLogging:
         warning_call = mock_logger.warning.call_args
         assert warning_call[0][0] == "Failed to read request body"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_handles_empty_request_body(self, mock_get_logger: Mock) -> None:
+    def test_handles_empty_request_body(self, mocker: MockerFixture) -> None:
         """Test that middleware handles empty request body correctly."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -857,11 +880,12 @@ class TestRequestBodyLogging:
         call_kwargs = started_calls[0][1]
         assert "body" not in call_kwargs
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_handles_invalid_form_data_gracefully(self, mock_get_logger: Mock) -> None:
+    def test_handles_invalid_form_data_gracefully(self, mocker: MockerFixture) -> None:
         """Test that middleware handles invalid form data gracefully."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -888,11 +912,12 @@ class TestRequestBodyLogging:
         # Should have tried to decode and truncate
         assert isinstance(call_kwargs["body"], str)
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_handles_missing_content_type(self, mock_get_logger: Mock) -> None:
+    def test_handles_missing_content_type(self, mocker: MockerFixture) -> None:
         """Test that middleware handles missing content-type header."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_request_body=True)
         client = TestClient(app)
@@ -916,13 +941,13 @@ class TestRequestBodyLogging:
         assert call_kwargs["body"]["_info"] == "Binary content not logged"
 
     @pytest.mark.asyncio
-    async def test_receive_function_coverage(self) -> None:
+    async def test_receive_function_coverage(self, mocker: MockerFixture) -> None:
         """Test the receive function implementation to cover line 260."""
         # Create middleware
-        middleware = RequestLoggingMiddleware(Mock(), log_request_body=True)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_request_body=True)
 
         # Create a mock request
-        mock_request = Mock(spec=Request)
+        mock_request = mocker.Mock(spec=Request)
         mock_request.method = "POST"
         mock_request.url.path = "/test"
         mock_request.query_params = {}
@@ -944,9 +969,10 @@ class TestRequestBodyLogging:
             assert result == {"type": "http.request", "body": test_body}
 
             # Return a mock response
-            mock_response = Mock(spec=Response)
+            mock_response = mocker.Mock(spec=Response)
             mock_response.status_code = 200
             mock_response.headers = {}
+            assert isinstance(mock_response, Response)
             return mock_response
 
         # Call dispatch
@@ -956,11 +982,12 @@ class TestRequestBodyLogging:
 class TestResponseBodyLogging:
     """Test cases for response body logging functionality."""
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_json_response_body(self, mock_get_logger: Mock) -> None:
+    def test_logs_json_response_body(self, mocker: MockerFixture) -> None:
         """Test that middleware logs JSON response body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_response_body=True)
         client = TestClient(app)
@@ -985,13 +1012,14 @@ class TestResponseBodyLogging:
         assert call_kwargs["response_body"]["email"] == "test@example.com"
         assert "response_headers" in call_kwargs
 
-    @patch("src.api.middleware.request_logging.get_logger")
     def test_no_response_body_logging_when_disabled(
-        self, mock_get_logger: Mock
+        self, mocker: MockerFixture
     ) -> None:
         """Test that response body is not logged when disabled."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_response_body=False)  # Response body logging disabled
         client = TestClient(app)
@@ -1013,11 +1041,12 @@ class TestResponseBodyLogging:
         assert "response_body" not in call_kwargs
         assert "response_headers" not in call_kwargs
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_sanitizes_response_headers(self, mock_get_logger: Mock) -> None:
+    def test_sanitizes_response_headers(self, mocker: MockerFixture) -> None:
         """Test that response headers are sanitized."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_response_body=True)
 
@@ -1051,11 +1080,12 @@ class TestResponseBodyLogging:
         assert call_kwargs["response_headers"]["x-api-key"] == "[REDACTED]"
         assert call_kwargs["response_headers"]["x-custom"] == "public-value"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_logs_non_json_response_body(self, mock_get_logger: Mock) -> None:
+    def test_logs_non_json_response_body(self, mocker: MockerFixture) -> None:
         """Test that middleware logs non-JSON response body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_response_body=True)
 
@@ -1080,11 +1110,12 @@ class TestResponseBodyLogging:
         assert "response_body" in call_kwargs
         assert call_kwargs["response_body"] == "Plain text response"
 
-    @patch("src.api.middleware.request_logging.get_logger")
-    def test_handles_invalid_json_response(self, mock_get_logger: Mock) -> None:
+    def test_handles_invalid_json_response(self, mocker: MockerFixture) -> None:
         """Test that middleware handles invalid JSON in response body."""
-        mock_logger = Mock()
-        mock_get_logger.return_value = mock_logger
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
 
         app = create_test_app(log_response_body=True)
 
@@ -1114,13 +1145,15 @@ class TestResponseBodyLogging:
         assert '{"invalid": json}' in call_kwargs["response_body"]
 
     @pytest.mark.asyncio
-    async def test_logs_response_with_string_chunks(self) -> None:
+    async def test_logs_response_with_string_chunks(
+        self, mocker: MockerFixture
+    ) -> None:
         """Test that middleware handles response with string chunks."""
         # Test middleware directly to control the response body iterator
-        middleware = RequestLoggingMiddleware(Mock(), log_response_body=True)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_response_body=True)
 
         # Create a mock request
-        mock_request = Mock(spec=Request)
+        mock_request = mocker.Mock(spec=Request)
         mock_request.method = "GET"
         mock_request.url.path = "/test"
         mock_request.query_params = {}
@@ -1160,23 +1193,23 @@ class TestResponseBodyLogging:
 class TestMiddlewareConfiguration:
     """Test middleware configuration options."""
 
-    def test_custom_max_body_size(self) -> None:
+    def test_custom_max_body_size(self, mocker: MockerFixture) -> None:
         """Test that custom max body size is respected."""
         middleware = RequestLoggingMiddleware(
-            Mock(), log_request_body=True, max_body_size=100
+            mocker.Mock(), log_request_body=True, max_body_size=100
         )
         assert middleware.max_body_size == 100
 
-    def test_default_configuration(self) -> None:
+    def test_default_configuration(self, mocker: MockerFixture) -> None:
         """Test default middleware configuration."""
-        middleware = RequestLoggingMiddleware(Mock())
+        middleware = RequestLoggingMiddleware(mocker.Mock())
         assert middleware.log_request_body is False
         assert middleware.log_response_body is False
         assert middleware.max_body_size == MAX_BODY_SIZE
 
-    def test_truncate_body_method(self) -> None:
+    def test_truncate_body_method(self, mocker: MockerFixture) -> None:
         """Test the truncate body method."""
-        middleware = RequestLoggingMiddleware(Mock(), max_body_size=10)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), max_body_size=10)
 
         # Test string truncation
         result = middleware._truncate_body("Hello World!")
@@ -1204,9 +1237,9 @@ class TestMiddlewareConfiguration:
         # The method decodes with errors='replace' so we get replacement chars
         assert len(result) > 10  # Should be truncated
 
-    def test_truncate_body_decode_exception(self) -> None:
+    def test_truncate_body_decode_exception(self, mocker: MockerFixture) -> None:
         """Test _truncate_body handles decode exceptions (lines 123-124, 130-131)."""
-        middleware = RequestLoggingMiddleware(Mock(), max_body_size=50)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), max_body_size=50)
 
         # Create a custom bytes class that raises exception on decode
         class BadBytes(bytes):

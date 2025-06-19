@@ -1,9 +1,9 @@
 """Tests for error context utilities."""
 
 from typing import cast
-from unittest.mock import Mock
 
 import pytest
+from pytest_mock import MockerFixture
 
 from src.core.error_context import (
     REDACTED,
@@ -388,10 +388,10 @@ class TestEnrichError:
 class TestCaptureRequestContext:
     """Test cases for HTTP request context capture."""
 
-    def test_captures_basic_request_info(self) -> None:
+    def test_captures_basic_request_info(self, mocker: MockerFixture) -> None:
         """Test capturing basic request information."""
         # Create a mock request
-        request = Mock()
+        request = mocker.Mock()
         request.method = "POST"
         request.url.path = "/api/users"
         request.url.scheme = "https"
@@ -399,7 +399,7 @@ class TestCaptureRequestContext:
         request.url.port = 443
         request.headers = {"content-type": "application/json", "user-agent": "test"}
         request.query_params = {}
-        request.client = Mock(host="192.168.1.1", port=12345)
+        request.client = mocker.Mock(host="192.168.1.1", port=12345)
 
         context = capture_request_context(request)
 
@@ -414,9 +414,9 @@ class TestCaptureRequestContext:
         assert context["url"]["port"] == 443
         assert context["url"]["path"] == "/api/users"
 
-    def test_filters_sensitive_headers(self) -> None:
+    def test_filters_sensitive_headers(self, mocker: MockerFixture) -> None:
         """Test that sensitive headers are redacted."""
-        request = Mock()
+        request = mocker.Mock()
         request.method = "GET"
         request.url.path = "/api/data"
         request.url.scheme = "http"
@@ -442,9 +442,9 @@ class TestCaptureRequestContext:
         assert context["headers"]["content-type"] == "application/json"
         assert context["headers"]["user-agent"] == "test-client"
 
-    def test_sanitizes_query_parameters(self) -> None:
+    def test_sanitizes_query_parameters(self, mocker: MockerFixture) -> None:
         """Test that query parameters are sanitized."""
-        request = Mock()
+        request = mocker.Mock()
         request.method = "GET"
         request.url.path = "/api/search"
         request.url.scheme = "http"
@@ -472,9 +472,9 @@ class TestCaptureRequestContext:
         context = capture_request_context(None)
         assert context == {}
 
-    def test_handles_missing_client_info(self) -> None:
+    def test_handles_missing_client_info(self, mocker: MockerFixture) -> None:
         """Test handling when client info is not available."""
-        request = Mock()
+        request = mocker.Mock()
         request.method = "GET"
         request.url.path = "/health"
         request.url.scheme = "http"
@@ -488,9 +488,9 @@ class TestCaptureRequestContext:
 
         assert "client" not in context
 
-    def test_handles_empty_query_params(self) -> None:
+    def test_handles_empty_query_params(self, mocker: MockerFixture) -> None:
         """Test handling when there are no query parameters."""
-        request = Mock()
+        request = mocker.Mock()
         request.method = "GET"
         request.url.path = "/api/users"
         request.url.scheme = "http"
@@ -498,15 +498,15 @@ class TestCaptureRequestContext:
         request.url.port = 8000
         request.headers = {"accept": "application/json"}
         request.query_params = {}
-        request.client = Mock(host="127.0.0.1", port=54321)
+        request.client = mocker.Mock(host="127.0.0.1", port=54321)
 
         context = capture_request_context(request)
 
         assert "query_params" not in context
 
-    def test_case_insensitive_header_filtering(self) -> None:
+    def test_case_insensitive_header_filtering(self, mocker: MockerFixture) -> None:
         """Test that header filtering is case-insensitive."""
-        request = Mock()
+        request = mocker.Mock()
         request.method = "POST"
         request.url.path = "/api/login"
         request.url.scheme = "https"
@@ -529,16 +529,16 @@ class TestCaptureRequestContext:
         assert context["headers"]["X-Api-Key"] == REDACTED
         assert context["headers"]["Content-Type"] == "application/json"
 
-    def test_handles_request_attribute_errors(self) -> None:
+    def test_handles_request_attribute_errors(self, mocker: MockerFixture) -> None:
         """Test graceful handling when request attributes raise errors."""
-        request = Mock()
+        request = mocker.Mock()
         # Make some attributes raise exceptions
         request.method = "GET"
         request.url.path = "/api/test"
         request.url.scheme = "http"
         request.url.hostname = "localhost"
         request.url.port = 8000
-        request.headers = Mock(side_effect=AttributeError("No headers"))
+        request.headers = mocker.Mock(side_effect=AttributeError("No headers"))
         request.query_params = {}
         request.client = None
 
@@ -563,9 +563,9 @@ class TestCaptureRequestContext:
         }
         assert expected_headers == SENSITIVE_HEADERS
 
-    def test_complex_query_params_sanitization(self) -> None:
+    def test_complex_query_params_sanitization(self, mocker: MockerFixture) -> None:
         """Test sanitization of nested query parameters."""
-        request = Mock()
+        request = mocker.Mock()
         request.method = "POST"
         request.url.path = "/api/complex"
         request.url.scheme = "http"

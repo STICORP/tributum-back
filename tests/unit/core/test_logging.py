@@ -7,10 +7,10 @@ import logging
 import uuid
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 import structlog
+from pytest_mock import MockerFixture
 from structlog.testing import LogCapture
 
 from src.core.config import LogConfig, Settings
@@ -41,27 +41,27 @@ from src.core.logging import (
 class TestAddLogLevelUpper:
     """Test the add_log_level_upper processor."""
 
-    def test_adds_uppercase_level(self) -> None:
+    def test_adds_uppercase_level(self, mocker: MockerFixture) -> None:
         """Test that log level is added in uppercase."""
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {}
 
         result = add_log_level_upper(logger, "info", event_dict)
 
         assert result["level"] == "INFO"
 
-    def test_converts_warn_to_warning(self) -> None:
+    def test_converts_warn_to_warning(self, mocker: MockerFixture) -> None:
         """Test that 'warn' is converted to 'WARNING'."""
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {}
 
         result = add_log_level_upper(logger, "warn", event_dict)
 
         assert result["level"] == "WARNING"
 
-    def test_handles_all_log_levels(self) -> None:
+    def test_handles_all_log_levels(self, mocker: MockerFixture) -> None:
         """Test all log levels are converted correctly."""
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         levels = {
             "debug": "DEBUG",
             "info": "INFO",
@@ -79,13 +79,13 @@ class TestAddLogLevelUpper:
 class TestInjectCorrelationId:
     """Test the inject_correlation_id processor."""
 
-    def test_injects_correlation_id_when_present(self) -> None:
+    def test_injects_correlation_id_when_present(self, mocker: MockerFixture) -> None:
         """Test that correlation ID is injected when available."""
         # Set correlation ID in context
         test_correlation_id = "test-correlation-123"
         RequestContext.set_correlation_id(test_correlation_id)
 
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {}
 
         result = inject_correlation_id(logger, "info", event_dict)
@@ -95,23 +95,23 @@ class TestInjectCorrelationId:
         # Clean up
         RequestContext.clear()
 
-    def test_no_correlation_id_when_not_set(self) -> None:
+    def test_no_correlation_id_when_not_set(self, mocker: MockerFixture) -> None:
         """Test that no correlation ID is added when not in context."""
         # Ensure context is clear
         RequestContext.clear()
 
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {}
 
         result = inject_correlation_id(logger, "info", event_dict)
 
         assert "correlation_id" not in result
 
-    def test_preserves_existing_fields(self) -> None:
+    def test_preserves_existing_fields(self, mocker: MockerFixture) -> None:
         """Test that existing fields are preserved."""
         RequestContext.set_correlation_id("test-id")
 
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {"existing": "value", "another": 123}
 
         result = inject_correlation_id(logger, "info", event_dict)
@@ -127,12 +127,12 @@ class TestInjectCorrelationId:
 class TestInjectLoggerContext:
     """Test the inject_logger_context processor."""
 
-    def test_injects_context_when_present(self) -> None:
+    def test_injects_context_when_present(self, mocker: MockerFixture) -> None:
         """Test that logger context is injected when available."""
         # Set context in contextvar
         bind_logger_context(user_id=123, request_id="test-request")
 
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {"event": "test"}
 
         result = inject_logger_context(logger, "info", event_dict)
@@ -144,12 +144,12 @@ class TestInjectLoggerContext:
         # Clean up
         clear_logger_context()
 
-    def test_no_context_when_not_set(self) -> None:
+    def test_no_context_when_not_set(self, mocker: MockerFixture) -> None:
         """Test that no context is added when not set."""
         # Ensure context is clear
         clear_logger_context()
 
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {"event": "test"}
 
         result = inject_logger_context(logger, "info", event_dict)
@@ -158,11 +158,11 @@ class TestInjectLoggerContext:
         assert "user_id" not in result
         assert "request_id" not in result
 
-    def test_event_dict_takes_precedence(self) -> None:
+    def test_event_dict_takes_precedence(self, mocker: MockerFixture) -> None:
         """Test that event_dict values take precedence over context."""
         bind_logger_context(user_id=123, action="context_action")
 
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict: dict[str, object] = {"event": "test", "user_id": 456}
 
         result = inject_logger_context(logger, "info", event_dict)
@@ -187,8 +187,7 @@ class TestConfigureStructlog:
         # Restore original configuration
         structlog.configure(**original_config)
 
-    @patch("src.core.logging.get_settings")
-    def test_json_output_structure(self, mock_get_settings: MagicMock) -> None:
+    def test_json_output_structure(self, mocker: MockerFixture) -> None:
         """Test JSON output structure in production mode."""
         # Configure for JSON output
         settings = Settings()
@@ -199,7 +198,7 @@ class TestConfigureStructlog:
             add_timestamp=True,
             timestamper_format="iso",
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         # Configure structlog
         configure_structlog()
@@ -249,8 +248,7 @@ class TestConfigureStructlog:
         assert "lineno" in entry
         assert "func_name" in entry
 
-    @patch("src.core.logging.get_settings")
-    def test_console_output_format(self, mock_get_settings: MagicMock) -> None:
+    def test_console_output_format(self, mocker: MockerFixture) -> None:
         """Test console output format in development mode."""
         # Configure for console output
         settings = Settings()
@@ -261,7 +259,7 @@ class TestConfigureStructlog:
             add_timestamp=True,
             timestamper_format="iso",
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         # Configure structlog
         configure_structlog()
@@ -297,8 +295,7 @@ class TestConfigureStructlog:
         assert entry["debug_field"] == "debug_value"
         assert "timestamp" in entry
 
-    @patch("src.core.logging.get_settings")
-    def test_processor_pipeline(self, mock_get_settings: MagicMock) -> None:
+    def test_processor_pipeline(self, mocker: MockerFixture) -> None:
         """Test that all processors are included in the pipeline."""
         # Configure settings
         settings = Settings()
@@ -309,7 +306,7 @@ class TestConfigureStructlog:
             add_timestamp=True,
             timestamper_format="iso",
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         # Configure structlog
         configure_structlog()
@@ -333,8 +330,7 @@ class TestConfigureStructlog:
         # Should have ORJSONRenderer
         assert "ORJSONRenderer" in processor_types
 
-    @patch("src.core.logging.get_settings")
-    def test_timestamp_configuration(self, mock_get_settings: MagicMock) -> None:
+    def test_timestamp_configuration(self, mocker: MockerFixture) -> None:
         """Test timestamp configuration options."""
         # Test with timestamp disabled
         settings = Settings()
@@ -344,7 +340,7 @@ class TestConfigureStructlog:
             render_json_logs=False,
             add_timestamp=False,
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         configure_structlog()
 
@@ -363,8 +359,7 @@ class TestConfigureStructlog:
 
         assert "timestamp" not in cap.entries[0]
 
-    @patch("src.core.logging.get_settings")
-    def test_unix_timestamp_format(self, mock_get_settings: MagicMock) -> None:
+    def test_unix_timestamp_format(self, mocker: MockerFixture) -> None:
         """Test unix timestamp format."""
         settings = Settings()
         settings.log_config = LogConfig(
@@ -374,7 +369,7 @@ class TestConfigureStructlog:
             add_timestamp=True,
             timestamper_format="unix",
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         configure_structlog()
 
@@ -394,31 +389,27 @@ class TestConfigureStructlog:
         # Unix timestamp should be a float
         assert isinstance(cap.entries[0]["timestamp"], float)
 
-    @patch("src.core.logging.get_settings")
-    def test_log_level_configuration(self, mock_get_settings: MagicMock) -> None:
+    def test_log_level_configuration(self, mocker: MockerFixture) -> None:
         """Test that log level is properly configured."""
         settings = Settings()
         settings.log_config = LogConfig(
             log_level="WARNING", log_format="console", render_json_logs=False
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         configure_structlog()
 
         # Verify root logger level
         assert logging.root.level == logging.WARNING
 
-    @patch("src.core.logging.get_settings")
-    def test_development_vs_production_processors(
-        self, mock_get_settings: MagicMock
-    ) -> None:
+    def test_development_vs_production_processors(self, mocker: MockerFixture) -> None:
         """Test different processor pipelines for dev vs prod."""
         # Test development configuration
         settings = Settings()
         settings.log_config = LogConfig(
             log_level="DEBUG", log_format="console", render_json_logs=False
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         configure_structlog()
         config_dev = structlog.get_config()
@@ -447,14 +438,13 @@ class TestConfigureStructlog:
         # Should have ORJSONRenderer in production
         assert "ORJSONRenderer" in prod_renderers
 
-    @patch("src.core.logging.get_settings")
-    def test_callsite_information(self, mock_get_settings: MagicMock) -> None:
+    def test_callsite_information(self, mocker: MockerFixture) -> None:
         """Test that callsite information is included."""
         settings = Settings()
         settings.log_config = LogConfig(
             log_level="INFO", log_format="json", render_json_logs=True
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         configure_structlog()
 
@@ -483,17 +473,14 @@ class TestConfigureStructlog:
         assert "func_name" in entry
         assert entry["func_name"] == "test_callsite_information"
 
-    @patch("src.core.logging.get_settings")
-    def test_correlation_id_included_in_logs(
-        self, mock_get_settings: MagicMock
-    ) -> None:
+    def test_correlation_id_included_in_logs(self, mocker: MockerFixture) -> None:
         """Test that correlation ID is automatically included in logs when set."""
         # Set up configuration
         settings = Settings()
         settings.log_config = LogConfig(
             log_level="INFO", log_format="json", render_json_logs=True
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         # Configure structlog with correlation ID processor
         configure_structlog()
@@ -527,8 +514,7 @@ class TestConfigureStructlog:
         # Clean up
         RequestContext.clear()
 
-    @patch("src.core.logging.get_settings")
-    def test_logs_without_correlation_id(self, mock_get_settings: MagicMock) -> None:
+    def test_logs_without_correlation_id(self, mocker: MockerFixture) -> None:
         """Test that logs work fine without correlation ID."""
         # Ensure context is clear
         RequestContext.clear()
@@ -537,7 +523,7 @@ class TestConfigureStructlog:
         settings.log_config = LogConfig(
             log_level="INFO", log_format="json", render_json_logs=True
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         configure_structlog()
 
@@ -562,14 +548,13 @@ class TestConfigureStructlog:
         assert "correlation_id" not in entry
         assert entry["event"] == "no correlation id"
 
-    @patch("src.core.logging.get_settings")
-    def test_correlation_id_isolation(self, mock_get_settings: MagicMock) -> None:
+    def test_correlation_id_isolation(self, mocker: MockerFixture) -> None:
         """Test that correlation IDs are isolated between contexts."""
         settings = Settings()
         settings.log_config = LogConfig(
             log_level="INFO", log_format="json", render_json_logs=True
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         configure_structlog()
 
@@ -603,15 +588,14 @@ class TestConfigureStructlog:
         assert cap.entries[1]["correlation_id"] == "context-2"
         assert "correlation_id" not in cap.entries[2]
 
-    @patch("src.core.logging.get_settings")
-    def test_orjson_used_in_production(self, mock_get_settings: MagicMock) -> None:
+    def test_orjson_used_in_production(self, mocker: MockerFixture) -> None:
         """Test that ORJSONRenderer is used in production."""
         # Configure for JSON output
         settings = Settings()
         settings.log_config = LogConfig(
             log_level="INFO", log_format="json", render_json_logs=True
         )
-        mock_get_settings.return_value = settings
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
 
         # Configure structlog
         configure_structlog()
@@ -829,10 +813,10 @@ class TestLogException:
         assert entry["endpoint"] == "/api/users"
         assert entry["severity"] == "HIGH"
 
-    def test_log_exception_severity_levels(self) -> None:
+    def test_log_exception_severity_levels(self, mocker: MockerFixture) -> None:
         """Test that different severities use appropriate log levels."""
         # Mock logger to track method calls
-        mock_logger = MagicMock()
+        mock_logger = mocker.MagicMock()
 
         # Test LOW severity - should use warning
         low_error = ValidationError("Low severity")
@@ -1215,10 +1199,10 @@ class TestLoggerContextBinding:
 class TestORJSONRenderer:
     """Test the ORJSONRenderer custom processor."""
 
-    def test_basic_json_rendering(self) -> None:
+    def test_basic_json_rendering(self, mocker: MockerFixture) -> None:
         """Test basic JSON rendering with simple types."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict = {
             "event": "test message",
             "level": "INFO",
@@ -1240,10 +1224,10 @@ class TestORJSONRenderer:
         assert parsed["bool"] is True
         assert parsed["none"] is None
 
-    def test_datetime_handling(self) -> None:
+    def test_datetime_handling(self, mocker: MockerFixture) -> None:
         """Test that datetime objects are serialized correctly."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         now = datetime.datetime.now(datetime.UTC)
         event_dict = {"event": "test", "timestamp": now}
 
@@ -1255,10 +1239,10 @@ class TestORJSONRenderer:
         assert isinstance(parsed["timestamp"], str)
         assert now.isoformat() in parsed["timestamp"]
 
-    def test_uuid_handling(self) -> None:
+    def test_uuid_handling(self, mocker: MockerFixture) -> None:
         """Test that UUID objects are serialized correctly."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         test_uuid = uuid.uuid4()
         event_dict = {"event": "test", "id": test_uuid}
 
@@ -1268,10 +1252,10 @@ class TestORJSONRenderer:
         assert parsed["event"] == "test"
         assert parsed["id"] == str(test_uuid)
 
-    def test_exception_handling(self) -> None:
+    def test_exception_handling(self, mocker: MockerFixture) -> None:
         """Test that exceptions are converted to strings."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         error = ValueError("Test error")
         event_dict = {"event": "error occurred", "exception": error}
 
@@ -1281,10 +1265,10 @@ class TestORJSONRenderer:
         assert parsed["event"] == "error occurred"
         assert parsed["exception"] == "Test error"
 
-    def test_type_handling(self) -> None:
+    def test_type_handling(self, mocker: MockerFixture) -> None:
         """Test that type objects are converted to their names."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict = {"event": "test", "error_type": ValueError}
 
         result = renderer(logger, "test", event_dict)
@@ -1293,10 +1277,10 @@ class TestORJSONRenderer:
         assert parsed["event"] == "test"
         assert parsed["error_type"] == "ValueError"
 
-    def test_nested_dict_processing(self) -> None:
+    def test_nested_dict_processing(self, mocker: MockerFixture) -> None:
         """Test that nested dictionaries are processed correctly."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         error = Exception("nested error")
         event_dict = {
             "event": "test",
@@ -1315,10 +1299,10 @@ class TestORJSONRenderer:
         assert parsed["context"]["error"] == "nested error"
         assert parsed["context"]["metadata"]["type"] == "ValueError"
 
-    def test_list_processing(self) -> None:
+    def test_list_processing(self, mocker: MockerFixture) -> None:
         """Test that lists containing special types are processed."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         errors = [ValueError("error1"), TypeError("error2")]
         event_dict = {"event": "test", "errors": errors, "numbers": [1, 2, 3]}
 
@@ -1329,10 +1313,10 @@ class TestORJSONRenderer:
         assert parsed["errors"] == ["error1", "error2"]
         assert parsed["numbers"] == [1, 2, 3]
 
-    def test_tuple_processing(self) -> None:
+    def test_tuple_processing(self, mocker: MockerFixture) -> None:
         """Test that tuples containing special types are processed."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         # Test with tuple containing various types
         event_dict = {
             "event": "test",
@@ -1348,10 +1332,10 @@ class TestORJSONRenderer:
         assert parsed["tuple_data"] == ["error1", "dict", {"nested": True}, 123]
         assert parsed["mixed_tuple"] == [1, "string", None, True]
 
-    def test_sort_keys_option(self) -> None:
+    def test_sort_keys_option(self, mocker: MockerFixture) -> None:
         """Test that keys are sorted for consistency."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict = {
             "zebra": 1,
             "alpha": 2,
@@ -1366,11 +1350,11 @@ class TestORJSONRenderer:
         assert result.index("beta") < result.index("event")
         assert result.index("event") < result.index("zebra")
 
-    def test_custom_options_initialization(self) -> None:
+    def test_custom_options_initialization(self, mocker: MockerFixture) -> None:
         """Test ORJSONRenderer with custom options."""
         # Test with valid orjson option
         renderer = ORJSONRenderer(OPT_INDENT_2=True)
-        logger = MagicMock()
+        logger = mocker.MagicMock()
         event_dict = {"event": "test", "nested": {"key": "value"}}
 
         result = renderer(logger, "test", event_dict)
@@ -1387,7 +1371,7 @@ class TestORJSONRenderer:
         parsed = json.loads(result2)
         assert parsed["event"] == "test"
 
-    def test_performance_comparison(self) -> None:
+    def test_performance_comparison(self, mocker: MockerFixture) -> None:
         """Test that ORJSONRenderer performs well compared to JSONRenderer."""
         # Create test data with various types
         event_dict = {
@@ -1403,7 +1387,7 @@ class TestORJSONRenderer:
 
         # Test ORJSONRenderer
         orjson_renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
 
         # Warm up
         for _ in range(10):
@@ -1420,10 +1404,10 @@ class TestORJSONRenderer:
         assert len(parsed["metadata"]["values"]) == 100
         assert len(parsed["metadata"]["mapping"]) == 50
 
-    def test_complex_real_world_log(self) -> None:
+    def test_complex_real_world_log(self, mocker: MockerFixture) -> None:
         """Test with a complex log entry similar to real usage."""
         renderer = ORJSONRenderer()
-        logger = MagicMock()
+        logger = mocker.MagicMock()
 
         # Simulate a real log entry
         event_dict = {
