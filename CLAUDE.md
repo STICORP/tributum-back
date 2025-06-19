@@ -29,6 +29,25 @@ Tributum is a high-performance financial/tax/payment system built with FastAPI, 
 - `make test-coverage` - Generate HTML coverage report in htmlcov/
 - `make test-failed` - Re-run only failed tests
 
+### Running Specific Tests
+```bash
+# Run a specific test file
+uv run pytest tests/unit/core/test_config.py
+
+# Run a specific test function
+uv run pytest tests/unit/core/test_config.py::test_settings_validation -v
+
+# Run tests matching a pattern
+uv run pytest -k "test_error" -v
+
+# Debug a failing test with print statements
+uv run pytest -s tests/unit/core/test_exceptions.py
+
+# Run tests with specific markers
+uv run pytest -m unit  # Unit tests only
+uv run pytest -m integration  # Integration tests only
+```
+
 ## Architecture Overview
 
 ### Layer Structure
@@ -71,6 +90,18 @@ src/
    - Pydantic Settings v2 with nested models (e.g., `LogConfig`)
    - Environment variable support with `__` delimiter for nesting
    - Cached settings via `@lru_cache` decorator in `get_settings()`
+
+## Claude Code Commands
+
+The project includes custom Claude Code commands for automation:
+
+- `/analyze-project` - Comprehensive project analysis and recommendations
+- `/commit` - Intelligent commit with changelog updates and AI attribution prevention
+- `/release` - Automated version bumping and release creation
+- `/readme` - Smart README generation with incremental updates
+- `/curate-makefile` - Makefile optimization and standardization
+- `/enforce-quality` - Strict quality enforcement without bypasses
+- `/do` - Execute complex tasks with guidance
 
 ## Development Standards
 
@@ -132,6 +163,38 @@ settings = get_settings()
 - Rich output formatting with `pytest-rich`
 - Coverage reports in `htmlcov/` directory
 - Test markers: `@pytest.mark.unit`, `@pytest.mark.integration`
+
+### Testing Patterns
+
+#### Using pytest-mock (Preferred Approach)
+```python
+# Clean mocking with pytest-mock
+def test_with_mock(mocker):
+    mock_func = mocker.patch("src.core.config.get_settings")
+    mock_func.return_value = Settings()
+
+# Mock with side effects
+def test_error_handling(mocker):
+    mocker.patch("src.api.service.process", side_effect=ValueError("Test"))
+```
+
+#### Testing Async Code
+```python
+@pytest.mark.asyncio
+async def test_async_endpoint(client: AsyncClient):
+    response = await client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "healthy"
+```
+
+#### Testing Exceptions
+```python
+def test_validation_error():
+    with pytest.raises(ValidationError) as exc_info:
+        raise ValidationError("Test error", severity=Severity.HIGH)
+    assert exc_info.value.severity == Severity.HIGH
+    assert "Test error" in str(exc_info.value)
+```
 
 ## Security Architecture
 
@@ -197,6 +260,155 @@ Key environment variables:
 - Pure ASGI middleware for optimal performance
 - Context variable propagation across async boundaries
 - Proper exception handling without BaseHTTPMiddleware issues
+
+## Performance Patterns
+
+### JSON Serialization Best Practices
+```python
+# Always use ORJSONResponse for API responses
+from src.api.utils.responses import ORJSONResponse
+
+@app.get("/data")
+async def get_data() -> ORJSONResponse:
+    return ORJSONResponse({"data": complex_object})
+
+# ORJSON automatically handles:
+# - datetime objects
+# - UUID objects
+# - Decimal objects
+# - Custom types with default parameter
+```
+
+### Middleware Performance
+- Use pure ASGI middleware (not BaseHTTPMiddleware)
+- Middleware order matters: security headers → context → logging
+- Avoid blocking operations in middleware
+- Use async operations throughout
+
+### Async Best Practices
+```python
+# Concurrent operations
+results = await asyncio.gather(
+    fetch_user_data(user_id),
+    fetch_payment_data(user_id),
+    fetch_tax_data(user_id)
+)
+
+# Proper context propagation
+from src.core.context import bind_logger_context
+bind_logger_context(user_id=user_id, operation="batch_process")
+```
+
+## Common Error Patterns and Solutions
+
+### MyPy Strict Mode Errors
+- Never use `# type: ignore` - find the proper type annotation
+- For third-party library issues, check the `[[tool.mypy.overrides]]` section in pyproject.toml
+- Use proper type narrowing with `isinstance()` checks
+- For complex types, define them in `src/core/types.py`
+
+### Ruff Linting Errors
+- **C901** (complexity): Refactor function to reduce cyclomatic complexity below 10
+- **S101** (assert): Use proper exception raising in production code, asserts only in tests
+- **D100-D104**: Add missing docstrings in Google style format
+- **PLR0913** (too many arguments): Consider using a Pydantic model for parameters
+
+### Import Errors
+- Always use absolute imports from `src/`
+- Never use relative imports outside test files
+- Add `__init__.py` files to all packages
+- Follow the import order: stdlib → third-party → local
+
+## Debugging Tips
+
+### Enable Debug Mode
+```bash
+export DEBUG=true
+export LOG_CONFIG__LOG_LEVEL=DEBUG
+export LOG_CONFIG__LOG_FORMAT=console
+make dev
+```
+
+### Trace Correlation IDs
+- Check `X-Correlation-ID` header in responses
+- Search logs by correlation ID to trace full request flow
+- Correlation IDs are UUID4 format
+- Every log entry includes the correlation ID automatically
+
+### Common Debug Points
+- `src/api/middleware/error_handler.py`: Global exception handling
+- `src/core/logging.py`: Log formatting and context
+- `src/api/middleware/request_logging.py`: Request/response logging
+- `src/core/exceptions.py`: Exception hierarchy and error codes
+
+### Debugging Failed Tests
+```bash
+# Show full error output
+uv run pytest -vvs tests/unit/core/test_exceptions.py
+
+# Run with debugger
+uv run pytest --pdb tests/unit/core/test_config.py
+
+# Show local variables on failure
+uv run pytest -l tests/unit/api/test_main.py
+```
+
+## Adding a New Endpoint Example
+
+1. **Define Pydantic schemas** in `src/api/schemas/`:
+```python
+# src/api/schemas/payment.py
+from decimal import Decimal
+from pydantic import BaseModel, Field
+
+class PaymentRequest(BaseModel):
+    amount: Decimal = Field(gt=0, decimal_places=2)
+    currency: str = Field(pattern="^[A-Z]{3}$")
+    description: str = Field(min_length=1, max_length=500)
+
+class PaymentResponse(BaseModel):
+    id: str
+    status: str
+    correlation_id: str
+```
+
+2. **Create service logic** in `src/domain/` (when implemented):
+```python
+# src/domain/payment/service.py
+async def process_payment(request: PaymentRequest) -> PaymentResult:
+    # Business logic here
+    pass
+```
+
+3. **Create endpoint** in `src/api/routes/`:
+```python
+# src/api/routes/payment.py
+from typing import Annotated
+from fastapi import APIRouter, Depends
+from src.api.schemas.payment import PaymentRequest, PaymentResponse
+from src.api.utils.responses import ORJSONResponse
+from src.core.config import Settings, get_settings
+
+router = APIRouter(prefix="/payments", tags=["payments"])
+
+@router.post("/", response_model=PaymentResponse)
+async def create_payment(
+    request: PaymentRequest,
+    settings: Annotated[Settings, Depends(get_settings)]
+) -> ORJSONResponse:
+    # Process payment
+    result = await process_payment(request)
+    return ORJSONResponse(
+        content=PaymentResponse(
+            id=result.id,
+            status=result.status,
+            correlation_id=RequestContext.get_correlation_id()
+        )
+    )
+```
+
+4. **Register router** in `src/api/main.py`
+5. **Add comprehensive tests** in `tests/unit/api/routes/test_payment.py`
 
 ## Important Notes
 
