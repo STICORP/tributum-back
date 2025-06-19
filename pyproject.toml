@@ -86,80 +86,38 @@ line-length = 88
 target-version = "py313"
 
 [tool.ruff.lint]
-select = [
-    # Core Python style and errors
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # pyflakes
-    "UP",     # pyupgrade
-
-    # Import management
-    "I",      # isort
-    "TID",    # flake8-tidy-imports
-    "ICN",    # flake8-import-conventions
-    "TCH",    # flake8-type-checking
-
-    # Naming and documentation
-    "N",      # pep8-naming
-    "D",      # pydocstyle
-
-    # Type checking
-    "ANN",    # flake8-annotations
-
-    # Code quality
-    "B",      # flake8-bugbear
-    "A",      # flake8-builtins
-    "C4",     # flake8-comprehensions
-    "ISC",    # flake8-implicit-str-concat
-    "PIE",    # flake8-pie
-    "SIM",    # flake8-simplify
-    "RET",    # flake8-return
-    "ARG",    # flake8-unused-arguments
-    "ERA",    # eradicate (commented code)
-
-    # Security and error handling
-    "BLE",    # flake8-blind-except
-    "TRY",    # tryceratops (exception handling)
-    "RSE",    # flake8-raise
-
-    # Performance
-    "PERF",   # perflint (performance)
-
-    # Specific domains
-    "ASYNC",  # flake8-async
-    "DTZ",    # flake8-datetimez
-    "PT",     # flake8-pytest-style
-    "LOG",    # flake8-logging
-
-    # Code smells and refactoring
-    "FBT",    # flake8-boolean-trap
-    "FLY",    # flynt (f-string formatting)
-    "FURB",   # refurb (refactoring)
-    "PL",     # pylint
-    "C90",    # mccabe complexity
-
-    # Development and debugging
-    "T10",    # flake8-debugger
-    "T20",    # flake8-print
-    "EXE",    # flake8-executable
-
-    # Additional quality checks
-    "G",      # flake8-logging-format
-    "INP",    # flake8-no-pep420
-
-    # Ruff-specific
-    "RUF",    # Ruff-specific rules
-]
+# Enable ALL rules by default - aligns with our strict quality standards
+select = ["ALL"]
 ignore = [
-    # Only ignore conflicting pydocstyle conventions
-    "D203",   # 1 blank line required before class docstring (conflicts with D211)
-    "D213",   # Multi-line docstring summary should start at the second line (conflicts with D212)
-    "D107",   # Missing docstring in __init__ (pydoclint wants these in class docstring)
-    # Other non-docstring related ignores
-    "TRY003", # Avoid specifying long messages outside the exception class
+    # Conflicting pydocstyle conventions
+    "D203",    # 1 blank line required before class docstring (conflicts with D211)
+    "D213",    # Multi-line docstring summary should start at the second line (conflicts with D212)
+    "D107",    # Missing docstring in __init__ (pydoclint wants these in class docstring)
+
+    # Framework-specific rules not applicable
+    "AIR",     # Airflow-specific rules
+    "DJ",      # Django-specific rules
+    "NPY",     # NumPy-specific rules
+    "PD",      # pandas-specific rules
+
+    # Overly strict or opinionated rules
+    "TRY003",  # Avoid specifying long messages outside the exception class
     "PLR0913", # Too many arguments to function call
-    "FBT001", # Boolean positional arg in function definition
-    "FBT002", # Boolean default value in function definition
+    "FBT001",  # Boolean positional arg in function definition
+    "FBT002",  # Boolean default value in function definition
+    "COM812",  # Missing trailing comma (too opinionated)
+    "CPY",     # Copyright headers (not using)
+    "FIX",     # TODO/FIXME comments (we want these)
+    "TD",      # TODO formatting (too strict)
+    "ERA",     # Commented code detection (useful during development)
+
+    # Rules that conflict with project patterns
+    "EM101",   # Exception string literals (sometimes needed for clarity)
+    "EM102",   # Exception f-strings (useful for debugging)
+    "SLF001",  # Private member access (needed for some patterns)
+
+    # Type stub specific (not relevant for main code)
+    "PYI",     # Type stub files rules
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -177,9 +135,16 @@ max-complexity = 10
     "TRY002",   # Creating generic exceptions is OK in tests
     "TRY301",   # Raising exceptions in tests is OK
     "T20",      # Print statements are OK in tests
+    "S101",     # Assert statements are expected in tests
+    "S105",     # Test assertions checking for "[REDACTED]" are not hardcoded passwords
+    "FAST001",  # FastAPI redundant response_model OK in tests for explicitness
+    "FAST002",  # FastAPI non-Annotated dependencies OK in tests for simplicity
 ]
 "scripts/**/*.py" = [
     "T20",      # Print statements are OK in utility scripts
+    "S603",     # Subprocess calls are controlled in scripts
+    "S607",     # Partial paths are safe in controlled scripts
+    "PTH123",   # Traditional open() is fine for simple scripts
 ]
 
 [tool.ruff.format]
