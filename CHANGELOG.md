@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - /analyze-project command for comprehensive project configuration and quality analysis
 
 ### Changed
+- Enhanced CLAUDE.md with actionable development guidance including specific test commands, error patterns, and debugging tips
 - Comprehensive CLAUDE.md rewrite with enhanced development guidance and architectural documentation
 - Isolated development tool execution system to prevent dependency conflicts
 - Unified command execution through Makefile for CI/CD, pre-commit, and local development
