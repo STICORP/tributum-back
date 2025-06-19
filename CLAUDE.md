@@ -156,6 +156,7 @@ settings = get_settings()
 - `tests/unit/` - Fast isolated tests by module
 - `tests/integration/` - Component interaction tests
 - `tests/conftest.py` - Shared fixtures and test utilities
+- `tests/fixtures/` - Environment-specific test fixtures
 
 ### Testing Standards
 - Async test support with `pytest-asyncio`
@@ -163,6 +164,7 @@ settings = get_settings()
 - Rich output formatting with `pytest-rich`
 - Coverage reports in `htmlcov/` directory
 - Test markers: `@pytest.mark.unit`, `@pytest.mark.integration`
+- Environment management with `pytest-env` for consistent test configuration
 
 ### Testing Patterns
 
@@ -186,6 +188,39 @@ async def test_async_endpoint(client: AsyncClient):
     assert response.status_code == 200
     assert response.json()["status"] == "healthy"
 ```
+
+#### Environment Management with pytest-env
+The project uses `pytest-env` to provide consistent test environment configuration:
+
+```python
+# Base test environment is configured in pyproject.toml [tool.pytest_env]
+# This sets defaults like LOG_CONFIG__LOG_LEVEL = "WARNING" for cleaner test output
+
+# Use environment fixtures for specific test scenarios:
+def test_production_behavior(production_env):
+    """Test with production environment settings."""
+    # production_env fixture automatically sets ENVIRONMENT=production, DEBUG=false, etc.
+    settings = get_settings()
+    assert settings.environment == "production"
+    assert settings.debug is False
+
+def test_custom_environment(monkeypatch):
+    """Override specific values on top of base test environment."""
+    # Base environment from pytest-env is already applied
+    # Use monkeypatch only for test-specific overrides
+    monkeypatch.setenv("APP_NAME", "Custom Test App")
+    settings = get_settings()
+    assert settings.app_name == "Custom Test App"
+```
+
+Available environment fixtures:
+- `production_env` - Production environment settings
+- `development_env` - Development environment settings
+- `staging_env` - Staging environment settings
+- `custom_app_env` - Custom app name/version for testing overrides
+- `no_docs_env` - Disabled API documentation endpoints
+
+Note: The `clear_settings_cache` fixture runs automatically (autouse=True) to ensure each test starts with a fresh settings instance.
 
 #### Testing Exceptions
 ```python
