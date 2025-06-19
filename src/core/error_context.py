@@ -10,7 +10,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from src.core.exceptions import TributumError
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
+    # TYPE_CHECKING is False at runtime; used only for static type analysis
     from fastapi import Request
 
 T = TypeVar("T")
