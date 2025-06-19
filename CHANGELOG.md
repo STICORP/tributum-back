@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- /do command for expert-level task execution with quality enforcement guidelines
 - McCabe complexity checking (C90) with maximum complexity of 10
 - Claude Code slash command for automated GitHub release creation
 - Enhanced /readme command with dual-mode operation: comprehensive discovery for initial generation and efficient incremental updates
