@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved exception handling by removing BLE001 ignore rule and using specific exception types
 - Added stricter linting rules (G, INP, T20) for improved code quality and security
 - Refactored linting configuration to enable all Ruff rules by default with targeted exclusions
+- Updated README with accurate 98% code coverage badge and latest tooling improvements
 
 ### Fixed
 - Type safety issue in request logging test
