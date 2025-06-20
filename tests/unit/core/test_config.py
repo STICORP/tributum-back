@@ -4,7 +4,7 @@ import pytest
 import pytest_check
 from pydantic import ValidationError
 
-from src.core.config import LogConfig, Settings, get_settings
+from src.core.config import LogConfig, ObservabilityConfig, Settings, get_settings
 
 
 class TestLogConfig:
@@ -33,6 +33,45 @@ class TestLogConfig:
         assert config.render_json_logs is True
         assert config.add_timestamp is False
         assert config.timestamper_format == "unix"
+
+
+class TestObservabilityConfig:
+    """Test cases for ObservabilityConfig class."""
+
+    def test_default_values(self) -> None:
+        """Test default values for ObservabilityConfig."""
+        config = ObservabilityConfig()
+        assert config.enable_tracing is False
+        assert config.service_name == "tributum"
+        assert config.gcp_project_id is None
+        assert config.trace_sample_rate == 1.0
+
+    def test_custom_values(self) -> None:
+        """Test custom values for ObservabilityConfig."""
+        config = ObservabilityConfig(
+            enable_tracing=True,
+            service_name="test-service",
+            gcp_project_id="test-project-123",
+            trace_sample_rate=0.5,
+        )
+        assert config.enable_tracing is True
+        assert config.service_name == "test-service"
+        assert config.gcp_project_id == "test-project-123"
+        assert config.trace_sample_rate == 0.5
+
+    def test_trace_sample_rate_validation(self) -> None:
+        """Test trace_sample_rate validation."""
+        # Valid rates
+        ObservabilityConfig(trace_sample_rate=0.0)
+        ObservabilityConfig(trace_sample_rate=0.5)
+        ObservabilityConfig(trace_sample_rate=1.0)
+
+        # Invalid rates
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            ObservabilityConfig(trace_sample_rate=-0.1)
+
+        with pytest.raises(ValidationError, match="less than or equal to 1"):
+            ObservabilityConfig(trace_sample_rate=1.1)
 
 
 class TestSettings:
@@ -78,6 +117,18 @@ class TestSettings:
         with pytest_check.check:
             assert settings.log_config.timestamper_format == "iso"
 
+        # Observability
+        with pytest_check.check:
+            assert isinstance(settings.observability_config, ObservabilityConfig)
+        with pytest_check.check:
+            assert settings.observability_config.enable_tracing is False
+        with pytest_check.check:
+            assert settings.observability_config.service_name == "tributum"
+        with pytest_check.check:
+            assert settings.observability_config.gcp_project_id is None
+        with pytest_check.check:
+            assert settings.observability_config.trace_sample_rate == 1.0
+
     def test_environment_variable_override(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -89,6 +140,10 @@ class TestSettings:
         monkeypatch.setenv("API_PORT", "9000")
         monkeypatch.setenv("LOG_CONFIG__LOG_LEVEL", "DEBUG")
         monkeypatch.setenv("LOG_CONFIG__LOG_FORMAT", "json")
+        monkeypatch.setenv("OBSERVABILITY_CONFIG__ENABLE_TRACING", "true")
+        monkeypatch.setenv("OBSERVABILITY_CONFIG__SERVICE_NAME", "test-service")
+        monkeypatch.setenv("OBSERVABILITY_CONFIG__GCP_PROJECT_ID", "my-project")
+        monkeypatch.setenv("OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE", "0.75")
 
         settings = Settings()
 
@@ -109,6 +164,15 @@ class TestSettings:
             assert settings.log_config.log_format == "json"
         with pytest_check.check:
             assert settings.log_config.render_json_logs is True
+        # Observability config overrides
+        with pytest_check.check:
+            assert settings.observability_config.enable_tracing is True
+        with pytest_check.check:
+            assert settings.observability_config.service_name == "test-service"
+        with pytest_check.check:
+            assert settings.observability_config.gcp_project_id == "my-project"
+        with pytest_check.check:
+            assert settings.observability_config.trace_sample_rate == 0.75
 
     def test_case_insensitive_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that environment variables are case-insensitive."""
@@ -173,6 +237,18 @@ class TestSettings:
         assert settings.environment == "development"
         assert settings.log_config.log_format == "console"
         assert settings.log_config.render_json_logs is False
+
+    def test_invalid_trace_sample_rate(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that invalid trace sample rate raises validation errors."""
+        # Test rate too low
+        monkeypatch.setenv("OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE", "-0.5")
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            Settings()
+
+        # Clear and test rate too high
+        monkeypatch.setenv("OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE", "1.5")
+        with pytest.raises(ValidationError, match="less than or equal to 1"):
+            Settings()
 
 
 class TestGetSettings:

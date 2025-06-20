@@ -31,6 +31,24 @@ class LogConfig(BaseModel):
     )
 
 
+class ObservabilityConfig(BaseModel):
+    """Observability configuration settings for OpenTelemetry."""
+
+    enable_tracing: bool = Field(
+        default=False, description="Whether to enable OpenTelemetry tracing"
+    )
+    service_name: str = Field(default="tributum", description="Service name for traces")
+    gcp_project_id: str | None = Field(
+        default=None, description="GCP project ID for Cloud Trace exporter"
+    )
+    trace_sample_rate: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="Trace sampling rate (0.0 to 1.0)",
+    )
+
+
 class Settings(BaseSettings):
     """Main settings class for the application."""
 
@@ -63,6 +81,11 @@ class Settings(BaseSettings):
     # Logging configuration
     log_config: LogConfig = Field(
         default_factory=LogConfig, description="Logging configuration"
+    )
+
+    # Observability configuration
+    observability_config: ObservabilityConfig = Field(
+        default_factory=ObservabilityConfig, description="Observability configuration"
     )
 
     def model_post_init(self, __context: object) -> None:
