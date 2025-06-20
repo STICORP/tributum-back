@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Enhanced /do command with stricter requirements for following project patterns and avoiding generic code
+- Updated README with comprehensive observability features and distributed tracing documentation
 - Streamlined CLAUDE.md from 480 to 317 lines while preserving all essential guidance for improved readability
 - Enhanced CLAUDE.md with actionable development guidance including specific test commands, error patterns, and debugging tips
 - Comprehensive CLAUDE.md rewrite with enhanced development guidance and architectural documentation
