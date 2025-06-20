@@ -28,6 +28,7 @@ make security     # All security scans (bandit, safety, pip-audit, semgrep)
 ```bash
 make test-fast              # Parallel execution with pytest-xdist
 make test-coverage          # Generate HTML report in htmlcov/
+make test-random            # Run with random ordering (shows seed)
 make test-seed SEED=12345   # Debug with specific seed
 make test-no-random         # Disable randomization
 ```
@@ -59,8 +60,9 @@ src/
 │   ├── exceptions.py # Severity-based exception hierarchy
 │   ├── logging.py    # Structured logging with orjson renderer
 │   ├── context.py    # Request context with correlation IDs
-│   └── constants.py  # Shared constants
-└── domain/           # Business logic (DDD structure prepared)
+│   ├── constants.py  # Shared constants
+│   └── types.py      # Type aliases (JsonValue, LogContext, ErrorContext, AsgiScope)
+└── domain/           # Business logic (DDD structure prepared, currently empty)
 ```
 
 ### Key Architectural Patterns
@@ -90,19 +92,21 @@ src/
 ## Claude Code Commands
 
 - `/analyze-project` - Project analysis and recommendations
-- `/commit` - Smart commits with changelog updates
+- `/commit` - Smart commits with changelog updates (updates CHANGELOG.md)
 - `/release` - Version bumping and release creation
 - `/readme` - README generation
 - `/curate-makefile` - Makefile optimization
 - `/enforce-quality` - Quality enforcement
 - `/do` - Complex task execution
+- `/investigate-deps` - Expert dependency investigation (reads whole files, never ignores checks)
+- `/analyze` - Basic project overview (reads CLAUDE.md)
 
 ## Development Standards
 
 ### Code Quality Requirements
 - **NO** `# type: ignore`, `# noqa`, or `--no-verify`
 - **MyPy strict mode** - no Any types allowed
-- **80% test coverage minimum**
+- **80% test coverage minimum** (currently at 100%)
 - **All security scans must pass**
 - **Google-style docstrings** for public APIs
 - **McCabe complexity ≤ 10**
@@ -173,7 +177,7 @@ def test_custom_environment(monkeypatch):
 
 Available fixtures: `production_env`, `development_env`, `staging_env`, `custom_app_env`, `no_docs_env`
 
-Note: `clear_settings_cache` fixture runs automatically (autouse=True).
+Note: `clear_settings_cache` and `clean_request_context` fixtures run automatically (autouse=True).
 
 ## Security Architecture
 
@@ -184,7 +188,7 @@ Note: `clear_settings_cache` fixture runs automatically (autouse=True).
 4. **Response**: Automatic PII removal
 5. **Headers**: HSTS, X-Content-Type-Options, etc.
 
-**Auto-redacted**: password, token, secret, key, authorization, x-api-key, ssn, cpf
+**Auto-redacted**: password, token, secret, key, authorization, x-api-key, ssn, cpf, credit_card, cvv, pin, cookie
 
 ## Development Tools
 
@@ -199,10 +203,13 @@ Note: `clear_settings_cache` fixture runs automatically (autouse=True).
 
 **Version Management**: `bump-my-version` (syncs pyproject.toml, config.py, VERSION)
 
+**Isolated Tool Execution**: `scripts/run_tool.py` runs safety and semgrep in isolated environments to prevent dependency conflicts
+
 ## Infrastructure
 
 **Terraform**: `terraform/bootstrap/` (GCP setup), `terraform/environments/` (dev/staging/prod)
 **State**: GCS backend
+**Service Account Key**: Expected at `.keys/infrastructure-as-code.json`
 
 ### Environment Variables
 ```bash
@@ -308,3 +315,5 @@ async def create_payment(
 - Never manually edit: `uv.lock`, version numbers, pre-commit configs
 - Use `bump-my-version` for version management
 - Follow existing patterns for middleware/exceptions/logging
+- Changelog follows Keep a Changelog format - updated automatically by `/commit`
+- Dead code false positives are whitelisted in `vulture_whitelist.py`
