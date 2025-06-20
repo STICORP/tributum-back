@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - /do command for expert-level task execution with quality enforcement guidelines
+- /check-implementation command to verify code quality and adherence to project patterns
 - McCabe complexity checking (C90) with maximum complexity of 10
 - Claude Code slash command for automated GitHub release creation
 - Enhanced /readme command with dual-mode operation: comprehensive discovery for initial generation and efficient incremental updates
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FastAPI instrumentation with OpenTelemetry for automatic request tracing
 
 ### Changed
+- Enhanced /do command with stricter requirements for following project patterns and avoiding generic code
 - Streamlined CLAUDE.md from 480 to 317 lines while preserving all essential guidance for improved readability
 - Enhanced CLAUDE.md with actionable development guidance including specific test commands, error patterns, and debugging tips
 - Comprehensive CLAUDE.md rewrite with enhanced development guidance and architectural documentation
