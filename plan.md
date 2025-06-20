@@ -13,14 +13,14 @@
 
 **Pending Phases:**
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
-- ⏳ Phase 6: Database Infrastructure (Task 6.1 complete, Tasks 6.2-6.11 pending)
+- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.2 complete, Tasks 6.3-6.11 pending)
 - ⏳ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5) - NEW
 - ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.4) - NEW
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 6.2 - Create Database Configuration
+**Next Task:** Task 6.2a.1 - Create docker-compose.test.yml
 
 ## Revision Notes (Granular Approach)
 
@@ -849,18 +849,25 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - SQLAlchemy async components import correctly
 
 #### Task 6.2: Create Database Configuration
-**Status**: Pending
+**Status**: Complete
 **File**: `src/core/config.py`
 **Implementation**:
-- Add `DatabaseConfig` to Settings
-- Add fields: database_url, pool_size, max_overflow, pool_timeout
-- Add test database URL support
-**Tests**: Update `tests/unit/core/test_config.py`
-- Test default values
-- Test URL parsing
+- Added `DatabaseConfig` class with all required fields
+- Added fields: database_url, pool_size, max_overflow, pool_timeout, pool_pre_ping, echo
+- Added `get_test_database_url()` method for test database URL generation
+- Added URL validation to ensure postgresql+asyncpg driver is used
+- Integrated DatabaseConfig into Settings with environment variable support
+**Tests**: Updated `tests/unit/core/test_config.py`
+- Test default values for all fields
+- Test custom values and validation constraints
+- Test database URL validation for async driver requirement
+- Test get_test_database_url with various scenarios
+- Test environment variable overrides
+- Achieved 100% test coverage
 **Acceptance Criteria**:
-- Supports PostgreSQL URLs
-- Pool settings have sensible defaults
+- ✅ Supports PostgreSQL URLs with asyncpg driver
+- ✅ Pool settings have sensible defaults (pool_size=10, max_overflow=5, timeout=30s)
+- ✅ All quality checks pass
 
 ### Phase 6.2a: Minimal Docker Infrastructure
 
