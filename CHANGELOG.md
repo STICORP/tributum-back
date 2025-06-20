@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - /curate-makefile command for intelligent Makefile analysis and improvement
 - /analyze-project command for comprehensive project configuration and quality analysis
 - JSON logging for staging environment to match production configuration
+- pytest-randomly integration for randomized test execution to detect inter-test dependencies
 
 ### Changed
 - Enhanced CLAUDE.md with actionable development guidance including specific test commands, error patterns, and debugging tips
@@ -34,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Type safety issue in request logging test
 - Import organization and type annotation linting issues
+- RequestContext test isolation issue exposed by randomized test ordering
 
 ### Security
 - Updated urllib3 to 2.5.0 to address security vulnerabilities
