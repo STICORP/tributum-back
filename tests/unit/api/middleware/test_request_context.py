@@ -98,6 +98,9 @@ class TestRequestContextMiddleware:
     @pytest.mark.asyncio
     async def test_context_cleared_after_request(self) -> None:
         """Test that context is cleared after request completion."""
+        # Clear any existing context first
+        RequestContext.clear()
+
         # Before any request, context should be None
         assert RequestContext.get_correlation_id() is None
 
