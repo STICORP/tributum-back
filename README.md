@@ -16,6 +16,7 @@
 - [🚀 Quick Start](#-quick-start)
 - [🏗️ Architecture Deep Dive](#️-architecture-deep-dive)
 - [🔧 Internal Frameworks Explained](#-internal-frameworks-explained)
+- [📊 Observability & Monitoring](#-observability--monitoring)
 - [🛡️ Security Architecture](#️-security-architecture)
 - [🧪 Testing Philosophy](#-testing-philosophy)
 - [💻 Development Workflow](#-development-workflow)
@@ -42,7 +43,7 @@
 **Core Principles**:
 - **Type Safety**: 100% strict type checking with mypy
 - **Security First**: Multi-layered security scanning and input validation
-- **Observable**: Structured logging with correlation IDs throughout
+- **Observable**: Structured logging with correlation IDs and distributed tracing
 - **Performance**: ORJSONResponse for 3x faster JSON serialization
 - **Quality**: Comprehensive testing with 100% code coverage achieved
 
@@ -54,6 +55,12 @@
 - **Pydantic v2**: Data validation with 50% performance boost
 - **Structlog**: Structured logging with automatic context
 - **ORJSON**: High-performance JSON serialization
+
+### Observability Stack
+- **OpenTelemetry**: Vendor-neutral instrumentation framework
+- **OpenTelemetry FastAPI**: Automatic HTTP request tracing
+- **GCP Cloud Trace**: Distributed trace storage and analysis
+- **Correlation IDs**: Request tracking across all layers
 
 ### Development Tools
 - **UV**: Fast Python package manager (10x faster than pip)
@@ -128,34 +135,41 @@ graph TB
         D[Exceptions] --> E[Logging]
         E --> F[Context Management]
         F --> G[Configuration]
+        G --> H[Observability]
     end
 
     subgraph "Domain Layer"
-        H[Business Logic] --> I[Domain Models]
-        I --> J[Domain Services]
+        I[Business Logic] --> J[Domain Models]
+        J --> K[Domain Services]
     end
 
     subgraph "Infrastructure"
-        K[Database] --> L[Cache]
-        L --> M[External APIs]
+        L[Database] --> M[Cache]
+        M --> N[External APIs]
+        N --> O[GCP Cloud Trace]
     end
 
-    C --> H
-    H --> K
+    C --> I
+    I --> L
+    H --> O
 ```
 
-### Request Flow
+### Request Flow with Tracing
 
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant M as Middleware
+    participant T as OpenTelemetry
     participant H as Handler
     participant S as Service
     participant D as Database
+    participant CT as Cloud Trace
 
     C->>M: HTTP Request
     M->>M: Add Correlation ID
+    M->>T: Start Span
+    T->>M: Span Context
     M->>M: Start Request Logging
     M->>H: Process Request
     H->>S: Business Logic
@@ -164,6 +178,8 @@ sequenceDiagram
     S-->>H: Response
     H-->>M: HTTP Response
     M->>M: Log Request/Response
+    M->>T: End Span
+    T->>CT: Export Trace
     M-->>C: Final Response
 ```
 
@@ -175,6 +191,7 @@ sequenceDiagram
 4. **Configuration**: Pydantic Settings v2 with nested validation
 5. **Middleware Stack**: Pure ASGI implementation for performance
 6. **Response Serialization**: ORJSONResponse default for 3x faster JSON encoding
+7. **Distributed Tracing**: OpenTelemetry with configurable sampling and GCP export
 
 ## 🔧 Internal Frameworks Explained
 
@@ -201,6 +218,7 @@ raise ValidationError(
 - Severity levels (LOW, MEDIUM, HIGH, CRITICAL)
 - Error fingerprinting for deduplication
 - Context sanitization for sensitive data
+- Automatic span enrichment in traces
 
 ### Logging Framework
 
@@ -220,13 +238,14 @@ with log_context(user_id=123, action="payment"):
 - Context preservation across async boundaries
 - Sensitive field redaction
 - Console (dev) / JSON (prod/staging) formatters
+- Integration with OpenTelemetry spans
 
 ### Request Context Management
 
 ```python
 # Correlation ID propagation via contextvars
 correlation_id = RequestContext.get_correlation_id()
-# Automatically included in logs, errors, and responses
+# Automatically included in logs, errors, responses, and traces
 ```
 
 **Features**:
@@ -234,6 +253,112 @@ correlation_id = RequestContext.get_correlation_id()
 - Automatic propagation in async code
 - X-Correlation-ID header support
 - UUID4 generation with validation
+- Span attribute enrichment
+
+### Observability Framework
+
+```python
+# Tracing with OpenTelemetry
+from src.core.observability import get_tracer, record_tributum_error_in_span
+
+tracer = get_tracer(__name__)
+
+with tracer.start_as_current_span("payment_processing") as span:
+    span.set_attribute("payment.amount", 100.00)
+    span.set_attribute("payment.currency", "USD")
+
+    try:
+        # Business logic
+        process_payment()
+    except TributumError as e:
+        # Automatic error context recording
+        record_tributum_error_in_span(span, e)
+        raise
+```
+
+**Features**:
+- Automatic span creation for HTTP requests
+- Correlation ID propagation to spans
+- Error severity mapping to span status
+- Configurable sampling rates
+- GCP Cloud Trace integration
+
+## 📊 Observability & Monitoring
+
+### Distributed Tracing
+
+The application implements comprehensive distributed tracing using OpenTelemetry:
+
+#### Automatic Instrumentation
+- Every HTTP request automatically creates a span
+- Correlation IDs are propagated to all spans
+- Request metadata (path, method, status) captured
+- Response times measured automatically
+
+#### Manual Instrumentation
+```python
+# Create custom spans for business operations
+tracer = get_tracer(__name__)
+
+with tracer.start_as_current_span("calculate_tax") as span:
+    span.set_attribute("tax.type", "income")
+    span.set_attribute("tax.year", 2025)
+    # Your business logic here
+```
+
+#### Error Tracking
+- TributumError exceptions automatically enrich spans
+- Severity levels mapped to span status codes
+- Error context preserved in span attributes
+- Stack traces captured for debugging
+
+### GCP Cloud Trace Integration
+
+When enabled, traces are exported to GCP Cloud Trace for:
+- Distributed trace visualization
+- Latency analysis
+- Service dependency mapping
+- Performance bottleneck identification
+
+### Configuration
+
+```bash
+# Enable tracing
+OBSERVABILITY_CONFIG__ENABLE_TRACING=true
+
+# Configure GCP export
+OBSERVABILITY_CONFIG__GCP_PROJECT_ID=your-project-id
+
+# Set sampling rate (0.0 to 1.0)
+OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE=0.1  # 10% sampling
+
+# Service identification
+OBSERVABILITY_CONFIG__SERVICE_NAME=tributum
+```
+
+### Metrics Collected
+
+- Request rate, error rate, duration (RED metrics)
+- Business metrics (when instrumented)
+- System metrics (CPU, memory, connections)
+- Trace sampling statistics
+
+### Log Aggregation
+
+```json
+{
+  "timestamp": "2025-06-20T10:30:00Z",
+  "level": "INFO",
+  "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
+  "trace_id": "32e1a2b3c4d5e6f7g8h9i0j1k2l3m4n5",
+  "span_id": "a1b2c3d4e5f6g7h8",
+  "event": "payment.processed",
+  "duration_ms": 45,
+  "user_id": "user_123",
+  "amount": 100.00,
+  "currency": "USD"
+}
+```
 
 ## 🛡️ Security Architecture
 
@@ -250,7 +375,8 @@ correlation_id = RequestContext.get_correlation_id()
 ```python
 SENSITIVE_PATTERNS = [
     "password", "token", "secret", "key",
-    "authorization", "x-api-key", "ssn", "cpf"
+    "authorization", "x-api-key", "ssn", "cpf",
+    "credit_card", "cvv", "pin", "cookie"
 ]
 # Automatically redacted in logs and error responses
 ```
@@ -404,8 +530,9 @@ Located in `.claude/commands/`:
 - **`/readme`**: Smart README generation with incremental updates
 - **`/curate-makefile`**: Makefile optimization and standardization
 - **`/enforce-quality`**: Strict quality enforcement without bypasses
-- **`/do`**: Execute complex tasks with expert-level guidance
+- **`/do`**: Execute complex tasks with expert-level guidance and pattern enforcement
 - **`/investigate-deps`**: Expert dependency investigation and integration planning
+- **`/check-implementation`**: Verify code quality, pattern adherence, and test coverage
 
 ### Isolated Development Tools
 
@@ -603,6 +730,12 @@ REQUEST_LOGGING__MAX_BODY_SIZE=10240
 
 # Security Headers
 SECURITY_HEADERS__HSTS_MAX_AGE=31536000
+
+# Observability
+OBSERVABILITY_CONFIG__ENABLE_TRACING=false
+OBSERVABILITY_CONFIG__SERVICE_NAME=tributum
+OBSERVABILITY_CONFIG__GCP_PROJECT_ID=  # Optional GCP project
+OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE=1.0  # 0.0 to 1.0
 ```
 
 ### Configuration Validation
@@ -619,7 +752,7 @@ All configs validated at startup using Pydantic Settings v2:
 ```
 src/
 ├── api/                    # HTTP layer
-│   ├── main.py            # FastAPI app setup
+│   ├── main.py            # FastAPI app with OpenTelemetry
 │   ├── middleware/        # ASGI middleware
 │   │   ├── error_handler.py      # Global exception handling
 │   │   ├── request_context.py    # Correlation ID management
@@ -630,18 +763,19 @@ src/
 │   └── utils/
 │       └── responses.py   # ORJSONResponse
 ├── core/                  # Shared utilities
-│   ├── config.py         # Pydantic Settings
+│   ├── config.py         # Pydantic Settings with ObservabilityConfig
 │   ├── constants.py      # Shared constants
 │   ├── context.py        # Request context
 │   ├── error_context.py  # Error enrichment
 │   ├── exceptions.py     # Exception hierarchy
 │   ├── logging.py        # Structured logging
+│   ├── observability.py  # OpenTelemetry setup
 │   └── types.py          # Type definitions
 └── domain/               # Business logic (DDD structure prepared)
 
 tests/
 ├── unit/                 # Isolated unit tests
-├── integration/          # Integration tests
+├── integration/          # Integration tests with tracing
 ├── fixtures/             # Environment-specific test fixtures
 └── conftest.py          # Shared fixtures with auto-clearing cache
 ```
@@ -690,6 +824,16 @@ uv run pytest -s
 uv run pytest --randomly-seed=12345
 ```
 
+#### Tracing Issues
+```bash
+# Enable debug logging for OpenTelemetry
+export OTEL_LOG_LEVEL=debug
+export LOG_CONFIG__LOG_LEVEL=DEBUG
+
+# Verify GCP credentials
+gcloud auth application-default login
+```
+
 ### Debug Mode
 
 Enable debug logging:
@@ -715,6 +859,7 @@ make dev
 - Standardized error responses with correlation IDs
 - Automatic context capture and sanitization
 - Debug information in development mode
+- Integration with OpenTelemetry span error tracking
 
 #### Logging & Observability
 - Structured logging with structlog
@@ -723,12 +868,17 @@ make dev
 - Console and JSON formatters
 - Sensitive data redaction
 - Automatic JSON logging for staging/production environments
+- **OpenTelemetry distributed tracing with GCP Cloud Trace export**
+- **Automatic HTTP request instrumentation**
+- **Configurable trace sampling**
+- **Error context enrichment in spans**
 
 #### Middleware Stack
 - RequestContextMiddleware for correlation IDs
 - RequestLoggingMiddleware for observability
 - SecurityHeadersMiddleware for security headers
 - Global error handling middleware
+- **OpenTelemetry instrumentation middleware**
 
 #### Development Experience
 - Comprehensive pre-commit hooks with ALL Ruff rules enabled
@@ -739,7 +889,7 @@ make dev
 - pytest-env integration for streamlined test environment management
 - pytest-randomly for detecting test interdependencies
 - pytest-check for soft assertions in tests
-- Claude Code automation commands including `/investigate-deps`
+- Claude Code automation commands including `/investigate-deps` and `/check-implementation`
 
 #### CI/CD & Infrastructure
 - GitHub Actions workflow for quality checks
@@ -752,17 +902,19 @@ make dev
 
 #### API Layer (`src/api/`)
 - Main FastAPI application with ORJSONResponse
+- **OpenTelemetry lifespan management**
 - Middleware implementations
 - Error response schemas
 - Utility functions
 
 #### Core Layer (`src/core/`)
-- Configuration management
-- Exception definitions
+- Configuration management with **ObservabilityConfig**
+- Exception definitions with span integration
 - Logging setup
 - Context management
 - Shared constants
 - Type definitions
+- **OpenTelemetry tracing utilities**
 
 #### Domain Layer (`src/domain/`)
 - Directory structure prepared for DDD implementation
@@ -771,6 +923,7 @@ make dev
 #### Test Suite (`tests/`)
 - Unit tests with 100% coverage achieved
 - Integration tests for API endpoints
+- **Integration tests for distributed tracing**
 - Environment-specific test fixtures
 - Shared fixtures with auto-clearing cache
 - Async test support
@@ -780,26 +933,27 @@ make dev
 - pytest-check for comprehensive test failure reporting
 
 <!-- README-METADATA
-Last Updated: 2025-06-20T00:10:00Z
-Last Commit: 3d5cff2
+Last Updated: 2025-06-20T17:00:00Z
+Last Commit: 5479972
 Schema Version: 2.0
 Sections: {
-  "overview": {"hash": "a1b2c3", "manual": false},
-  "tech-stack": {"hash": "updated-3d5cff2", "manual": false},
+  "overview": {"hash": "updated-5479972", "manual": false},
+  "tech-stack": {"hash": "updated-5479972", "manual": false},
   "quick-start": {"hash": "g7h8i9", "manual": false},
-  "architecture": {"hash": "j1k2l3", "manual": false},
-  "frameworks": {"hash": "updated-3d5cff2", "manual": false},
-  "security": {"hash": "p7q8r9", "manual": false},
+  "architecture": {"hash": "updated-5479972", "manual": false},
+  "frameworks": {"hash": "updated-5479972", "manual": false},
+  "observability": {"hash": "new-5479972", "manual": false},
+  "security": {"hash": "updated-5479972", "manual": false},
   "testing": {"hash": "updated-3d5cff2", "manual": false},
   "workflow": {"hash": "v4w5x7", "manual": false},
-  "tools": {"hash": "updated-3d5cff2", "manual": false},
+  "tools": {"hash": "updated-5479972", "manual": false},
   "cicd": {"hash": "b1c2d4", "manual": false},
   "commands": {"hash": "updated-3d5cff2", "manual": false},
   "version": {"hash": "h7i8j9", "manual": false},
   "infrastructure": {"hash": "k1l2m3", "manual": false},
-  "config": {"hash": "updated-3d5cff2", "manual": false},
-  "structure": {"hash": "q7r8s1", "manual": false},
-  "troubleshooting": {"hash": "updated-3d5cff2", "manual": false},
-  "status": {"hash": "updated-3d5cff2", "manual": false}
+  "config": {"hash": "updated-5479972", "manual": false},
+  "structure": {"hash": "updated-5479972", "manual": false},
+  "troubleshooting": {"hash": "updated-5479972", "manual": false},
+  "status": {"hash": "updated-5479972", "manual": false}
 }
 -->
