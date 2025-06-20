@@ -12,13 +12,13 @@
 - ✅ Phase 4.5: Exception Enhancement (Tasks 1.6b, 1.7c, 4.5c)
 
 **Pending Phases:**
-- ⏳ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5, with 5.1-5.2 complete)
+- ⏳ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5, with 5.1-5.4 complete)
 - ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.11)
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 5.3 - Create Tracing Setup
+**Next Task:** Task 5.5 - Document Observability Setup
 
 ## Revision Notes (Granular Approach)
 
@@ -775,7 +775,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Sample rate between 0.0 and 1.0
 
 #### Task 5.3: Create Tracing Setup
-**Status**: Pending
+**Status**: Complete
 **File**: `src/core/observability.py`
 **Implementation**:
 - Create `setup_tracing()` function
@@ -798,7 +798,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Severity properly mapped to span status
 
 #### Task 5.4: Instrument FastAPI
-**Status**: Pending
+**Status**: Complete
 **File**: `src/api/main.py`
 **Implementation**:
 - Call `setup_tracing()` on startup
