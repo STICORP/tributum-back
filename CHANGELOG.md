@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Database dependencies for async PostgreSQL support (SQLAlchemy 2.0, asyncpg, Alembic, greenlet)
+
 ## [0.3.0] - 2025-06-20
 
 ### Added
