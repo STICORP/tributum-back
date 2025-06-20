@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Test suite organization with consistent pytest markers on all test files
 - Test structure refactored to use class-based organization for better maintainability
+- README documentation updated with comprehensive database infrastructure details
 
 ## [0.3.0] - 2025-06-20
 
