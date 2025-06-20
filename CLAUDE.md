@@ -140,7 +140,27 @@ bind_logger_context(user_id=123, request_id="abc-123")  # Async scope
 @app.get("/info")
 async def info(settings: Annotated[Settings, Depends(get_settings)]):
     return {"version": settings.app_version}
+
+# Tracing - OpenTelemetry with GCP Cloud Trace
+from src.core.observability import get_tracer, record_tributum_error_in_span
+
+tracer = get_tracer(__name__)
+with tracer.start_as_current_span("operation_name") as span:
+    span.set_attribute("key", "value")
+    try:
+        # business logic
+    except TributumError as e:
+        record_tributum_error_in_span(span, e)
+        raise
 ```
+
+### Observability
+
+**Enable tracing**: `OBSERVABILITY_CONFIG__ENABLE_TRACING=true`
+**GCP export**: `OBSERVABILITY_CONFIG__GCP_PROJECT_ID=your-project`
+**Sampling**: `OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE=0.1` (10%)
+
+Spans auto-created for HTTP requests with correlation IDs. Errors include severity mapping and context.
 
 ## Testing Architecture
 
