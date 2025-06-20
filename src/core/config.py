@@ -49,6 +49,76 @@ class ObservabilityConfig(BaseModel):
     )
 
 
+class DatabaseConfig(BaseModel):
+    """Database configuration settings."""
+
+    database_url: str = Field(
+        default="postgresql+asyncpg://postgres:postgres@localhost:5432/tributum",
+        description="Database connection URL (postgresql+asyncpg://...)",
+    )
+    pool_size: int = Field(
+        default=10,
+        ge=1,
+        le=100,
+        description="Number of connections to maintain in the pool",
+    )
+    max_overflow: int = Field(
+        default=5,
+        ge=0,
+        le=50,
+        description="Maximum overflow connections above pool_size",
+    )
+    pool_timeout: float = Field(
+        default=30.0,
+        gt=0,
+        le=300,
+        description="Timeout in seconds for acquiring a connection from the pool",
+    )
+    pool_pre_ping: bool = Field(
+        default=True,
+        description="Whether to test connections before using them",
+    )
+    echo: bool = Field(
+        default=False,
+        description="Whether to log SQL statements (use only for debugging)",
+    )
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def validate_database_url(cls, v: str) -> str:
+        """Validate database URL uses the correct driver for async PostgreSQL."""
+        if not v.startswith("postgresql+asyncpg://"):
+            msg = "Database URL must use postgresql+asyncpg:// driver for async support"
+            raise ValueError(msg)
+        return v
+
+    def get_test_database_url(self) -> str:
+        """Get database URL for testing purposes.
+
+        Returns a modified database URL with '_test' suffix appended to the
+        database name. This ensures tests run against a separate database.
+
+        Returns:
+            str: Test database URL
+        """
+        # Parse the database URL to append _test suffix
+        if "tributum" in self.database_url:
+            return self.database_url.replace("/tributum", "/tributum_test")
+        # For other database names, parse and append _test
+        # This handles cases where the database name might be different
+        parts = self.database_url.rsplit("/", 1)
+        expected_parts = 2
+        if len(parts) == expected_parts:
+            base_url, db_name = parts
+            # Remove any query parameters from db_name
+            db_name = db_name.split("?")[0]
+            query_params = ""
+            if "?" in parts[1]:
+                query_params = "?" + parts[1].split("?", 1)[1]
+            return f"{base_url}/{db_name}_test{query_params}"
+        return self.database_url
+
+
 class Settings(BaseSettings):
     """Main settings class for the application."""
 
@@ -86,6 +156,11 @@ class Settings(BaseSettings):
     # Observability configuration
     observability_config: ObservabilityConfig = Field(
         default_factory=ObservabilityConfig, description="Observability configuration"
+    )
+
+    # Database configuration
+    database_config: DatabaseConfig = Field(
+        default_factory=DatabaseConfig, description="Database configuration"
     )
 
     def model_post_init(self, __context: object) -> None:
