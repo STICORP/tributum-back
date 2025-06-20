@@ -63,6 +63,8 @@
 - **Pytest**: Testing framework with async support
 - **Pytest-mock**: Improved mocking for cleaner test code
 - **Pytest-env**: Centralized test environment configuration
+- **Pytest-randomly**: Randomized test execution to detect inter-test dependencies
+- **Pytest-check**: Soft assertions for comprehensive test failure reporting
 
 ### Security Tools
 - **Bandit**: AST-based security scanner
@@ -217,7 +219,7 @@ with log_context(user_id=123, action="payment"):
 - Automatic correlation ID injection
 - Context preservation across async boundaries
 - Sensitive field redaction
-- Console (dev) / JSON (prod) formatters
+- Console (dev) / JSON (prod/staging) formatters
 
 ### Request Context Management
 
@@ -285,6 +287,41 @@ tests/
 - **Rich Output**: pytest-rich for better test visualization
 - **Mocking**: pytest-mock for cleaner, more maintainable test code
 - **Environment Management**: pytest-env for consistent test configuration
+- **Test Randomization**: pytest-randomly for detecting test interdependencies
+- **Soft Assertions**: pytest-check for comprehensive failure visibility
+
+### Advanced Testing Features
+
+#### Test Randomization
+Tests are automatically randomized by pytest-randomly to detect hidden dependencies:
+
+```bash
+# Run tests with random ordering (shows seed)
+make test-random
+
+# Debug with specific seed
+make test-seed SEED=12345
+
+# Disable randomization for debugging
+make test-no-random
+```
+
+#### Soft Assertions
+For tests with multiple related assertions, use pytest-check:
+
+```python
+import pytest_check
+
+def test_api_response():
+    with pytest_check.check:
+        assert response.status_code == 200
+    with pytest_check.check:
+        assert response.headers["Content-Type"] == "application/json"
+    with pytest_check.check:
+        assert "correlation_id" in response.json()
+    with pytest_check.check:
+        assert response.json()["status"] == "success"
+```
 
 ### Test Environment Configuration
 
@@ -316,6 +353,9 @@ make test-unit        # Unit tests only
 make test-integration # Integration tests only
 make test-fast        # Parallel execution
 make test-coverage    # With HTML report
+make test-random      # With random ordering
+make test-seed SEED=12345  # Debug with specific seed
+make test-no-random   # Without randomization
 ```
 
 ## 💻 Development Workflow
@@ -365,6 +405,7 @@ Located in `.claude/commands/`:
 - **`/curate-makefile`**: Makefile optimization and standardization
 - **`/enforce-quality`**: Strict quality enforcement without bypasses
 - **`/do`**: Execute complex tasks with expert-level guidance
+- **`/investigate-deps`**: Expert dependency investigation and integration planning
 
 ### Isolated Development Tools
 
@@ -435,6 +476,9 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 | `make test-fast` | Run tests in parallel |
 | `make test-verbose` | Run with verbose output |
 | `make test-failed` | Re-run only failed tests |
+| `make test-random` | Run tests with random ordering |
+| `make test-seed SEED=12345` | Run tests with specific seed |
+| `make test-no-random` | Run tests without randomization |
 
 ### Security Commands
 
@@ -550,7 +594,7 @@ OPENAPI_URL=/openapi.json
 # Logging
 LOG_CONFIG__LOG_LEVEL=INFO
 LOG_CONFIG__LOG_FORMAT=console  # console|json
-LOG_CONFIG__RENDER_JSON_LOGS=false  # true in production
+LOG_CONFIG__RENDER_JSON_LOGS=false  # auto-true in staging/production
 
 # Request Logging
 REQUEST_LOGGING__LOG_REQUEST_BODY=true
@@ -568,6 +612,7 @@ All configs validated at startup using Pydantic Settings v2:
 - Required field checking
 - Nested configuration support
 - Environment-specific defaults
+- Automatic JSON logging for staging/production environments
 
 ## 📁 Project Structure
 
@@ -640,6 +685,9 @@ uv run pytest tests/unit/core/test_config.py -v
 
 # Debug with print statements
 uv run pytest -s
+
+# Debug random test failures
+uv run pytest --randomly-seed=12345
 ```
 
 ### Debug Mode
@@ -674,6 +722,7 @@ make dev
 - Request/response body logging with sanitization
 - Console and JSON formatters
 - Sensitive data redaction
+- Automatic JSON logging for staging/production environments
 
 #### Middleware Stack
 - RequestContextMiddleware for correlation IDs
@@ -688,7 +737,9 @@ make dev
 - Security scanning pipeline
 - 100% test coverage achieved with pytest-mock migration
 - pytest-env integration for streamlined test environment management
-- Claude Code automation commands including new `/do` command
+- pytest-randomly for detecting test interdependencies
+- pytest-check for soft assertions in tests
+- Claude Code automation commands including `/investigate-deps`
 
 #### CI/CD & Infrastructure
 - GitHub Actions workflow for quality checks
@@ -725,28 +776,30 @@ make dev
 - Async test support
 - Migrated to pytest-mock for cleaner mocking
 - pytest-env for centralized test configuration
+- pytest-randomly for randomized test execution
+- pytest-check for comprehensive test failure reporting
 
 <!-- README-METADATA
-Last Updated: 2025-06-19T23:55:00Z
-Last Commit: b8044d7
+Last Updated: 2025-06-20T00:10:00Z
+Last Commit: 3d5cff2
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "a1b2c3", "manual": false},
-  "tech-stack": {"hash": "d4e5f9", "manual": false},
+  "tech-stack": {"hash": "updated-3d5cff2", "manual": false},
   "quick-start": {"hash": "g7h8i9", "manual": false},
   "architecture": {"hash": "j1k2l3", "manual": false},
-  "frameworks": {"hash": "m4n5o6", "manual": false},
+  "frameworks": {"hash": "updated-3d5cff2", "manual": false},
   "security": {"hash": "p7q8r9", "manual": false},
-  "testing": {"hash": "s1t2u4", "manual": false},
+  "testing": {"hash": "updated-3d5cff2", "manual": false},
   "workflow": {"hash": "v4w5x7", "manual": false},
-  "tools": {"hash": "y7z8a0", "manual": false},
+  "tools": {"hash": "updated-3d5cff2", "manual": false},
   "cicd": {"hash": "b1c2d4", "manual": false},
-  "commands": {"hash": "e4f5g7", "manual": false},
+  "commands": {"hash": "updated-3d5cff2", "manual": false},
   "version": {"hash": "h7i8j9", "manual": false},
   "infrastructure": {"hash": "k1l2m3", "manual": false},
-  "config": {"hash": "n4o5p6", "manual": false},
+  "config": {"hash": "updated-3d5cff2", "manual": false},
   "structure": {"hash": "q7r8s1", "manual": false},
-  "troubleshooting": {"hash": "t1u2v3", "manual": false},
-  "status": {"hash": "w4x5y8", "manual": false}
+  "troubleshooting": {"hash": "updated-3d5cff2", "manual": false},
+  "status": {"hash": "updated-3d5cff2", "manual": false}
 }
 -->
