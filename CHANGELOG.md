@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON logging for staging environment to match production configuration
 - pytest-randomly integration for randomized test execution to detect inter-test dependencies
 - pytest-check integration for soft assertions that show all test failures at once
+- OpenTelemetry observability configuration for distributed tracing control
 
 ### Changed
 - Streamlined CLAUDE.md from 480 to 317 lines while preserving all essential guidance for improved readability
