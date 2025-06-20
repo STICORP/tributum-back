@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pytest-check integration for soft assertions that show all test failures at once
 - OpenTelemetry observability configuration for distributed tracing control
 - OpenTelemetry tracing infrastructure with GCP Cloud Trace integration for distributed tracing
+- FastAPI instrumentation with OpenTelemetry for automatic request tracing
 
 ### Changed
 - Streamlined CLAUDE.md from 480 to 317 lines while preserving all essential guidance for improved readability
