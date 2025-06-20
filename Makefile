@@ -88,6 +88,15 @@ test-precommit:  ## Run tests for pre-commit (fast, no coverage)
 test-ci:  ## Run tests for CI (stop on first failure)
 	uv run pytest -x --tb=short
 
+test-random:  ## Run tests with random ordering (shows seed in output)
+	uv run pytest --randomly-dont-reorganize
+
+test-seed:  ## Run tests with specific seed (usage: make test-seed SEED=12345)
+	uv run pytest --randomly-seed=$(SEED)
+
+test-no-random:  ## Run tests without randomization (for debugging)
+	uv run pytest -p no:randomly
+
 clean:  ## Clean up temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
