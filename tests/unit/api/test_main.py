@@ -4,6 +4,7 @@ import pytest
 from fastapi import FastAPI
 
 from src.api.main import app
+from src.core.config import get_settings
 
 
 @pytest.mark.unit
@@ -21,7 +22,8 @@ def test_app_title() -> None:
 @pytest.mark.unit
 def test_app_version() -> None:
     """Test that app has correct version."""
-    assert app.version == "0.2.0"
+    settings = get_settings()
+    assert app.version == settings.app_version
 
 
 @pytest.mark.unit
