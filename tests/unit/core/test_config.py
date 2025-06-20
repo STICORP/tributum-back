@@ -1,6 +1,7 @@
 """Unit tests for configuration management."""
 
 import pytest
+import pytest_check
 from pydantic import ValidationError
 
 from src.core.config import LogConfig, Settings, get_settings
@@ -42,25 +43,40 @@ class TestSettings:
         settings = Settings()
 
         # Application settings
-        assert settings.app_name == "Tributum"
-        assert settings.app_version == "0.2.0"
-        assert settings.environment == "development"  # pytest-env sets this
-        assert settings.debug is True
+        with pytest_check.check:
+            assert settings.app_name == "Tributum"
+        with pytest_check.check:
+            assert settings.app_version == "0.2.0"
+        with pytest_check.check:
+            assert settings.environment == "development"  # pytest-env sets this
+        with pytest_check.check:
+            assert settings.debug is True
 
         # API settings
-        assert settings.api_host == "127.0.0.1"
-        assert settings.api_port == 8000
-        assert settings.docs_url == "/docs"
-        assert settings.redoc_url == "/redoc"
-        assert settings.openapi_url == "/openapi.json"
+        with pytest_check.check:
+            assert settings.api_host == "127.0.0.1"
+        with pytest_check.check:
+            assert settings.api_port == 8000
+        with pytest_check.check:
+            assert settings.docs_url == "/docs"
+        with pytest_check.check:
+            assert settings.redoc_url == "/redoc"
+        with pytest_check.check:
+            assert settings.openapi_url == "/openapi.json"
 
         # Logging (with pytest-env overrides)
-        assert isinstance(settings.log_config, LogConfig)
-        assert settings.log_config.log_level == "WARNING"  # Set by pytest-env
-        assert settings.log_config.log_format == "console"
-        assert settings.log_config.render_json_logs is False
-        assert settings.log_config.add_timestamp is False  # Set by pytest-env
-        assert settings.log_config.timestamper_format == "iso"
+        with pytest_check.check:
+            assert isinstance(settings.log_config, LogConfig)
+        with pytest_check.check:
+            assert settings.log_config.log_level == "WARNING"  # Set by pytest-env
+        with pytest_check.check:
+            assert settings.log_config.log_format == "console"
+        with pytest_check.check:
+            assert settings.log_config.render_json_logs is False
+        with pytest_check.check:
+            assert settings.log_config.add_timestamp is False  # Set by pytest-env
+        with pytest_check.check:
+            assert settings.log_config.timestamper_format == "iso"
 
     def test_environment_variable_override(
         self, monkeypatch: pytest.MonkeyPatch
@@ -76,15 +92,23 @@ class TestSettings:
 
         settings = Settings()
 
-        assert settings.app_name == "Test App"
-        assert settings.app_version == "2.0.0"
-        assert settings.environment == "production"
-        assert settings.debug is False
-        assert settings.api_port == 9000
-        assert settings.log_config.log_level == "DEBUG"
+        with pytest_check.check:
+            assert settings.app_name == "Test App"
+        with pytest_check.check:
+            assert settings.app_version == "2.0.0"
+        with pytest_check.check:
+            assert settings.environment == "production"
+        with pytest_check.check:
+            assert settings.debug is False
+        with pytest_check.check:
+            assert settings.api_port == 9000
+        with pytest_check.check:
+            assert settings.log_config.log_level == "DEBUG"
         # In production, console format should be overridden to json
-        assert settings.log_config.log_format == "json"
-        assert settings.log_config.render_json_logs is True
+        with pytest_check.check:
+            assert settings.log_config.log_format == "json"
+        with pytest_check.check:
+            assert settings.log_config.render_json_logs is True
 
     def test_case_insensitive_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that environment variables are case-insensitive."""

@@ -68,6 +68,7 @@ dev = [
     "pytest-cov>=6.2.1",
     "pytest-asyncio>=1.0.0",
     "pytest-randomly>=3.16.0",
+    "pytest-check>=2.5.3",
     "httpx>=0.28.1",
     "pytest-xdist>=3.6.1",
     "pytest-timeout>=2.4.0",
@@ -172,6 +173,7 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+mypy_path = "stubs"
 
 # Be permissive with third-party libraries
 ignore_missing_imports = true

@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import pytest
+import pytest_check
 from pydantic import ValidationError
 
 from src.api.schemas.errors import ErrorResponse, ServiceInfo
@@ -61,16 +62,26 @@ class TestErrorResponse:
             message="This is a test error",
         )
 
-        assert error.error_code == "TEST_ERROR"
-        assert error.message == "This is a test error"
-        assert error.details is None
-        assert error.correlation_id is None
-        assert error.severity is None
-        assert error.service_info is None
-        assert error.request_id is None
-        assert error.debug_info is None
-        assert isinstance(error.timestamp, datetime)
-        assert error.timestamp.tzinfo is not None  # Ensure it has timezone info
+        with pytest_check.check:
+            assert error.error_code == "TEST_ERROR"
+        with pytest_check.check:
+            assert error.message == "This is a test error"
+        with pytest_check.check:
+            assert error.details is None
+        with pytest_check.check:
+            assert error.correlation_id is None
+        with pytest_check.check:
+            assert error.severity is None
+        with pytest_check.check:
+            assert error.service_info is None
+        with pytest_check.check:
+            assert error.request_id is None
+        with pytest_check.check:
+            assert error.debug_info is None
+        with pytest_check.check:
+            assert isinstance(error.timestamp, datetime)
+        with pytest_check.check:
+            assert error.timestamp.tzinfo is not None  # Ensure it has timezone info
 
     def test_error_response_with_all_fields(self) -> None:
         """Test ErrorResponse creation with all fields."""
@@ -81,10 +92,14 @@ class TestErrorResponse:
             correlation_id="550e8400-e29b-41d4-a716-446655440000",
         )
 
-        assert error.error_code == "VALIDATION_ERROR"
-        assert error.message == "Invalid input"
-        assert error.details == {"field": "email", "reason": "Invalid format"}
-        assert error.correlation_id == "550e8400-e29b-41d4-a716-446655440000"
+        with pytest_check.check:
+            assert error.error_code == "VALIDATION_ERROR"
+        with pytest_check.check:
+            assert error.message == "Invalid input"
+        with pytest_check.check:
+            assert error.details == {"field": "email", "reason": "Invalid format"}
+        with pytest_check.check:
+            assert error.correlation_id == "550e8400-e29b-41d4-a716-446655440000"
 
     def test_error_response_missing_required_field_error_code(self) -> None:
         """Test that ErrorResponse requires error_code field."""
@@ -400,13 +415,23 @@ class TestErrorResponse:
         )
 
         # Verify all fields are set
-        assert error.error_code == "COMPLETE_ERROR"
-        assert error.message == "Complete error example"
-        assert error.details == {"field": "value", "code": 123}
-        assert error.correlation_id == "550e8400-e29b-41d4-a716-446655440000"
-        assert error.request_id == "req-660e8400-e29b-41d4-a716-446655440000"
-        assert error.severity == "HIGH"
-        assert error.service_info is not None
-        assert error.service_info.name == "Tributum"
-        assert error.debug_info is not None
-        assert error.debug_info["exception_type"] == "CustomError"
+        with pytest_check.check:
+            assert error.error_code == "COMPLETE_ERROR"
+        with pytest_check.check:
+            assert error.message == "Complete error example"
+        with pytest_check.check:
+            assert error.details == {"field": "value", "code": 123}
+        with pytest_check.check:
+            assert error.correlation_id == "550e8400-e29b-41d4-a716-446655440000"
+        with pytest_check.check:
+            assert error.request_id == "req-660e8400-e29b-41d4-a716-446655440000"
+        with pytest_check.check:
+            assert error.severity == "HIGH"
+        with pytest_check.check:
+            assert error.service_info is not None
+        with pytest_check.check:
+            assert error.service_info.name == "Tributum"
+        with pytest_check.check:
+            assert error.debug_info is not None
+        with pytest_check.check:
+            assert error.debug_info["exception_type"] == "CustomError"

@@ -1,6 +1,7 @@
 """Unit tests for SecurityHeadersMiddleware."""
 
 import pytest
+import pytest_check
 from fastapi import FastAPI, Response
 from fastapi.testclient import TestClient
 
@@ -116,12 +117,17 @@ class TestSecurityHeadersMiddleware:
         """Test that HSTS header is not added when disabled."""
         response = client_without_hsts.get("/test")
 
-        assert response.status_code == 200
-        assert "Strict-Transport-Security" not in response.headers
+        with pytest_check.check:
+            assert response.status_code == 200
+        with pytest_check.check:
+            assert "Strict-Transport-Security" not in response.headers
         # But other security headers should still be present
-        assert response.headers["X-Content-Type-Options"] == "nosniff"
-        assert response.headers["X-Frame-Options"] == "DENY"
-        assert response.headers["X-XSS-Protection"] == "1; mode=block"
+        with pytest_check.check:
+            assert response.headers["X-Content-Type-Options"] == "nosniff"
+        with pytest_check.check:
+            assert response.headers["X-Frame-Options"] == "DENY"
+        with pytest_check.check:
+            assert response.headers["X-XSS-Protection"] == "1; mode=block"
 
     def test_custom_hsts_configuration(self, client_custom_hsts: TestClient) -> None:
         """Test custom HSTS configuration."""
@@ -135,7 +141,8 @@ class TestSecurityHeadersMiddleware:
         """Test that all security headers are present in a single response."""
         response = client.get("/test")
 
-        assert response.status_code == 200
+        with pytest_check.check:
+            assert response.status_code == 200
 
         # Check all headers are present
         expected_headers = {
@@ -146,8 +153,10 @@ class TestSecurityHeadersMiddleware:
         }
 
         for header, expected_value in expected_headers.items():
-            assert header in response.headers
-            assert response.headers[header] == expected_value
+            with pytest_check.check:
+                assert header in response.headers
+            with pytest_check.check:
+                assert response.headers[header] == expected_value
 
     def test_headers_added_to_post_request(self, client: TestClient) -> None:
         """Test that security headers are added to POST requests."""
