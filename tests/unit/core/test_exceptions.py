@@ -13,6 +13,7 @@ from src.core.exceptions import (
 )
 
 
+@pytest.mark.unit
 class TestErrorCode:
     """Test cases for the ErrorCode enum."""
 
@@ -70,6 +71,7 @@ class TestErrorCode:
         )
 
 
+@pytest.mark.unit
 class TestSeverity:
     """Test cases for the Severity enum."""
 
@@ -114,6 +116,7 @@ class TestSeverity:
         assert set(severity_order) == set(Severity)
 
 
+@pytest.mark.unit
 class TestTributumError:
     """Test cases for the base TributumError class."""
 
@@ -333,6 +336,7 @@ class TestTributumError:
             assert isinstance(exception.fingerprint, str)
 
 
+@pytest.mark.unit
 class TestSpecializedExceptions:
     """Test cases for specialized exception classes."""
 

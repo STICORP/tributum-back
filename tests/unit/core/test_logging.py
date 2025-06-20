@@ -38,6 +38,7 @@ from src.core.logging import (
 )
 
 
+@pytest.mark.unit
 class TestAddLogLevelUpper:
     """Test the add_log_level_upper processor."""
 
@@ -76,6 +77,7 @@ class TestAddLogLevelUpper:
             assert result["level"] == expected_level
 
 
+@pytest.mark.unit
 class TestInjectCorrelationId:
     """Test the inject_correlation_id processor."""
 
@@ -124,6 +126,7 @@ class TestInjectCorrelationId:
         RequestContext.clear()
 
 
+@pytest.mark.unit
 class TestInjectLoggerContext:
     """Test the inject_logger_context processor."""
 
@@ -175,6 +178,7 @@ class TestInjectLoggerContext:
         clear_logger_context()
 
 
+@pytest.mark.unit
 class TestConfigureStructlog:
     """Test structlog configuration."""
 
@@ -615,6 +619,7 @@ class TestConfigureStructlog:
         assert type(renderer).__name__ == "ORJSONRenderer"
 
 
+@pytest.mark.unit
 class TestGetLogger:
     """Test the get_logger function."""
 
@@ -657,6 +662,7 @@ class TestGetLogger:
         assert cap.entries[0]["key"] == "value"
 
 
+@pytest.mark.unit
 class TestLogContext:
     """Test the log_context context manager."""
 
@@ -750,6 +756,7 @@ class TestLogContext:
         assert cap.entries[0]["event"] == "no bindings"
 
 
+@pytest.mark.unit
 class TestLogException:
     """Test the log_exception function."""
 
@@ -924,6 +931,7 @@ class TestLogException:
         assert entry["exc_info"] is not None
 
 
+@pytest.mark.unit
 class TestLoggerContextBinding:
     """Test logger context binding and propagation."""
 
@@ -1196,6 +1204,7 @@ class TestLoggerContextBinding:
         assert cap.entries[2]["inner_only"] == "yes"
 
 
+@pytest.mark.unit
 class TestORJSONRenderer:
     """Test the ORJSONRenderer custom processor."""
 

@@ -7,6 +7,7 @@ from src.api.main import create_app
 from src.core.config import Settings, get_settings
 
 
+@pytest.mark.integration
 class TestConfigurationIntegration:
     """Test configuration integration with FastAPI."""
 

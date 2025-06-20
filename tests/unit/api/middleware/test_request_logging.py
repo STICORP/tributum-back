@@ -144,6 +144,7 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.unit
 class TestRequestLoggingMiddleware:
     """Test cases for RequestLoggingMiddleware."""
 
@@ -488,6 +489,7 @@ class TestRequestLoggingMiddleware:
         assert "correlation_id" in call_kwargs
 
 
+@pytest.mark.unit
 class TestRequestBodyLogging:
     """Test cases for request body logging functionality."""
 
@@ -979,6 +981,7 @@ class TestRequestBodyLogging:
         await middleware.dispatch(mock_request, mock_call_next)
 
 
+@pytest.mark.unit
 class TestResponseBodyLogging:
     """Test cases for response body logging functionality."""
 
@@ -1190,6 +1193,7 @@ class TestResponseBodyLogging:
             assert response.body == expected_body
 
 
+@pytest.mark.unit
 class TestMiddlewareConfiguration:
     """Test middleware configuration options."""
 

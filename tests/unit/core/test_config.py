@@ -13,6 +13,7 @@ from src.core.config import (
 )
 
 
+@pytest.mark.unit
 class TestLogConfig:
     """Test cases for LogConfig class."""
 
@@ -41,6 +42,7 @@ class TestLogConfig:
         assert config.timestamper_format == "unix"
 
 
+@pytest.mark.unit
 class TestObservabilityConfig:
     """Test cases for ObservabilityConfig class."""
 
@@ -80,6 +82,7 @@ class TestObservabilityConfig:
             ObservabilityConfig(trace_sample_rate=1.1)
 
 
+@pytest.mark.unit
 class TestDatabaseConfig:
     """Test cases for DatabaseConfig class."""
 
@@ -233,6 +236,7 @@ class TestDatabaseConfig:
         assert config.get_test_database_url() == "postgresql+asyncpg:no-slash"
 
 
+@pytest.mark.unit
 class TestSettings:
     """Test cases for Settings class."""
 
@@ -500,6 +504,7 @@ class TestSettings:
             Settings()
 
 
+@pytest.mark.unit
 class TestGetSettings:
     """Test cases for get_settings function."""
 

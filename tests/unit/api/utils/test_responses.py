@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+import pytest
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -22,6 +23,7 @@ class SampleModel(BaseModel):
     metadata: dict[str, Any] | None = None
 
 
+@pytest.mark.unit
 class TestORJSONResponse:
     """Test ORJSONResponse class functionality."""
 

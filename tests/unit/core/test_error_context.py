@@ -16,6 +16,7 @@ from src.core.error_context import (
 from src.core.exceptions import TributumError, ValidationError
 
 
+@pytest.mark.unit
 class TestSensitiveFieldDetection:
     """Test cases for sensitive field detection."""
 
@@ -113,6 +114,7 @@ class TestSensitiveFieldDetection:
         assert is_sensitive_field("pAsSwOrD")
 
 
+@pytest.mark.unit
 class TestSanitizeContext:
     """Test cases for context sanitization."""
 
@@ -296,6 +298,7 @@ class TestSanitizeContext:
         assert sanitized["mixed_array"][3][0][1]["credentials"] == REDACTED
 
 
+@pytest.mark.unit
 class TestEnrichError:
     """Test cases for error enrichment."""
 
@@ -385,6 +388,7 @@ class TestEnrichError:
         assert error.severity == original_severity
 
 
+@pytest.mark.unit
 class TestCaptureRequestContext:
     """Test cases for HTTP request context capture."""
 

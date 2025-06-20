@@ -11,6 +11,7 @@ from pydantic import ValidationError
 from src.api.schemas.errors import ErrorResponse, ServiceInfo
 
 
+@pytest.mark.unit
 class TestServiceInfo:
     """Test cases for the ServiceInfo model."""
 
@@ -52,6 +53,7 @@ class TestServiceInfo:
         assert error_fields == {"version", "environment"}
 
 
+@pytest.mark.unit
 class TestErrorResponse:
     """Test cases for the ErrorResponse model."""
 

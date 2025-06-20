@@ -2,6 +2,7 @@
 
 from unittest.mock import Mock
 
+import pytest
 import pytest_check
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -18,6 +19,7 @@ from src.core.observability import (
 )
 
 
+@pytest.mark.unit
 class TestSetupTracing:
     """Test cases for setup_tracing function."""
 
@@ -187,6 +189,7 @@ class TestSetupTracing:
         mock_trace.set_tracer_provider.assert_called_once()
 
 
+@pytest.mark.unit
 class TestGetTracer:
     """Test cases for get_tracer function."""
 
@@ -205,6 +208,7 @@ class TestGetTracer:
         assert result == mock_tracer
 
 
+@pytest.mark.unit
 class TestRecordTributumErrorInSpan:
     """Test cases for record_tributum_error_in_span function."""
 
@@ -333,6 +337,7 @@ class TestRecordTributumErrorInSpan:
             assert actual_attrs["tributum.context.dict_val"] == "{'nested': 'value'}"
 
 
+@pytest.mark.unit
 class TestErrorTrackingSpanProcessor:
     """Test cases for ErrorTrackingSpanProcessor class."""
 

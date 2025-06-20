@@ -36,6 +36,7 @@ def client(app: FastAPI) -> TestClient:
     return TestClient(app)
 
 
+@pytest.mark.unit
 class TestRequestContextMiddleware:
     """Test cases for RequestContextMiddleware."""
 

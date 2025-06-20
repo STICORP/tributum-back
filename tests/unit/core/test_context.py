@@ -14,6 +14,7 @@ from src.core.context import (
 )
 
 
+@pytest.mark.unit
 class TestCorrelationIDGeneration:
     """Test correlation ID generation functionality."""
 
@@ -60,6 +61,7 @@ class TestCorrelationIDGeneration:
         assert len(correlation_id) == 36
 
 
+@pytest.mark.unit
 class TestCorrelationIDHeader:
     """Test correlation ID header constant."""
 
@@ -74,6 +76,7 @@ class TestCorrelationIDHeader:
         assert isinstance(CORRELATION_ID_HEADER, str)
 
 
+@pytest.mark.unit
 class TestRequestContext:
     """Test RequestContext for storing and retrieving correlation IDs."""
 
@@ -163,6 +166,7 @@ class TestRequestContext:
         assert uuid.UUID(retrieved_id)  # Verify it's a valid UUID
 
 
+@pytest.mark.unit
 class TestRequestIDGeneration:
     """Test request ID generation functionality."""
 

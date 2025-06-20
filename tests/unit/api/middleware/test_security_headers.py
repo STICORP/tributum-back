@@ -73,6 +73,7 @@ def client_custom_hsts(app_with_custom_hsts: FastAPI) -> TestClient:
     return TestClient(app_with_custom_hsts)
 
 
+@pytest.mark.unit
 class TestSecurityHeadersMiddleware:
     """Test cases for SecurityHeadersMiddleware."""
 

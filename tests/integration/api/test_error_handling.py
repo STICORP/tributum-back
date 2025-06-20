@@ -100,6 +100,7 @@ def client(app_with_handlers: FastAPI) -> TestClient:
     return TestClient(app_with_handlers)
 
 
+@pytest.mark.integration
 class TestTributumErrorHandling:
     """Test handling of TributumError and its subclasses."""
 
@@ -158,6 +159,7 @@ class TestTributumErrorHandling:
         assert data["severity"] == Severity.MEDIUM.value
 
 
+@pytest.mark.integration
 class TestRequestValidationError:
     """Test handling of FastAPI RequestValidationError."""
 
@@ -222,6 +224,7 @@ class TestRequestValidationError:
         assert "root" in data["details"]["validation_errors"]
 
 
+@pytest.mark.integration
 class TestHTTPException:
     """Test handling of Starlette HTTPException."""
 
@@ -337,6 +340,7 @@ class TestHTTPException:
         assert data["severity"] == "HIGH"
 
 
+@pytest.mark.integration
 class TestGenericException:
     """Test handling of unhandled exceptions."""
 
@@ -419,6 +423,7 @@ class TestGenericException:
         assert data["severity"] == "CRITICAL"
 
 
+@pytest.mark.integration
 class TestErrorResponseFormat:
     """Test the error response format and fields."""
 
@@ -485,6 +490,7 @@ class TestErrorResponseFormat:
         assert isinstance(data["timestamp"], str)
 
 
+@pytest.mark.integration
 class TestSensitiveDataSanitization:
     """Test that sensitive data is sanitized in error responses."""
 
@@ -522,6 +528,7 @@ class TestSensitiveDataSanitization:
         assert details["safe_field"] == "visible_value"
 
 
+@pytest.mark.integration
 class TestErrorHandlerTypeErrors:
     """Test TypeError handling in error handlers."""
 
@@ -601,6 +608,7 @@ class TestErrorHandlerTypeErrors:
         assert "Expected HTTPException, got ValueError" in str(exc_info.value)
 
 
+@pytest.mark.integration
 class TestTributumErrorWithCause:
     """Test handling of TributumError with a cause."""
 
@@ -652,6 +660,7 @@ class TestTributumErrorWithCause:
         assert "invalid literal for int()" in debug_info["cause"]["message"]
 
 
+@pytest.mark.integration
 class TestDebugInfoInDevelopment:
     """Test that debug info is included in development mode."""
 

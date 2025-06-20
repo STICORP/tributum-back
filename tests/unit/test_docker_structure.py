@@ -6,6 +6,7 @@ import pytest
 import pytest_check
 
 
+@pytest.mark.unit
 class TestDockerStructure:
     """Test Docker directory structure and configuration files."""
 

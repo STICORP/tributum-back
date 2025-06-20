@@ -4,9 +4,12 @@ This module tests the type aliases defined in src.core.types to ensure
 they work correctly and that the module can be imported successfully.
 """
 
+import pytest
+
 from src.core.types import AsgiScope, ErrorContext, JsonValue, LogContext
 
 
+@pytest.mark.unit
 class TestTypeAliases:
     """Test type aliases defined in the types module."""
 
