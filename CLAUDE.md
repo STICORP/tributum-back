@@ -28,6 +28,9 @@ Tributum is a high-performance financial/tax/payment system built with FastAPI, 
 - `make test-fast` - Run tests in parallel with pytest-xdist
 - `make test-coverage` - Generate HTML coverage report in htmlcov/
 - `make test-failed` - Re-run only failed tests
+- `make test-random` - Run tests with explicit random seed display
+- `make test-seed SEED=12345` - Run tests with specific seed for debugging
+- `make test-no-random` - Run tests without randomization
 
 ### Running Specific Tests
 ```bash
@@ -46,6 +49,15 @@ uv run pytest -s tests/unit/core/test_exceptions.py
 # Run tests with specific markers
 uv run pytest -m unit  # Unit tests only
 uv run pytest -m integration  # Integration tests only
+
+# Debug random test failures with specific seed
+uv run pytest --randomly-seed=12345
+
+# Run without randomization if needed
+uv run pytest -p no:randomly
+
+# Show the seed being used (without reorganizing modules)
+uv run pytest --randomly-dont-reorganize
 ```
 
 ## Architecture Overview
@@ -162,6 +174,7 @@ settings = get_settings()
 - Async test support with `pytest-asyncio`
 - Parallel execution with `pytest-xdist`
 - Rich output formatting with `pytest-rich`
+- Random test ordering with `pytest-randomly` for dependency detection
 - Coverage reports in `htmlcov/` directory
 - Test markers: `@pytest.mark.unit`, `@pytest.mark.integration`
 - Environment management with `pytest-env` for consistent test configuration
