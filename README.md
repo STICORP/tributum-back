@@ -25,6 +25,8 @@
 - [📋 Command Reference](#-command-reference)
 - [📦 Version Management & Release Workflow](#-version-management--release-workflow)
 - [🏢 Infrastructure](#-infrastructure)
+- [🐳 Docker Infrastructure](#-docker-infrastructure)
+- [💾 Database Configuration](#-database-configuration)
 - [⚙️ Configuration Management](#️-configuration-management)
 - [📁 Project Structure](#-project-structure)
 - [🔍 Troubleshooting Guide](#-troubleshooting-guide)
@@ -56,9 +58,16 @@
 - **Structlog**: Structured logging with automatic context
 - **ORJSON**: High-performance JSON serialization
 
+### Database Stack
+- **SQLAlchemy 2.0+**: Modern ORM with async support
+- **asyncpg**: High-performance PostgreSQL async driver
+- **Alembic**: Database migration management
+- **PostgreSQL**: Primary database with connection pooling
+
 ### Observability Stack
 - **OpenTelemetry**: Vendor-neutral instrumentation framework
 - **OpenTelemetry FastAPI**: Automatic HTTP request tracing
+- **OpenTelemetry SQLAlchemy**: Database query tracing
 - **GCP Cloud Trace**: Distributed trace storage and analysis
 - **Correlation IDs**: Request tracking across all layers
 
@@ -72,6 +81,7 @@
 - **Pytest-env**: Centralized test environment configuration
 - **Pytest-randomly**: Randomized test execution to detect inter-test dependencies
 - **Pytest-check**: Soft assertions for comprehensive test failure reporting
+- **Docker**: Containerization for development databases
 
 ### Security Tools
 - **Bandit**: AST-based security scanner
@@ -83,6 +93,7 @@
 - **Terraform**: Infrastructure as Code
 - **Google Cloud Platform**: Cloud provider
 - **GitHub Actions**: CI/CD pipeline
+- **Docker**: Development and testing infrastructure
 
 ## 🚀 Quick Start
 
@@ -144,14 +155,16 @@ graph TB
     end
 
     subgraph "Infrastructure"
-        L[Database] --> M[Cache]
-        M --> N[External APIs]
-        N --> O[GCP Cloud Trace]
+        L[PostgreSQL] --> M[Connection Pool]
+        M --> N[SQLAlchemy]
+        N --> O[Alembic Migrations]
+        P[Cache] --> Q[External APIs]
+        Q --> R[GCP Cloud Trace]
     end
 
     C --> I
-    I --> L
-    H --> O
+    I --> N
+    H --> R
 ```
 
 ### Request Flow with Tracing
@@ -192,6 +205,7 @@ sequenceDiagram
 5. **Middleware Stack**: Pure ASGI implementation for performance
 6. **Response Serialization**: ORJSONResponse default for 3x faster JSON encoding
 7. **Distributed Tracing**: OpenTelemetry with configurable sampling and GCP export
+8. **Database Architecture**: Async PostgreSQL with connection pooling and pre-ping health checks
 
 ## 🔧 Internal Frameworks Explained
 
@@ -278,6 +292,7 @@ with tracer.start_as_current_span("payment_processing") as span:
 
 **Features**:
 - Automatic span creation for HTTP requests
+- Database query tracing with SQLAlchemy instrumentation
 - Correlation ID propagation to spans
 - Error severity mapping to span status
 - Configurable sampling rates
@@ -291,6 +306,7 @@ The application implements comprehensive distributed tracing using OpenTelemetry
 
 #### Automatic Instrumentation
 - Every HTTP request automatically creates a span
+- Database queries traced with SQLAlchemy instrumentation
 - Correlation IDs are propagated to all spans
 - Request metadata (path, method, status) captured
 - Response times measured automatically
@@ -339,6 +355,8 @@ OBSERVABILITY_CONFIG__SERVICE_NAME=tributum
 ### Metrics Collected
 
 - Request rate, error rate, duration (RED metrics)
+- Database query performance metrics
+- Connection pool statistics
 - Business metrics (when instrumented)
 - System metrics (CPU, memory, connections)
 - Trace sampling statistics
@@ -641,8 +659,8 @@ Uses [Semantic Versioning](https://semver.org/) with automated changelog trackin
 
 ```bash
 # Managed by bump-my-version
-uv run bump-my-version bump patch  # 0.2.0 → 0.2.1
-uv run bump-my-version bump minor  # 0.2.1 → 0.3.0
+uv run bump-my-version bump patch  # 0.3.0 → 0.3.1
+uv run bump-my-version bump minor  # 0.3.0 → 0.4.0
 uv run bump-my-version bump major  # 0.3.0 → 1.0.0
 ```
 
@@ -700,6 +718,81 @@ terraform plan
 terraform apply
 ```
 
+## 🐳 Docker Infrastructure
+
+### Docker Support
+
+The project includes minimal Docker infrastructure for database development:
+
+```
+docker/
+├── postgres/        # PostgreSQL initialization
+│   └── init.sql    # Database setup script
+└── scripts/        # Container helper scripts
+```
+
+### PostgreSQL Development Setup
+
+The Docker infrastructure provides:
+- **Test Database Creation**: Automatically creates `tributum_test` database
+- **User Permissions**: Grants full privileges to `tributum` user
+- **Schema Management**: Ensures proper permissions for test operations
+
+### Docker Ignore Configuration
+
+The `.dockerignore` file optimizes container builds by excluding:
+- Development tools and configurations
+- Test files and coverage reports
+- CI/CD configurations
+- Documentation files
+- Terraform infrastructure
+
+**Note**: `.env.example` is explicitly included for documentation purposes.
+
+## 💾 Database Configuration
+
+### Database Stack
+
+- **PostgreSQL**: Primary database with async support
+- **SQLAlchemy 2.0+**: Modern ORM with async capabilities
+- **asyncpg**: High-performance PostgreSQL driver
+- **Alembic**: Database migration management
+
+### Configuration Options
+
+```python
+class DatabaseConfig:
+    database_url: str  # postgresql+asyncpg://user:pass@host:port/db
+    pool_size: int = 10  # Connection pool size (1-100)
+    max_overflow: int = 5  # Additional connections above pool_size (0-50)
+    pool_timeout: float = 30.0  # Connection acquisition timeout
+    pool_pre_ping: bool = True  # Test connections before use
+    echo: bool = False  # SQL statement logging (debug only)
+```
+
+### Environment Variables
+
+```bash
+# Database Configuration
+DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/tributum
+DATABASE_CONFIG__POOL_SIZE=10
+DATABASE_CONFIG__MAX_OVERFLOW=5
+DATABASE_CONFIG__POOL_TIMEOUT=30.0
+DATABASE_CONFIG__POOL_PRE_PING=true
+DATABASE_CONFIG__ECHO=false
+
+# Test Database (for pytest)
+TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/tributum_test
+```
+
+### Database Features
+
+- **Async Operations**: Full async/await support with asyncpg
+- **Connection Pooling**: Efficient connection management
+- **Health Checks**: Pre-ping connections to detect failures
+- **Test Isolation**: Separate test database with automatic URL generation
+- **URL Validation**: Enforces `postgresql+asyncpg://` driver for async support
+
 ## ⚙️ Configuration Management
 
 ### Environment Variables
@@ -707,7 +800,7 @@ terraform apply
 ```bash
 # Core Settings
 APP_NAME=tributum
-APP_VERSION=0.2.0
+APP_VERSION=0.3.0
 ENVIRONMENT=development  # development|staging|production
 DEBUG=true
 
@@ -736,6 +829,14 @@ OBSERVABILITY_CONFIG__ENABLE_TRACING=false
 OBSERVABILITY_CONFIG__SERVICE_NAME=tributum
 OBSERVABILITY_CONFIG__GCP_PROJECT_ID=  # Optional GCP project
 OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE=1.0  # 0.0 to 1.0
+
+# Database
+DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/tributum
+DATABASE_CONFIG__POOL_SIZE=10
+DATABASE_CONFIG__MAX_OVERFLOW=5
+DATABASE_CONFIG__POOL_TIMEOUT=30.0
+DATABASE_CONFIG__POOL_PRE_PING=true
+DATABASE_CONFIG__ECHO=false
 ```
 
 ### Configuration Validation
@@ -763,7 +864,7 @@ src/
 │   └── utils/
 │       └── responses.py   # ORJSONResponse
 ├── core/                  # Shared utilities
-│   ├── config.py         # Pydantic Settings with ObservabilityConfig
+│   ├── config.py         # Pydantic Settings with ObservabilityConfig & DatabaseConfig
 │   ├── constants.py      # Shared constants
 │   ├── context.py        # Request context
 │   ├── error_context.py  # Error enrichment
@@ -778,6 +879,11 @@ tests/
 ├── integration/          # Integration tests with tracing
 ├── fixtures/             # Environment-specific test fixtures
 └── conftest.py          # Shared fixtures with auto-clearing cache
+
+docker/
+├── postgres/            # PostgreSQL development setup
+│   └── init.sql        # Test database initialization
+└── scripts/            # Container helper scripts
 ```
 
 ## 🔍 Troubleshooting Guide
@@ -824,6 +930,18 @@ uv run pytest -s
 uv run pytest --randomly-seed=12345
 ```
 
+#### Database Connection Issues
+```bash
+# Verify PostgreSQL is running
+pg_isready -h localhost -p 5432
+
+# Check database exists
+psql -U postgres -c "\l" | grep tributum
+
+# Test connection with async driver
+python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('postgresql://postgres:postgres@localhost:5432/tributum'))"
+```
+
 #### Tracing Issues
 ```bash
 # Enable debug logging for OpenTelemetry
@@ -853,6 +971,14 @@ make dev
 - Domain-driven design directory structure
 - High-performance JSON serialization with ORJSON
 
+#### Database Infrastructure
+- **Database configuration system** with async PostgreSQL support
+- **Connection pooling** with configurable pool size and overflow
+- **Health checks** with pre-ping connection testing
+- **Test database isolation** with automatic URL generation
+- **Docker infrastructure** for PostgreSQL development
+- **Database dependencies**: SQLAlchemy 2.0+, asyncpg, Alembic, greenlet
+
 #### Exception & Error Handling
 - Comprehensive exception hierarchy with severity levels
 - Global exception handlers for all error types
@@ -870,6 +996,7 @@ make dev
 - Automatic JSON logging for staging/production environments
 - **OpenTelemetry distributed tracing with GCP Cloud Trace export**
 - **Automatic HTTP request instrumentation**
+- **SQLAlchemy query instrumentation** (prepared for database operations)
 - **Configurable trace sampling**
 - **Error context enrichment in spans**
 
@@ -890,12 +1017,13 @@ make dev
 - pytest-randomly for detecting test interdependencies
 - pytest-check for soft assertions in tests
 - Claude Code automation commands including `/investigate-deps` and `/check-implementation`
+- **Docker development infrastructure** for database testing
 
 #### CI/CD & Infrastructure
 - GitHub Actions workflow for quality checks
 - Terraform infrastructure for GCP
 - Multi-environment support (dev/staging/prod)
-- Automated version management
+- Automated version management (v0.3.0)
 - Changelog automation
 
 ### Architecture Components
@@ -908,7 +1036,7 @@ make dev
 - Utility functions
 
 #### Core Layer (`src/core/`)
-- Configuration management with **ObservabilityConfig**
+- Configuration management with **ObservabilityConfig** and **DatabaseConfig**
 - Exception definitions with span integration
 - Logging setup
 - Context management
@@ -920,10 +1048,16 @@ make dev
 - Directory structure prepared for DDD implementation
 - Ready for business logic modules
 
+#### Infrastructure Layer (`docker/`)
+- **PostgreSQL initialization scripts**
+- **Test database setup**
+- **Docker ignore configuration**
+
 #### Test Suite (`tests/`)
 - Unit tests with 100% coverage achieved
 - Integration tests for API endpoints
 - **Integration tests for distributed tracing**
+- **Database infrastructure tests**
 - Environment-specific test fixtures
 - Shared fixtures with auto-clearing cache
 - Async test support
@@ -931,29 +1065,32 @@ make dev
 - pytest-env for centralized test configuration
 - pytest-randomly for randomized test execution
 - pytest-check for comprehensive test failure reporting
+- **Class-level pytest markers** for improved test organization
 
 <!-- README-METADATA
-Last Updated: 2025-06-20T17:00:00Z
-Last Commit: 5479972
+Last Updated: 2025-06-20T18:00:00Z
+Last Commit: da0a58e
 Schema Version: 2.0
 Sections: {
-  "overview": {"hash": "updated-5479972", "manual": false},
-  "tech-stack": {"hash": "updated-5479972", "manual": false},
+  "overview": {"hash": "g7h8i9", "manual": false},
+  "tech-stack": {"hash": "updated-da0a58e", "manual": false},
   "quick-start": {"hash": "g7h8i9", "manual": false},
-  "architecture": {"hash": "updated-5479972", "manual": false},
+  "architecture": {"hash": "updated-da0a58e", "manual": false},
   "frameworks": {"hash": "updated-5479972", "manual": false},
-  "observability": {"hash": "new-5479972", "manual": false},
+  "observability": {"hash": "updated-da0a58e", "manual": false},
   "security": {"hash": "updated-5479972", "manual": false},
   "testing": {"hash": "updated-3d5cff2", "manual": false},
   "workflow": {"hash": "v4w5x7", "manual": false},
   "tools": {"hash": "updated-5479972", "manual": false},
   "cicd": {"hash": "b1c2d4", "manual": false},
   "commands": {"hash": "updated-3d5cff2", "manual": false},
-  "version": {"hash": "h7i8j9", "manual": false},
+  "version": {"hash": "updated-da0a58e", "manual": false},
   "infrastructure": {"hash": "k1l2m3", "manual": false},
-  "config": {"hash": "updated-5479972", "manual": false},
-  "structure": {"hash": "updated-5479972", "manual": false},
-  "troubleshooting": {"hash": "updated-5479972", "manual": false},
-  "status": {"hash": "updated-5479972", "manual": false}
+  "docker": {"hash": "new-da0a58e", "manual": false},
+  "database": {"hash": "new-da0a58e", "manual": false},
+  "config": {"hash": "updated-da0a58e", "manual": false},
+  "structure": {"hash": "updated-da0a58e", "manual": false},
+  "troubleshooting": {"hash": "updated-da0a58e", "manual": false},
+  "status": {"hash": "updated-da0a58e", "manual": false}
 }
 -->
