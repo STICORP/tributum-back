@@ -45,10 +45,10 @@ class InMemorySpanExporter(SpanExporter):
         self.spans.clear()
 
 
+@pytest.mark.integration
 class TestTracingConfiguration:
     """Test cases for tracing configuration."""
 
-    @pytest.mark.integration
     async def test_tracing_disabled(self, mocker: MockerFixture) -> None:
         """Test that tracing can be disabled via configuration."""
         # Create app with tracing disabled
@@ -73,10 +73,10 @@ class TestTracingConfiguration:
             assert response.status_code == 200
 
 
+@pytest.mark.integration
 class TestCorrelationIdToSpan:
     """Test cases for _add_correlation_id_to_span function."""
 
-    @pytest.mark.integration
     def test_add_correlation_id_to_span_with_id(self) -> None:
         """Test that correlation ID is added to span when available."""
         # Mock span
@@ -99,7 +99,6 @@ class TestCorrelationIdToSpan:
         # Clean up
         RequestContext.clear()
 
-    @pytest.mark.integration
     def test_add_correlation_id_to_span_without_id(self) -> None:
         """Test that function handles missing correlation ID gracefully."""
         # Ensure no correlation ID is set
@@ -114,7 +113,6 @@ class TestCorrelationIdToSpan:
         # Verify no attributes were set
         mock_span.set_attribute.assert_not_called()
 
-    @pytest.mark.integration
     def test_add_correlation_id_to_span_with_path(self) -> None:
         """Test that request path is added to span when available."""
         # Mock span
@@ -128,6 +126,7 @@ class TestCorrelationIdToSpan:
         mock_span.set_attribute.assert_any_call("http.target", "/api/v1/test")
 
 
+@pytest.mark.integration
 class TestTracingIntegration:
     """Test cases for tracing integration with FastAPI.
 
@@ -137,7 +136,6 @@ class TestTracingIntegration:
     be exported to GCP Cloud Trace.
     """
 
-    @pytest.mark.integration
     async def test_tracing_setup_called_on_startup(self, mocker: MockerFixture) -> None:
         """Test that setup_tracing is called on application startup."""
         # Mock setup_tracing
@@ -159,7 +157,6 @@ class TestTracingIntegration:
             # Verify setup_tracing was called during startup
             mock_setup_tracing.assert_called_once()
 
-    @pytest.mark.integration
     async def test_correlation_id_propagation(self) -> None:
         """Test that correlation ID is properly propagated in responses."""
         # Create app
@@ -184,7 +181,6 @@ class TestTracingIntegration:
             assert len(generated_id) == 36
             assert generated_id.count("-") == 4
 
-    @pytest.mark.integration
     async def test_multiple_concurrent_requests_correlation_ids(self) -> None:
         """Test that concurrent requests maintain separate correlation IDs."""
         app = create_app()
@@ -209,7 +205,6 @@ class TestTracingIntegration:
             # Verify each request maintained its correlation ID
             assert results == correlation_ids
 
-    @pytest.mark.integration
     async def test_excluded_urls_configuration(self) -> None:
         """Test that docs endpoints are accessible (excluded from tracing)."""
         app = create_app()
@@ -222,7 +217,6 @@ class TestTracingIntegration:
                 response = await client.get(url)
                 assert response.status_code == 200
 
-    @pytest.mark.integration
     async def test_instrumentor_setup(self, mocker: MockerFixture) -> None:
         """Test that FastAPIInstrumentor is properly configured."""
         # Mock the instrumentor
@@ -248,7 +242,6 @@ class TestTracingIntegration:
             call_kwargs["server_request_hook"].__name__ == "_add_correlation_id_to_span"
         )
 
-    @pytest.mark.integration
     async def test_observability_configuration(self, mocker: MockerFixture) -> None:
         """Test that observability configuration is properly passed to setup."""
         # Create app with specific observability config
