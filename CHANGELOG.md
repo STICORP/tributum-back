@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - /analyze-project command for comprehensive project configuration and quality analysis
 - JSON logging for staging environment to match production configuration
 - pytest-randomly integration for randomized test execution to detect inter-test dependencies
+- pytest-check integration for soft assertions that show all test failures at once
 
 ### Changed
 - Streamlined CLAUDE.md from 480 to 317 lines while preserving all essential guidance for improved readability
