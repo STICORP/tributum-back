@@ -7,6 +7,7 @@ from httpx import ASGITransport, AsyncClient
 
 from src.api.main import app
 from src.core.config import get_settings
+from src.core.context import RequestContext
 
 # Import environment fixtures to make them available to all tests
 from tests.fixtures.test_env_fixtures import (
@@ -19,6 +20,7 @@ from tests.fixtures.test_env_fixtures import (
 
 # Re-export fixtures for pytest discovery
 __all__ = [
+    "clean_request_context",
     "clear_settings_cache",
     "client",
     "custom_app_env",
@@ -45,6 +47,24 @@ def clear_settings_cache() -> Generator[None]:
 
     # Clear cache after test to ensure clean state
     get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def clean_request_context() -> Generator[None]:
+    """Automatically clear RequestContext before and after each test.
+
+    This ensures that each test starts with a clean RequestContext
+    and prevents correlation IDs or other context data from leaking
+    between tests. This is especially important with pytest-randomly
+    which runs tests in random order.
+    """
+    # Clear before test
+    RequestContext.clear()
+
+    yield
+
+    # Clear after test
+    RequestContext.clear()
 
 
 @pytest.fixture
