@@ -14,6 +14,8 @@
 **Pending Phases:**
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
 - ⏳ Phase 6: Database Infrastructure (Task 6.1 complete, Tasks 6.2-6.11 pending)
+- ⏳ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5) - NEW
+- ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.4) - NEW
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
@@ -39,6 +41,8 @@ This plan was created to implement robust cross-cutting concerns for the Tributu
    - Observability: OpenTelemetry with GCP integration (Cloud Trace, Cloud Monitoring)
    - Logging: structlog for structured logging with correlation ID support
    - API Framework: FastAPI with Pydantic v2
+   - Containerization: Docker with Docker Compose for local development and testing
+   - Container Registry: GCP Artifact Registry (for production deployment)
 
 3. **Architecture Decisions**:
    - **API-specific middleware** stays in `src/api/middleware/` (security headers, request logging, etc.)
@@ -70,6 +74,8 @@ The tasks are organized in phases with clear dependencies:
 - Phase 4.5 (Exception Enhancement) → Add HTTP context capture (Tasks 1.6b, 1.7c, 4.5c complete)
 - Phase 5 (OpenTelemetry) → After context setup with error integration (Tasks 5.1-5.5)
 - Phase 6 (Database) → Independent but needed before integration (Tasks 6.1-6.11)
+- Phase 6.2a (Minimal Docker) → After Task 6.2, provides PostgreSQL for testing (Tasks 6.2a.1-6.2a.5)
+- Phase 6.12 (Full Docker) → After database infrastructure complete (Tasks 6.12.1-6.12.4)
 - Phase 7 (Integration) → Requires all previous phases
 - Phase 8 (Error Aggregators) → Requires enhanced exceptions and middleware (Tasks 8.1-8.5)
 - Phase 9 (Final Review) → Documentation consolidation (Task 9.1)
@@ -856,6 +862,172 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Supports PostgreSQL URLs
 - Pool settings have sensible defaults
 
+### Phase 6.2a: Minimal Docker Infrastructure
+
+This phase provides the minimal Docker setup needed to enable database testing for subsequent tasks. It focuses only on what's required for tests to pass, with the full development environment coming later in Phase 6.12.
+
+#### Task 6.2a.1: Create Docker Directory Structure
+**Status**: Pending
+**Pre-requisites**: Task 6.2 complete
+**Files**:
+- `docker/postgres/init.sql`
+- `.dockerignore`
+- `.env.example` (database variables only)
+**Implementation**:
+- Create `docker/` directory with subdirectories: `postgres/`, `scripts/`
+- Create `docker/postgres/init.sql` with test database creation:
+  ```sql
+  -- Create test database
+  CREATE DATABASE tributum_test WITH TEMPLATE tributum_db;
+  GRANT ALL PRIVILEGES ON DATABASE tributum_test TO tributum;
+  ```
+- Create `.dockerignore` with minimal exclusions (reuse .gitignore patterns)
+- Create `.env.example` with only database-related variables
+**Tests**:
+- Verify directory structure exists
+- Validate SQL syntax
+- Ensure .env.example has all required DB variables
+**Acceptance Criteria**:
+- Directory structure follows Docker best practices
+- init.sql creates test database successfully
+- .env.example documents all database configuration
+
+#### Task 6.2a.2: Create PostgreSQL Docker Compose
+**Status**: Pending
+**Pre-requisites**: Task 6.2a.1
+**File**: `docker-compose.test.yml`
+**Implementation**:
+- Create minimal docker-compose for testing only:
+  ```yaml
+  version: '3.8'
+  services:
+    postgres:
+      image: postgres:17-alpine
+      environment:
+        POSTGRES_USER: tributum
+        POSTGRES_PASSWORD: tributum_pass
+        POSTGRES_DB: tributum_db
+      volumes:
+        - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      ports:
+        - "5432:5432"
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U tributum -d tributum_db"]
+        interval: 2s
+        timeout: 5s
+        retries: 15
+  ```
+**Tests**:
+- Run `docker-compose -f docker-compose.test.yml up -d`
+- Verify PostgreSQL starts and becomes healthy
+- Connect with psql to verify both databases exist
+**Acceptance Criteria**:
+- PostgreSQL 17 starts successfully
+- Health check passes within 30 seconds
+- Both tributum_db and tributum_test databases exist
+- Can connect from host machine
+
+#### Task 6.2a.3: Create Test Database Setup
+**Status**: Pending
+**Pre-requisites**: Task 6.2a.2
+**Files**:
+- `docker/scripts/wait-for-postgres.sh`
+- Update `pyproject.toml` (pytest_env section)
+**Implementation**:
+- Create wait-for-postgres.sh script:
+  ```bash
+  #!/bin/bash
+  until pg_isready -h ${DATABASE_HOST:-localhost} -p ${DATABASE_PORT:-5432} -U ${DATABASE_USER:-tributum}
+  do
+    echo "Waiting for PostgreSQL..."
+    sleep 2
+  done
+  ```
+- Update pyproject.toml pytest_env to include:
+  ```toml
+  DATABASE_URL = "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_test"
+  TEST_DATABASE_URL = "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_test"
+  ```
+- Make script executable
+**Tests**:
+- Run script with PostgreSQL down and up
+- Verify existing tests still pass
+- Check environment variables are set in tests
+**Acceptance Criteria**:
+- Wait script detects PostgreSQL availability
+- Test environment has database URL configured
+- No regression in existing tests
+- Script handles both local and CI environments
+
+#### Task 6.2a.4: Update GitHub Actions for Docker
+**Status**: Pending
+**Pre-requisites**: Task 6.2a.3
+**File**: `.github/workflows/checks.yml`
+**Implementation**:
+- Add PostgreSQL service to test job:
+  ```yaml
+  services:
+    postgres:
+      image: postgres:17-alpine
+      env:
+        POSTGRES_USER: tributum
+        POSTGRES_PASSWORD: tributum_pass
+        POSTGRES_DB: tributum_db
+      options: >-
+        --health-cmd pg_isready
+        --health-interval 10s
+        --health-timeout 5s
+        --health-retries 5
+      ports:
+        - 5432:5432
+  ```
+- Add environment variables for database URL
+- Update test commands to use database
+**Tests**:
+- Push to branch and verify CI workflow runs
+- Check PostgreSQL service starts in CI
+- Ensure all existing tests still pass
+**Acceptance Criteria**:
+- CI workflow starts PostgreSQL service
+- Database is accessible in test environment
+- All existing tests continue to pass
+- No increase in CI runtime for non-DB tests
+
+#### Task 6.2a.5: Create Database Test Fixtures
+**Status**: Pending
+**Pre-requisites**: Task 6.2a.4
+**Files**:
+- `tests/fixtures/database.py`
+- Update `tests/conftest.py`
+**Implementation**:
+- Create database fixture module:
+  ```python
+  @pytest.fixture
+  def database_url(monkeypatch):
+      """Provide test database URL."""
+      url = os.getenv("TEST_DATABASE_URL", os.getenv("DATABASE_URL"))
+      if not url:
+          pytest.skip("No database URL configured")
+      return url
+
+  @pytest.fixture
+  async def db_connection(database_url):
+      """Provide raw database connection for testing."""
+      # Placeholder - will be implemented with actual connection in Task 6.4
+      pass
+  ```
+- Import fixtures in conftest.py
+- Add fixture for verifying database connectivity
+**Tests**:
+- Create test that uses database_url fixture
+- Verify fixture skips when no database configured
+- Test fixture provides correct URL
+**Acceptance Criteria**:
+- Fixtures are available in all tests
+- Tests skip gracefully without database
+- Database URL is correctly configured
+- Ready for actual database implementation
+
 #### Task 6.3: Create Base Model
 **Status**: Pending
 **File**: `src/infrastructure/database/base.py`
@@ -986,6 +1158,176 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - Repository pattern clearly explained
 - Async patterns documented
 - Migration workflow complete
+
+### Phase 6.12: Full Docker Development Environment
+
+This phase builds upon the minimal Docker infrastructure to provide a complete development environment with hot-reload, debugging capabilities, and production-like setup.
+
+#### Task 6.12.1: Create Application Dockerfile
+**Status**: Pending
+**Pre-requisites**: Phase 6 complete (Tasks 6.1-6.11)
+**Files**:
+- `docker/app/Dockerfile`
+- `docker/app/Dockerfile.dev`
+- `docker/scripts/entrypoint.sh`
+**Implementation**:
+- Create multi-stage production Dockerfile:
+  ```dockerfile
+  # Build stage
+  FROM python:3.13-slim as builder
+  RUN pip install --no-cache-dir uv
+  WORKDIR /build
+  COPY pyproject.toml uv.lock ./
+  RUN uv sync --frozen --no-dev
+
+  # Runtime stage
+  FROM python:3.13-slim
+  RUN useradd -m -u 1000 tributum
+  WORKDIR /app
+  COPY --from=builder /build/.venv /app/.venv
+  COPY . .
+  USER tributum
+  ENV PATH="/app/.venv/bin:$PATH"
+  ENTRYPOINT ["/app/docker/scripts/entrypoint.sh"]
+  ```
+- Create development Dockerfile with hot-reload support
+- Create entrypoint script for migrations and startup
+**Tests**:
+- Build both Docker images successfully
+- Verify non-root user in production image
+- Test entrypoint script execution
+**Acceptance Criteria**:
+- Production image is minimal and secure
+- Development image supports hot-reload
+- Entrypoint handles migrations gracefully
+- Images build without errors
+
+#### Task 6.12.2: Create Development Docker Compose
+**Status**: Pending
+**Pre-requisites**: Task 6.12.1
+**Files**:
+- `docker-compose.yml`
+- `docker-compose.dev.yml`
+- Update `.env.example` with all variables
+**Implementation**:
+- Create base docker-compose.yml:
+  ```yaml
+  version: '3.8'
+  services:
+    api:
+      build:
+        context: .
+        dockerfile: docker/app/Dockerfile
+      environment:
+        - DATABASE_URL=postgresql+asyncpg://tributum:tributum_pass@postgres:5432/tributum_db
+      depends_on:
+        postgres:
+          condition: service_healthy
+      ports:
+        - "8000:8000"
+
+    postgres:
+      image: postgres:17-alpine
+      # ... (reuse configuration from test compose)
+  ```
+- Create docker-compose.dev.yml with overrides:
+  ```yaml
+  services:
+    api:
+      build:
+        dockerfile: docker/app/Dockerfile.dev
+      volumes:
+        - ./src:/app/src
+        - ./tests:/app/tests
+      command: uvicorn src.api.main:app --reload --host 0.0.0.0
+  ```
+- Update .env.example with ALL environment variables from analysis
+**Tests**:
+- Run full stack with docker-compose up
+- Verify hot-reload works with code changes
+- Test database connectivity from API
+**Acceptance Criteria**:
+- All services start successfully
+- Hot-reload works in development
+- Services communicate properly
+- Environment variables documented
+
+#### Task 6.12.3: Add Docker Makefile Commands
+**Status**: Pending
+**Pre-requisites**: Task 6.12.2
+**File**: `Makefile`
+**Implementation**:
+- Add Docker commands section to Makefile:
+  ```makefile
+  # Docker commands
+  docker-build:  ## Build all Docker images
+  	docker-compose build
+
+  docker-up:  ## Start all services
+  	docker-compose up -d
+
+  docker-up-dev:  ## Start development environment
+  	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+  docker-down:  ## Stop all services
+  	docker-compose down
+
+  docker-clean:  ## Clean all Docker resources
+  	docker-compose down -v --remove-orphans
+
+  docker-logs:  ## View logs (use SERVICE=api for specific service)
+  	docker-compose logs -f $${SERVICE:-}
+
+  docker-shell:  ## Shell into API container
+  	docker-compose exec api /bin/bash
+
+  docker-psql:  ## Connect to PostgreSQL
+  	docker-compose exec postgres psql -U tributum -d tributum_db
+
+  docker-test:  ## Run tests in Docker
+  	docker-compose -f docker-compose.test.yml run --rm api pytest
+
+  docker-migrate:  ## Run database migrations
+  	docker-compose exec api alembic upgrade head
+  ```
+- Ensure commands follow existing Makefile style
+- Add help documentation for each command
+**Tests**:
+- Test each command works correctly
+- Verify help output includes Docker commands
+- Ensure no conflicts with existing commands
+**Acceptance Criteria**:
+- All commands work as documented
+- Consistent with existing Makefile patterns
+- Help text is clear and accurate
+- No breaking changes to existing commands
+
+#### Task 6.12.4: Document Docker Workflow
+**Status**: Pending
+**Pre-requisites**: Task 6.12.3
+**File**: `CLAUDE.md`
+**Implementation**:
+- Add Docker Development section covering:
+  - Quick start guide for new developers
+  - Environment variable configuration
+  - Common Docker commands via Make
+  - Debugging in containers
+  - Database management in Docker
+  - Troubleshooting guide
+- Add Docker deployment considerations:
+  - Production image optimization
+  - Security best practices
+  - GCP deployment notes
+- Update existing sections to mention Docker alternatives
+**Tests**:
+- Follow documentation to set up from scratch
+- Verify all commands work as documented
+- Test troubleshooting steps
+**Acceptance Criteria**:
+- Complete Docker setup guide
+- All variables documented with examples
+- Common issues and solutions covered
+- Integration with existing workflow clear
 
 ### Phase 7: Integration
 
@@ -1161,10 +1503,12 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 
 - Unit tests should be fast and isolated
 - Use mocks for external dependencies
-- Integration tests can use real database (PostgreSQL in Docker)
+- Integration tests use real PostgreSQL via docker-compose.test.yml
+- Database tests use fixtures from Phase 6.2a
 - Always test both success and error cases
 - Test async behavior explicitly
 - Ensure tests are deterministic (no random failures)
+- CI runs tests with PostgreSQL service container
 
 ## Common Pitfalls to Avoid
 
@@ -1195,3 +1539,7 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 - [ ] Clean startup/shutdown with no warnings
 - [ ] Integration tests pass with real PostgreSQL
 - [ ] Error aggregators properly configured for production use
+- [ ] Docker development environment fully functional
+- [ ] CI/CD pipeline runs tests with containerized PostgreSQL
+- [ ] All environment variables documented in .env.example
+- [ ] Production Docker image is optimized and secure
