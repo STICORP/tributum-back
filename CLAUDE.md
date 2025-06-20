@@ -33,6 +33,16 @@ make test-seed SEED=12345   # Debug with specific seed
 make test-no-random         # Disable randomization
 ```
 
+**Soft Assertions**: Tests with 4+ related assertions use `pytest-check` for complete failure visibility:
+```python
+import pytest_check
+
+with pytest_check.check:
+    assert response.status_code == 200
+with pytest_check.check:
+    assert response.headers["Content-Type"] == "application/json"
+```
+
 ### Running Specific Tests
 ```bash
 # Common test commands
