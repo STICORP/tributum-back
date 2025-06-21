@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Database configuration with async PostgreSQL support and connection pooling
 - Database dependencies for async PostgreSQL support (SQLAlchemy 2.0, asyncpg, Alembic, greenlet)
 - Parallel-safe Docker integration tests with unique container names per test worker
+- Parallel test execution support with isolated databases for each pytest-xdist worker
 
 ### Changed
 - Test suite organization with consistent pytest markers on all test files
