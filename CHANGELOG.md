@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker Compose configuration for PostgreSQL 17 with health checks
 - Database configuration with async PostgreSQL support and connection pooling
 - Database dependencies for async PostgreSQL support (SQLAlchemy 2.0, asyncpg, Alembic, greenlet)
+- Parallel-safe Docker integration tests with unique container names per test worker
 
 ### Changed
 - Test suite organization with consistent pytest markers on all test files
@@ -22,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - CI pipeline failure due to missing docker/scripts directory
+- pytest-rich and pytest-xdist compatibility issue for parallel test execution
 
 ## [0.3.0] - 2025-06-20
 
