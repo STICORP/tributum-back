@@ -8,4 +8,5 @@
 - Check if you actually used the tests plugins and libraries you are supposed to use instead of implementting generic tests.
 - Check if the tests will actually work in the CI environment (Github Actions)
 - Check if the test coverage is at 100% and if not, implement the tests for missing lines.
+- Before finishing, run pre-commit and fix any issues without trying to ignore the errors.
 - Think Harder
