@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Docker infrastructure for PostgreSQL database testing setup
+- Docker Compose configuration for PostgreSQL 17 with health checks
 - Database configuration with async PostgreSQL support and connection pooling
 - Database dependencies for async PostgreSQL support (SQLAlchemy 2.0, asyncpg, Alembic, greenlet)
 
