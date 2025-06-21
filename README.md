@@ -81,6 +81,7 @@
 - **Pytest-env**: Centralized test environment configuration
 - **Pytest-randomly**: Randomized test execution to detect inter-test dependencies
 - **Pytest-check**: Soft assertions for comprehensive test failure reporting
+- **Pytest-xdist**: Parallel test execution for faster CI/CD
 - **Docker**: Containerization for development databases
 
 ### Security Tools
@@ -94,6 +95,7 @@
 - **Google Cloud Platform**: Cloud provider
 - **GitHub Actions**: CI/CD pipeline
 - **Docker**: Development and testing infrastructure
+- **Docker Compose**: Multi-container orchestration for testing
 
 ## 🚀 Quick Start
 
@@ -199,7 +201,7 @@ sequenceDiagram
 ### Key Architectural Decisions (ADRs)
 
 1. **Correlation IDs**: UUID4-based request tracking for distributed tracing
-2. **Structured Logging**: JSON logs with orjson for high-performance parsing
+2. **Structured Logging**: JSON logs with orjson for high-performance parsing (structlog configured to avoid test warnings)
 3. **Exception Hierarchy**: Severity-based error handling with automatic context capture
 4. **Configuration**: Pydantic Settings v2 with nested validation
 5. **Middleware Stack**: Pure ASGI implementation for performance
@@ -253,6 +255,7 @@ with log_context(user_id=123, action="payment"):
 - Sensitive field redaction
 - Console (dev) / JSON (prod/staging) formatters
 - Integration with OpenTelemetry spans
+- Configurable exc_info formatting to avoid test warnings
 
 ### Request Context Management
 
@@ -418,6 +421,8 @@ tests/
 ├── unit/           # Fast, isolated tests
 ├── integration/    # Component interaction tests
 ├── fixtures/       # Environment-specific test fixtures
+│   ├── test_database_fixtures.py  # Database test utilities
+│   └── test_docker_fixtures.py    # Docker container management
 ├── conftest.py     # Shared fixtures and auto-clearing cache
 └── coverage/       # Coverage reports (100% achieved)
 ```
@@ -427,14 +432,50 @@ tests/
 - **Coverage Achievement**: 100% code coverage across entire codebase
 - **Test Markers**: `@pytest.mark.unit`, `@pytest.mark.integration`
 - **Async Testing**: Full async/await support with pytest-asyncio
-- **Parallel Execution**: pytest-xdist for faster test runs
-- **Rich Output**: pytest-rich for better test visualization
+- **Parallel Execution**: pytest-xdist for faster test runs with proper isolation
+- **Rich Output**: pytest-rich for better test visualization (compatible with xdist)
 - **Mocking**: pytest-mock for cleaner, more maintainable test code
 - **Environment Management**: pytest-env for consistent test configuration
 - **Test Randomization**: pytest-randomly for detecting test interdependencies
 - **Soft Assertions**: pytest-check for comprehensive failure visibility
 
 ### Advanced Testing Features
+
+#### Parallel Test Execution
+The project now supports fully parallel test execution with proper database isolation:
+
+```bash
+# Run tests in parallel (auto-detects CPU cores)
+make test-fast
+
+# Tests are automatically isolated using:
+# - Separate test databases per worker
+# - Docker container orchestration
+# - Proper resource cleanup
+```
+
+#### Database Test Fixtures
+New database fixtures provide isolated test environments:
+
+```python
+# Use async database fixture for integration tests
+async def test_database_operation(async_db_session):
+    # Each test gets its own transaction
+    # Automatically rolled back after test
+    result = await create_payment(async_db_session, amount=100)
+    assert result.status == "pending"
+```
+
+#### Docker Integration Testing
+Comprehensive Docker testing infrastructure:
+
+```python
+# Test with Docker containers
+def test_postgres_container(postgres_container):
+    # Container automatically started/stopped
+    # Health checks ensure readiness
+    assert postgres_container.is_running()
+```
 
 #### Test Randomization
 Tests are automatically randomized by pytest-randomly to detect hidden dependencies:
@@ -495,7 +536,7 @@ Available environment fixtures:
 make test              # Run all tests
 make test-unit        # Unit tests only
 make test-integration # Integration tests only
-make test-fast        # Parallel execution
+make test-fast        # Parallel execution with xdist
 make test-coverage    # With HTML report
 make test-random      # With random ordering
 make test-seed SEED=12345  # Debug with specific seed
@@ -550,7 +591,7 @@ Located in `.claude/commands/`:
 - **`/enforce-quality`**: Strict quality enforcement without bypasses
 - **`/do`**: Execute complex tasks with expert-level guidance and pattern enforcement
 - **`/investigate-deps`**: Expert dependency investigation and integration planning
-- **`/check-implementation`**: Verify code quality, pattern adherence, and test coverage
+- **`/check-implementation`**: Enhanced validation with test coverage, pattern adherence, and parallel test support
 
 ### Isolated Development Tools
 
@@ -618,7 +659,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 | `make test-unit` | Run unit tests only |
 | `make test-integration` | Run integration tests only |
 | `make test-coverage` | Generate HTML coverage report |
-| `make test-fast` | Run tests in parallel |
+| `make test-fast` | Run tests in parallel with xdist |
 | `make test-verbose` | Run with verbose output |
 | `make test-failed` | Re-run only failed tests |
 | `make test-random` | Run tests with random ordering |
@@ -722,21 +763,43 @@ terraform apply
 
 ### Docker Support
 
-The project includes minimal Docker infrastructure for database development:
+The project includes comprehensive Docker infrastructure for development and testing:
 
 ```
 docker/
-├── postgres/        # PostgreSQL initialization
-│   └── init.sql    # Database setup script
-└── scripts/        # Container helper scripts
+├── postgres/                # PostgreSQL initialization
+│   └── init.sql            # Database setup with parallel test support
+├── scripts/                 # Container helper scripts
+│   └── wait-for-postgres.sh # Health check script
+└── docker-compose files:
+    ├── docker-compose.test.yml          # Single test database
+    └── docker-compose.test-parallel.yml # Parallel test databases (removed)
 ```
 
 ### PostgreSQL Development Setup
 
 The Docker infrastructure provides:
 - **Test Database Creation**: Automatically creates `tributum_test` database
+- **Parallel Test Support**: Creates worker-specific test databases (tributum_test_gw0, gw1, etc.)
 - **User Permissions**: Grants full privileges to `tributum` user
 - **Schema Management**: Ensures proper permissions for test operations
+- **Health Checks**: Wait-for-postgres script ensures database readiness
+
+### Test Database Initialization
+
+The `docker/postgres/init.sql` script:
+```sql
+-- Creates main test database
+CREATE DATABASE tributum_test;
+
+-- Creates worker databases for parallel testing
+CREATE DATABASE tributum_test_gw0;
+CREATE DATABASE tributum_test_gw1;
+-- ... up to gw7 for 8-core systems
+
+-- Grants full permissions to tributum user
+GRANT ALL PRIVILEGES ON DATABASE tributum_test TO tributum;
+```
 
 ### Docker Ignore Configuration
 
@@ -791,7 +854,25 @@ TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/tributum
 - **Connection Pooling**: Efficient connection management
 - **Health Checks**: Pre-ping connections to detect failures
 - **Test Isolation**: Separate test database with automatic URL generation
+- **Parallel Testing**: Worker-specific databases for pytest-xdist
 - **URL Validation**: Enforces `postgresql+asyncpg://` driver for async support
+
+### Test Database Infrastructure
+
+The project includes robust test database management:
+
+```python
+# Database fixtures provide isolated test environments
+@pytest.fixture
+async def async_db_session():
+    """Provides isolated async database session for tests."""
+    # Each test runs in its own transaction
+    # Automatically rolled back after test completion
+
+# Parallel test support
+# Worker databases automatically selected based on xdist worker ID
+# Example: gw0 uses tributum_test_gw0, gw1 uses tributum_test_gw1
+```
 
 ## ⚙️ Configuration Management
 
@@ -869,7 +950,7 @@ src/
 │   ├── context.py        # Request context
 │   ├── error_context.py  # Error enrichment
 │   ├── exceptions.py     # Exception hierarchy
-│   ├── logging.py        # Structured logging
+│   ├── logging.py        # Structured logging (with exc_info formatting)
 │   ├── observability.py  # OpenTelemetry setup
 │   └── types.py          # Type definitions
 └── domain/               # Business logic (DDD structure prepared)
@@ -877,13 +958,18 @@ src/
 tests/
 ├── unit/                 # Isolated unit tests
 ├── integration/          # Integration tests with tracing
+│   ├── test_database_example.py  # Database integration examples
+│   └── test_docker_compose.py    # Docker orchestration tests
 ├── fixtures/             # Environment-specific test fixtures
+│   ├── test_database_fixtures.py # Database test utilities
+│   └── test_docker_fixtures.py   # Docker container management
 └── conftest.py          # Shared fixtures with auto-clearing cache
 
 docker/
 ├── postgres/            # PostgreSQL development setup
-│   └── init.sql        # Test database initialization
+│   └── init.sql        # Test database initialization with parallel support
 └── scripts/            # Container helper scripts
+    └── wait-for-postgres.sh  # Database readiness check
 ```
 
 ## 🔍 Troubleshooting Guide
@@ -928,6 +1014,9 @@ uv run pytest -s
 
 # Debug random test failures
 uv run pytest --randomly-seed=12345
+
+# Debug parallel test issues
+uv run pytest -n 1  # Run single-threaded
 ```
 
 #### Database Connection Issues
@@ -940,6 +1029,24 @@ psql -U postgres -c "\l" | grep tributum
 
 # Test connection with async driver
 python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('postgresql://postgres:postgres@localhost:5432/tributum'))"
+
+# For parallel tests, verify worker databases
+psql -U postgres -c "\l" | grep tributum_test_gw
+```
+
+#### Parallel Test Issues
+```bash
+# Check if running with xdist
+uv run pytest --collect-only | grep "gw"
+
+# Force single-threaded execution
+make test-no-random
+
+# Check Docker containers for tests
+docker ps | grep postgres
+
+# Verify test database permissions
+psql -U tributum -d tributum_test -c "SELECT 1;"
 ```
 
 #### Tracing Issues
@@ -976,6 +1083,7 @@ make dev
 - **Connection pooling** with configurable pool size and overflow
 - **Health checks** with pre-ping connection testing
 - **Test database isolation** with automatic URL generation
+- **Parallel test database support** with worker-specific databases
 - **Docker infrastructure** for PostgreSQL development
 - **Database dependencies**: SQLAlchemy 2.0+, asyncpg, Alembic, greenlet
 
@@ -988,7 +1096,7 @@ make dev
 - Integration with OpenTelemetry span error tracking
 
 #### Logging & Observability
-- Structured logging with structlog
+- Structured logging with structlog (exc_info formatting configured)
 - Automatic correlation ID propagation
 - Request/response body logging with sanitization
 - Console and JSON formatters
@@ -1007,6 +1115,15 @@ make dev
 - Global error handling middleware
 - **OpenTelemetry instrumentation middleware**
 
+#### Testing Infrastructure
+- **Parallel test execution** with pytest-xdist
+- **Database test fixtures** with transaction isolation
+- **Docker container fixtures** for integration testing
+- **Worker-specific test databases** for parallel execution
+- **Automatic database cleanup** after tests
+- **Health check utilities** for container readiness
+- **Integration test examples** for database operations
+
 #### Development Experience
 - Comprehensive pre-commit hooks with ALL Ruff rules enabled
 - McCabe cyclomatic complexity checking (max 10)
@@ -1016,8 +1133,10 @@ make dev
 - pytest-env integration for streamlined test environment management
 - pytest-randomly for detecting test interdependencies
 - pytest-check for soft assertions in tests
-- Claude Code automation commands including `/investigate-deps` and `/check-implementation`
+- pytest-rich with xdist compatibility
+- Claude Code automation commands including `/investigate-deps` and enhanced `/check-implementation`
 - **Docker development infrastructure** for database testing
+- **Parallel test execution** for faster CI/CD
 
 #### CI/CD & Infrastructure
 - GitHub Actions workflow for quality checks
@@ -1025,6 +1144,7 @@ make dev
 - Multi-environment support (dev/staging/prod)
 - Automated version management (v0.3.0)
 - Changelog automation
+- **Docker Compose configurations** for testing
 
 ### Architecture Components
 
@@ -1038,7 +1158,7 @@ make dev
 #### Core Layer (`src/core/`)
 - Configuration management with **ObservabilityConfig** and **DatabaseConfig**
 - Exception definitions with span integration
-- Logging setup
+- Logging setup with exc_info formatting
 - Context management
 - Shared constants
 - Type definitions
@@ -1049,8 +1169,9 @@ make dev
 - Ready for business logic modules
 
 #### Infrastructure Layer (`docker/`)
-- **PostgreSQL initialization scripts**
-- **Test database setup**
+- **PostgreSQL initialization scripts with parallel test support**
+- **Test database setup for multiple workers**
+- **Container helper scripts**
 - **Docker ignore configuration**
 
 #### Test Suite (`tests/`)
@@ -1058,6 +1179,7 @@ make dev
 - Integration tests for API endpoints
 - **Integration tests for distributed tracing**
 - **Database infrastructure tests**
+- **Docker container integration tests**
 - Environment-specific test fixtures
 - Shared fixtures with auto-clearing cache
 - Async test support
@@ -1065,32 +1187,34 @@ make dev
 - pytest-env for centralized test configuration
 - pytest-randomly for randomized test execution
 - pytest-check for comprehensive test failure reporting
-- **Class-level pytest markers** for improved test organization
+- pytest-xdist for parallel test execution
+- **Database test fixtures** for isolated testing
+- **Docker test fixtures** for container management
 
 <!-- README-METADATA
-Last Updated: 2025-06-20T18:00:00Z
-Last Commit: da0a58e
+Last Updated: 2025-06-21T10:00:00Z
+Last Commit: 09f5a7e
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "g7h8i9", "manual": false},
-  "tech-stack": {"hash": "updated-da0a58e", "manual": false},
+  "tech-stack": {"hash": "updated-09f5a7e", "manual": false},
   "quick-start": {"hash": "g7h8i9", "manual": false},
-  "architecture": {"hash": "updated-da0a58e", "manual": false},
-  "frameworks": {"hash": "updated-5479972", "manual": false},
+  "architecture": {"hash": "updated-0e139eb", "manual": false},
+  "frameworks": {"hash": "updated-0e139eb", "manual": false},
   "observability": {"hash": "updated-da0a58e", "manual": false},
   "security": {"hash": "updated-5479972", "manual": false},
-  "testing": {"hash": "updated-3d5cff2", "manual": false},
+  "testing": {"hash": "updated-09f5a7e", "manual": false},
   "workflow": {"hash": "v4w5x7", "manual": false},
-  "tools": {"hash": "updated-5479972", "manual": false},
+  "tools": {"hash": "updated-a77fb47", "manual": false},
   "cicd": {"hash": "b1c2d4", "manual": false},
-  "commands": {"hash": "updated-3d5cff2", "manual": false},
+  "commands": {"hash": "updated-b149334", "manual": false},
   "version": {"hash": "updated-da0a58e", "manual": false},
   "infrastructure": {"hash": "k1l2m3", "manual": false},
-  "docker": {"hash": "new-da0a58e", "manual": false},
-  "database": {"hash": "new-da0a58e", "manual": false},
+  "docker": {"hash": "updated-09f5a7e", "manual": false},
+  "database": {"hash": "updated-09f5a7e", "manual": false},
   "config": {"hash": "updated-da0a58e", "manual": false},
-  "structure": {"hash": "updated-da0a58e", "manual": false},
-  "troubleshooting": {"hash": "updated-da0a58e", "manual": false},
-  "status": {"hash": "updated-da0a58e", "manual": false}
+  "structure": {"hash": "updated-09f5a7e", "manual": false},
+  "troubleshooting": {"hash": "updated-09f5a7e", "manual": false},
+  "status": {"hash": "updated-09f5a7e", "manual": false}
 }
 -->
