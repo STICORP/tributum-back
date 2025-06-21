@@ -1,3 +1,5 @@
+# /do
+
 - Think Harder.
 - Treat me as an expert.
 - ALWAYS read whole files. NEVER just the beginning to get a sense of it.

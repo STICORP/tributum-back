@@ -1,4 +1,8 @@
+# /investigate-deps
+
 - Read CLAUDE.md
+- Read pyproject.md
+- Read Makefile
 - Treat me as an expert.
 - ALWAYS read whole files. NEVER just the beginning to get a sense of it.
 - If adding a new dependency to the project, ALWAYS find out what is the absolutely latest version and try to use that.

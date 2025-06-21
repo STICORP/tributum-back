@@ -1,4 +1,4 @@
-# analyze-project
+# /analyze-project
 
 Perform a comprehensive analysis of the project's configuration and management quality.
 
