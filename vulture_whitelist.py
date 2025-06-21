@@ -49,3 +49,6 @@ class _VultureWhitelist:
     # Pytest fixtures that appear unused but are used via dependency injection
     def ensure_container_stopped(self) -> None:
         """Pytest fixture for Docker container cleanup."""
+
+    def ensure_container_running(self) -> None:
+        """Pytest fixture parameter for Docker container setup."""

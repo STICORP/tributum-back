@@ -1,6 +1,10 @@
 -- init.sql: PostgreSQL initialization script for Tributum
 -- This script runs when the PostgreSQL container starts for the first time
 
+-- Grant CREATE DATABASE privilege to tributum user for parallel test execution
+-- This allows the test fixtures to create isolated databases for each worker
+ALTER USER tributum CREATEDB;
+
 -- Create test database as a copy of the main database
 -- This allows tests to run in isolation without affecting the main database
 CREATE DATABASE tributum_test WITH TEMPLATE tributum_db;

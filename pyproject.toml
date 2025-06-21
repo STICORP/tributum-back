@@ -161,6 +161,13 @@ max-complexity = 10
 "tests/integration/test_docker_compose.py" = [
     "S603",     # Subprocess calls are controlled and required for Docker testing
 ]
+"tests/fixtures/test_docker_fixtures.py" = [
+    "S603",     # Subprocess calls are controlled and required for Docker testing
+    "S607",     # Starting docker process with partial path is safe in tests
+]
+"tests/integration/test_database_example.py" = [
+    "S608",     # SQL injection not a concern in test code with controlled inputs
+]
 "scripts/**/*.py" = [
     "T20",      # Print statements are OK in utility scripts
     "S603",     # Subprocess calls are controlled in scripts
@@ -261,7 +268,7 @@ paths = ["src", "tests", "main.py", "vulture_whitelist.py"]
 exclude = ["htmlcov/", "*.egg-info/", "build/", "dist/", ".venv/", "venv/"]
 min_confidence = 80
 ignore_decorators = ["@app.route", "@pytest.fixture", "@pytest.mark.*"]
-ignore_names = ["test_*", "_*", "ensure_container_stopped"]
+ignore_names = ["test_*", "_*", "ensure_container_stopped", "ensure_container_running"]
 sort_by_size = true
 
 # ===========================

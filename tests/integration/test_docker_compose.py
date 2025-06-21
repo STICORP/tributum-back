@@ -3,7 +3,6 @@
 import os
 import subprocess  # nosec B404 - Required for Docker commands
 import time
-from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -19,45 +18,42 @@ class TestDockerComposeIntegration:
         return Path(__file__).parent.parent.parent
 
     @pytest.fixture
-    def docker_compose_command(self, project_root: Path, worker_id: str) -> list[str]:
-        """Get the base docker-compose command with unique project name per worker."""
-        # Use parallel-safe compose file when running with xdist workers
-        if worker_id != "master":
-            compose_file = project_root / "docker-compose.test-parallel.yml"
-            project_name = f"tributum-test-{worker_id}"
-        else:
-            compose_file = project_root / "docker-compose.test.yml"
-            project_name = "tributum-test"
-
+    def docker_compose_command(self, project_root: Path) -> list[str]:
+        """Get the base docker-compose command."""
+        compose_file = project_root / "docker-compose.test.yml"
         # Try to find docker in PATH first, fallback to common locations
         docker_cmd = "docker"
         for path in ["/usr/bin/docker", "/usr/local/bin/docker"]:
             if Path(path).exists():
                 docker_cmd = path
                 break
-
-        return [docker_cmd, "compose", "-f", str(compose_file), "-p", project_name]
+        return [docker_cmd, "compose", "-f", str(compose_file)]
 
     @pytest.fixture
-    def ensure_container_stopped(
-        self, docker_compose_command: list[str]
-    ) -> Generator[None]:
-        """Ensure container is stopped before and after test."""
-        # Stop any existing container before test
-        subprocess.run(  # nosec B603 - Controlled input from fixture
-            [*docker_compose_command, "down", "-v"],
+    def ensure_container_running(self, docker_compose_command: list[str]) -> None:
+        """Ensure container is running for tests.
+
+        Note: With the single container approach, we don't stop/start
+        the container for each test. The ensure_postgres_container
+        session fixture handles the container lifecycle.
+        """
+        # Check if container is already running
+        result = subprocess.run(  # nosec B603 - Controlled input from fixture
+            [*docker_compose_command, "ps", "--format", "json"],
             capture_output=True,
+            text=True,
             check=False,
         )
 
-        yield
-
-        # Stop container after test
-        subprocess.run(  # nosec B603 - Controlled input from fixture
-            [*docker_compose_command, "down", "-v"],
-            capture_output=True,
-            check=False,
-        )
+        if result.returncode != 0 or "healthy" not in result.stdout:
+            # Container not running or not healthy, start it
+            subprocess.run(  # nosec B603 - Controlled input from fixture
+                [*docker_compose_command, "up", "-d"],
+                capture_output=True,
+                check=False,
+            )
+            # Wait for health
+            time.sleep(5)
 
     @pytest.mark.skipif(
         os.environ.get("CI") == "true"
@@ -74,17 +70,11 @@ class TestDockerComposeIntegration:
     def test_docker_compose_postgres_starts_and_becomes_healthy(
         self,
         docker_compose_command: list[str],
-        ensure_container_stopped: None,  # noqa: ARG002
+        ensure_container_running: None,  # noqa: ARG002
     ) -> None:
         """Test that PostgreSQL container starts and becomes healthy."""
-        # Start the container
-        result = subprocess.run(  # nosec B603 - Controlled input
-            [*docker_compose_command, "up", "-d"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert result.returncode == 0, f"Failed to start container: {result.stderr}"
+        # With single container approach, container should already be running
+        # Just verify it's healthy
 
         # Wait for container to become healthy (max 30 seconds)
         max_wait = 30
@@ -143,20 +133,11 @@ class TestDockerComposeIntegration:
     def test_docker_compose_creates_test_database(
         self,
         docker_compose_command: list[str],
-        ensure_container_stopped: None,  # noqa: ARG002
+        ensure_container_running: None,  # noqa: ARG002
     ) -> None:
         """Test that init.sql creates the test database."""
-        # Start the container
-        result = subprocess.run(  # nosec B603 - Controlled input
-            [*docker_compose_command, "up", "-d"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        assert result.returncode == 0, f"Failed to start container: {result.stderr}"
-
-        # Wait for container to be ready
-        time.sleep(5)
+        # With single container approach, container should already be running
+        # Just verify the databases exist
 
         # Check that both databases exist
         query = (

@@ -9,6 +9,16 @@ from src.api.main import app
 from src.core.config import get_settings
 from src.core.context import RequestContext
 
+# Import database and docker fixtures for parallel test execution
+from tests.fixtures.test_database_fixtures import (
+    database_url,
+    database_url_base,
+    db_engine,
+    setup_worker_database,
+    worker_database_name,
+)
+from tests.fixtures.test_docker_fixtures import ensure_postgres_container
+
 # Import environment fixtures to make them available to all tests
 from tests.fixtures.test_env_fixtures import (
     custom_app_env,
@@ -24,10 +34,16 @@ __all__ = [
     "clear_settings_cache",
     "client",
     "custom_app_env",
+    "database_url",
+    "database_url_base",
+    "db_engine",
     "development_env",
+    "ensure_postgres_container",
     "no_docs_env",
     "production_env",
+    "setup_worker_database",
     "staging_env",
+    "worker_database_name",
 ]
 
 
