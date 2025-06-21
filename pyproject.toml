@@ -83,7 +83,6 @@ dev = [
     "httpx>=0.28.1",
     "pytest-xdist>=3.6.1",
     "pytest-timeout>=2.4.0",
-    "pytest-rich>=0.2.0",
     "pytest-mock>=3.14.1",
     "pytest-env>=1.1.5",
 

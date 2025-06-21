@@ -61,26 +61,26 @@ pre-commit-ci:  ## Run pre-commit hooks for CI (with diff on failure)
 	uv run pre-commit run --all-files --show-diff-on-failure
 
 test:  ## Run all tests
-	uv run pytest --rich
+	uv run pytest
 
 test-unit:  ## Run unit tests only
-	uv run pytest -m unit --rich
+	uv run pytest -m unit
 
 test-integration:  ## Run integration tests only
-	uv run pytest -m integration --rich
+	uv run pytest -m integration
 
 test-coverage:  ## Run tests with coverage report
-	uv run pytest --cov-report=html --rich
+	uv run pytest --cov-report=html
 	@echo "Coverage report generated in htmlcov/index.html"
 
 test-fast:  ## Run tests in parallel
 	uv run pytest -n auto
 
 test-verbose:  ## Run tests with verbose output
-	uv run pytest -vv --rich
+	uv run pytest -vv
 
 test-failed:  ## Re-run only failed tests
-	uv run pytest --lf --rich
+	uv run pytest --lf
 
 test-precommit:  ## Run tests for pre-commit (fast, no coverage)
 	uv run pytest -x --tb=short --no-cov
