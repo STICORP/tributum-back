@@ -290,6 +290,7 @@ addopts = [
     "--timeout=10",
 ]
 asyncio_mode = "auto"
+timeout_func_only = true
 markers = [
     "unit: Unit tests",
     "integration: Integration tests",
