@@ -31,6 +31,7 @@ make test-coverage          # Generate HTML report in htmlcov/
 make test-random            # Run with random ordering (shows seed)
 make test-seed SEED=12345   # Debug with specific seed
 make test-no-random         # Disable randomization
+make test-ci                # Run tests optimized for CI environment
 ```
 
 **Soft Assertions**: Tests with 4+ related assertions use `pytest-check` for complete failure visibility:
@@ -71,6 +72,8 @@ src/
 │   ├── logging.py    # Structured logging with orjson renderer
 │   ├── context.py    # Request context with correlation IDs
 │   ├── constants.py  # Shared constants
+│   ├── error_context.py  # Error context capture and PII sanitization
+│   ├── observability.py  # OpenTelemetry setup
 │   └── types.py      # Type aliases (JsonValue, LogContext, ErrorContext, AsgiScope)
 └── domain/           # Business logic (DDD structure prepared, currently empty)
 ```
@@ -98,6 +101,33 @@ src/
    - Pydantic Settings v2 with nested models (e.g., `LogConfig`)
    - Environment variable support with `__` delimiter for nesting
    - Cached settings via `@lru_cache` decorator in `get_settings()`
+
+## Database Architecture
+
+### PostgreSQL with Async Support
+- SQLAlchemy 2.0+ with `asyncpg` driver
+- Database fixtures for parallel test execution
+- Each test worker gets isolated database
+
+### Configuration
+```python
+class DatabaseConfig(BaseModel):
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/tributum"
+    pool_size: int = 10
+    max_overflow: int = 5
+    pool_timeout: float = 30.0
+    pool_pre_ping: bool = True
+```
+
+### Docker Setup
+```bash
+docker-compose -f docker-compose.test.yml up -d  # PostgreSQL 17-alpine
+```
+
+### Test Database Isolation
+- Automatic database creation per test worker
+- Fixtures: `database_url`, `db_engine`, `worker_database_name`
+- Located in `tests/fixtures/test_database_fixtures.py`
 
 ## Claude Code Commands
 
@@ -152,6 +182,12 @@ with tracer.start_as_current_span("operation_name") as span:
     except TributumError as e:
         record_tributum_error_in_span(span, e)
         raise
+
+# Error context enrichment
+from src.core.error_context import enrich_error, capture_request_context
+
+error = enrich_error(error, {"user_id": 123, "action": "payment"})
+context = capture_request_context(request)  # Automatic in middleware
 ```
 
 ### Observability
@@ -189,6 +225,13 @@ def test_with_mock(mocker):
 async def test_async_endpoint(client: AsyncClient):
     response = await client.get("/health")
     assert response.status_code == 200
+
+# Database testing
+@pytest.mark.integration
+async def test_with_database(db_engine: AsyncEngine):
+    async with db_engine.connect() as conn:
+        result = await conn.execute(text("SELECT 1"))
+        assert result.scalar() == 1
 ```
 
 #### Environment Management with pytest-env
@@ -218,7 +261,7 @@ Note: `clear_settings_cache` and `clean_request_context` fixtures run automatica
 4. **Response**: Automatic PII removal
 5. **Headers**: HSTS, X-Content-Type-Options, etc.
 
-**Auto-redacted**: password, token, secret, key, authorization, x-api-key, ssn, cpf, credit_card, cvv, pin, cookie
+**Auto-redacted**: password, token, secret, key, authorization, x-api-key, ssn, cpf, credit_card, cvv, pin, cookie, auth, session, bearer
 
 ## Development Tools
 
@@ -237,9 +280,25 @@ Note: `clear_settings_cache` and `clean_request_context` fixtures run automatica
 
 ## Infrastructure
 
-**Terraform**: `terraform/bootstrap/` (GCP setup), `terraform/environments/` (dev/staging/prod)
-**State**: GCS backend
-**Service Account Key**: Expected at `.keys/infrastructure-as-code.json`
+### Docker Development
+- `docker-compose.test.yml` - PostgreSQL for testing
+- `docker/postgres/init.sql` - DB initialization
+- `docker/scripts/wait-for-postgres.sh` - Health check script
+- PostgreSQL setup: user `tributum` with CREATEDB privilege
+
+### Terraform
+- `terraform/bootstrap/` - GCP setup
+- `terraform/environments/` - dev/staging/prod
+- **State**: GCS backend
+- **Service Account Key**: Expected at `.keys/infrastructure-as-code.json`
+
+### GitHub Actions
+- Workflow: `.github/workflows/checks.yml`
+- Python 3.13
+- All quality checks (format, lint, type, security)
+- Pre-commit validation
+- Test execution with `make test-ci`
+- Safety and Semgrep as non-blocking (continue-on-error)
 
 ### Environment Variables
 ```bash
@@ -247,6 +306,9 @@ ENVIRONMENT=development|staging|production
 LOG_CONFIG__LOG_LEVEL=DEBUG|INFO|WARNING|ERROR|CRITICAL
 LOG_CONFIG__LOG_FORMAT=console|json
 DEBUG=true|false  # Detailed error responses
+OBSERVABILITY_CONFIG__ENABLE_TRACING=true|false
+OBSERVABILITY_CONFIG__GCP_PROJECT_ID=your-project
+OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE=0.1
 ```
 
 ## Performance Optimizations
@@ -337,6 +399,16 @@ async def create_payment(
 
 4. **Register** router in `src/api/main.py`
 5. **Test** in `tests/unit/api/routes/`
+
+## Additional Make Commands
+
+```bash
+make pre-commit-ci     # Run pre-commit for CI validation
+make complexity-check  # Check McCabe complexity
+make docstring-missing # Find missing docstrings
+make dead-code-report  # Generate detailed dead code report
+make pylint-check      # Run pylint analysis
+```
 
 ## Important Notes
 
