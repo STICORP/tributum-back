@@ -281,7 +281,6 @@ addopts = [
     "--cov-report=html",
     "--cov-fail-under=80",
     "--timeout=10",
-    "--rich",
 ]
 asyncio_mode = "auto"
 markers = [
