@@ -89,7 +89,7 @@ dev = [
 
     # Version management
     "bump-my-version>=0.32.0",
-    
+
     # Type stubs for test dependencies
     "types-PyYAML>=6.0.12.20250516",
 ]
@@ -261,7 +261,7 @@ paths = ["src", "tests", "main.py", "vulture_whitelist.py"]
 exclude = ["htmlcov/", "*.egg-info/", "build/", "dist/", ".venv/", "venv/"]
 min_confidence = 80
 ignore_decorators = ["@app.route", "@pytest.fixture", "@pytest.mark.*"]
-ignore_names = ["test_*", "_*"]
+ignore_names = ["test_*", "_*", "ensure_container_stopped"]
 sort_by_size = true
 
 # ===========================
