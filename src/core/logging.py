@@ -213,7 +213,7 @@ def configure_structlog() -> None:
         *base_processors,
         structlog.stdlib.PositionalArgumentsFormatter(),
         structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
+        # format_exc_info removed - ConsoleRenderer handles pretty exceptions
         structlog.dev.ConsoleRenderer(colors=True),
     ]
 
