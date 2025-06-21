@@ -19,16 +19,24 @@ class TestDockerComposeIntegration:
         return Path(__file__).parent.parent.parent
 
     @pytest.fixture
-    def docker_compose_command(self, project_root: Path) -> list[str]:
-        """Get the base docker-compose command."""
-        compose_file = project_root / "docker-compose.test.yml"
+    def docker_compose_command(self, project_root: Path, worker_id: str) -> list[str]:
+        """Get the base docker-compose command with unique project name per worker."""
+        # Use parallel-safe compose file when running with xdist workers
+        if worker_id != "master":
+            compose_file = project_root / "docker-compose.test-parallel.yml"
+            project_name = f"tributum-test-{worker_id}"
+        else:
+            compose_file = project_root / "docker-compose.test.yml"
+            project_name = "tributum-test"
+
         # Try to find docker in PATH first, fallback to common locations
         docker_cmd = "docker"
         for path in ["/usr/bin/docker", "/usr/local/bin/docker"]:
             if Path(path).exists():
                 docker_cmd = path
                 break
-        return [docker_cmd, "compose", "-f", str(compose_file)]
+
+        return [docker_cmd, "compose", "-f", str(compose_file), "-p", project_name]
 
     @pytest.fixture
     def ensure_container_stopped(
