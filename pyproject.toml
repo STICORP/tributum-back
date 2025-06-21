@@ -89,6 +89,9 @@ dev = [
 
     # Version management
     "bump-my-version>=0.32.0",
+    
+    # Type stubs for test dependencies
+    "types-PyYAML>=6.0.12.20250516",
 ]
 
 # ===========================
@@ -154,6 +157,9 @@ max-complexity = 10
     "S105",     # Test assertions checking for "[REDACTED]" are not hardcoded passwords
     "FAST001",  # FastAPI redundant response_model OK in tests for explicitness
     "FAST002",  # FastAPI non-Annotated dependencies OK in tests for simplicity
+]
+"tests/integration/test_docker_compose.py" = [
+    "S603",     # Subprocess calls are controlled and required for Docker testing
 ]
 "scripts/**/*.py" = [
     "T20",      # Print statements are OK in utility scripts

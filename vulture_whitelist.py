@@ -45,3 +45,7 @@ class _VultureWhitelist:
     # Pydantic validators
     def empty_str_to_none(self) -> None:
         """Pydantic field validator method."""
+
+    # Pytest fixtures that appear unused but are used via dependency injection
+    def ensure_container_stopped(self) -> None:
+        """Pytest fixture for Docker container cleanup."""
