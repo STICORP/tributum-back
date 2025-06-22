@@ -6,6 +6,14 @@
   "pythonPlatform": "Linux",
   "venvPath": ".",
   "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": ".",
+      "pythonVersion": "3.13",
+      "pythonPlatform": "Linux",
+      "extraPaths": ["."]
+    }
+  ],
   "reportPrivateImportUsage": false,
   "reportUnknownMemberType": false,
   "reportUnknownArgumentType": false,
