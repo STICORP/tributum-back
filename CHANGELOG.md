@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parallel test execution support with isolated databases for each pytest-xdist worker
 
 ### Changed
+- Database implementation plan updated to use sequential IDs instead of UUIDs for better performance
 - Test suite organization with consistent pytest markers on all test files
 - Test structure refactored to use class-based organization for better maintainability
 - README documentation updated with comprehensive database infrastructure details
