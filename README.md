@@ -43,7 +43,7 @@
 - Infrastructure as Code with Terraform
 
 **Core Principles**:
-- **Type Safety**: 100% strict type checking with mypy
+- **Type Safety**: 100% strict type checking with mypy and Pyright
 - **Security First**: Multi-layered security scanning and input validation
 - **Observable**: Structured logging with correlation IDs and distributed tracing
 - **Performance**: ORJSONResponse for 3x faster JSON serialization
@@ -75,6 +75,7 @@
 - **UV**: Fast Python package manager (10x faster than pip)
 - **Ruff**: Lightning-fast Python linter and formatter with ALL rules enabled by default
 - **MyPy**: Static type checker with strict mode
+- **Pyright**: Microsoft's type checker for enhanced IDE support
 - **Pre-commit**: Git hooks for code quality
 - **Pytest**: Testing framework with async support
 - **Pytest-mock**: Improved mocking for cleaner test code
@@ -126,6 +127,7 @@ make test-coverage   # Generate coverage report
 make format          # Format code
 make lint           # Run linting
 make type-check     # Type checking
+make pyright        # Pyright type checking
 make all-checks     # Run all checks
 
 # Security
@@ -156,16 +158,20 @@ graph TB
         J --> K[Domain Services]
     end
 
-    subgraph "Infrastructure"
-        L[PostgreSQL] --> M[Connection Pool]
-        M --> N[SQLAlchemy]
-        N --> O[Alembic Migrations]
-        P[Cache] --> Q[External APIs]
+    subgraph "Infrastructure Layer"
+        L[Database Models] --> M[Repositories]
+        M --> N[Session Management]
+        N --> O[Connection Pool]
+    end
+
+    subgraph "External Services"
+        P[PostgreSQL] --> Q[Redis Cache]
         Q --> R[GCP Cloud Trace]
     end
 
     C --> I
-    I --> N
+    I --> M
+    M --> P
     H --> R
 ```
 
@@ -178,6 +184,7 @@ sequenceDiagram
     participant T as OpenTelemetry
     participant H as Handler
     participant S as Service
+    participant R as Repository
     participant D as Database
     participant CT as Cloud Trace
 
@@ -188,8 +195,10 @@ sequenceDiagram
     M->>M: Start Request Logging
     M->>H: Process Request
     H->>S: Business Logic
-    S->>D: Data Operation
-    D-->>S: Result
+    S->>R: Data Operation
+    R->>D: SQL Query
+    D-->>R: Result
+    R-->>S: Domain Model
     S-->>H: Response
     H-->>M: HTTP Response
     M->>M: Log Request/Response
@@ -208,6 +217,8 @@ sequenceDiagram
 6. **Response Serialization**: ORJSONResponse default for 3x faster JSON encoding
 7. **Distributed Tracing**: OpenTelemetry with configurable sampling and GCP export
 8. **Database Architecture**: Async PostgreSQL with connection pooling and pre-ping health checks
+9. **Repository Pattern**: Generic base repository for consistent data access patterns
+10. **Database IDs**: Sequential BigInteger IDs for performance and PostgreSQL optimization
 
 ## 🔧 Internal Frameworks Explained
 
@@ -271,6 +282,46 @@ correlation_id = RequestContext.get_correlation_id()
 - X-Correlation-ID header support
 - UUID4 generation with validation
 - Span attribute enrichment
+
+### Database Infrastructure
+
+```python
+# Base model with common fields
+class BaseModel(Base):
+    """Provides id, created_at, and updated_at for all models."""
+    __abstract__ = True
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(),
+        onupdate=func.now()
+    )
+
+# Generic repository pattern
+class BaseRepository[T: BaseModel]:
+    """CRUD operations for any model."""
+
+    async def get_by_id(self, entity_id: int) -> T | None
+    async def get_all(self) -> list[T]
+    async def create(self, **kwargs) -> T
+    async def update(self, entity: T, **kwargs) -> T
+    async def delete(self, entity: T) -> None
+
+# Dependency injection
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """FastAPI dependency for database sessions."""
+    async with async_session_maker() as session:
+        yield session
+```
+
+**Features**:
+- Async session management with connection pooling
+- Generic repository pattern for consistent data access
+- Automatic timestamps on all models
+- Database dependency injection for FastAPI
+- Transaction management with context managers
+- Optimized for PostgreSQL with sequential IDs
 
 ### Observability Framework
 
@@ -563,11 +614,12 @@ graph LR
 1. **Format Check**: Ruff format validation
 2. **Lint Check**: Ruff with ALL rule sets enabled
 3. **Type Check**: MyPy strict mode
-4. **Complexity Check**: McCabe cyclomatic complexity (max 10)
-5. **Security Scan**: Bandit, Safety, Semgrep
-6. **Docstring Quality**: Pydoclint (Google style)
-7. **Dead Code**: Vulture analysis
-8. **Tests**: Fast test suite execution
+4. **Type Check (Enhanced)**: Pyright for additional type safety
+5. **Complexity Check**: McCabe cyclomatic complexity (max 10)
+6. **Security Scan**: Bandit, Safety, Semgrep
+7. **Docstring Quality**: Pydoclint (Google style)
+8. **Dead Code**: Vulture analysis
+9. **Tests**: Fast test suite execution
 
 ### Development Best Practices
 
@@ -592,6 +644,7 @@ Located in `.claude/commands/`:
 - **`/do`**: Execute complex tasks with expert-level guidance and pattern enforcement
 - **`/investigate-deps`**: Expert dependency investigation and integration planning
 - **`/check-implementation`**: Enhanced validation with test coverage, pattern adherence, and parallel test support
+- **`/start`**: Quick project overview and context initialization
 
 ### Isolated Development Tools
 
@@ -614,6 +667,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 1. **quality-checks**: Comprehensive code quality validation
    - Format and lint checking with ALL Ruff rules
    - Type checking with MyPy
+   - Enhanced type checking with Pyright
    - Complexity checking (McCabe max 10)
    - Security scanning (Bandit, Safety, pip-audit, Semgrep)
    - Dead code detection
@@ -648,6 +702,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 | `make lint` | Run linting checks |
 | `make lint-fix` | Fix linting issues automatically |
 | `make type-check` | Run MyPy type checking |
+| `make pyright` | Run Pyright type checking |
 | `make complexity-check` | Check McCabe cyclomatic complexity |
 | `make all-checks` | Run all quality checks |
 
@@ -665,6 +720,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 | `make test-random` | Run tests with random ordering |
 | `make test-seed SEED=12345` | Run tests with specific seed |
 | `make test-no-random` | Run tests without randomization |
+| `make test-ci` | Run tests optimized for CI environment |
 
 ### Security Commands
 
@@ -953,7 +1009,13 @@ src/
 │   ├── logging.py        # Structured logging (with exc_info formatting)
 │   ├── observability.py  # OpenTelemetry setup
 │   └── types.py          # Type definitions
-└── domain/               # Business logic (DDD structure prepared)
+├── domain/               # Business logic (DDD structure prepared)
+└── infrastructure/       # Data layer
+    └── database/         # Database infrastructure
+        ├── base.py       # Base model with timestamps
+        ├── dependencies.py # FastAPI database dependencies
+        ├── repository.py # Generic repository pattern
+        └── session.py    # Async session management
 
 tests/
 ├── unit/                 # Isolated unit tests
@@ -992,6 +1054,9 @@ rm -rf .mypy_cache
 
 # Install type stubs
 uv run mypy --install-types
+
+# Check Pyright configuration
+uv run pyright --version
 ```
 
 #### Pre-commit Failures
@@ -1086,6 +1151,10 @@ make dev
 - **Parallel test database support** with worker-specific databases
 - **Docker infrastructure** for PostgreSQL development
 - **Database dependencies**: SQLAlchemy 2.0+, asyncpg, Alembic, greenlet
+- **Base model** with automatic timestamps (created_at, updated_at)
+- **Generic repository pattern** for consistent CRUD operations
+- **FastAPI dependency injection** for database sessions
+- **Sequential BigInteger IDs** optimized for PostgreSQL
 
 #### Exception & Error Handling
 - Comprehensive exception hierarchy with severity levels
@@ -1123,23 +1192,26 @@ make dev
 - **Automatic database cleanup** after tests
 - **Health check utilities** for container readiness
 - **Integration test examples** for database operations
+- **100% test coverage** with pytest-mock standardization
+- **Enhanced test output** with pytest-rich
 
 #### Development Experience
 - Comprehensive pre-commit hooks with ALL Ruff rules enabled
 - McCabe cyclomatic complexity checking (max 10)
-- Strict code quality enforcement (Ruff, MyPy)
+- Strict code quality enforcement (Ruff, MyPy, Pyright)
 - Security scanning pipeline
 - 100% test coverage achieved with pytest-mock migration
 - pytest-env integration for streamlined test environment management
 - pytest-randomly for detecting test interdependencies
 - pytest-check for soft assertions in tests
 - pytest-rich with xdist compatibility
-- Claude Code automation commands including `/investigate-deps` and enhanced `/check-implementation`
+- Claude Code automation commands including `/investigate-deps`, `/start`, and enhanced `/check-implementation`
 - **Docker development infrastructure** for database testing
 - **Parallel test execution** for faster CI/CD
+- **Pyright type checking** for enhanced IDE support
 
 #### CI/CD & Infrastructure
-- GitHub Actions workflow for quality checks
+- GitHub Actions workflow for quality checks with Pyright
 - Terraform infrastructure for GCP
 - Multi-environment support (dev/staging/prod)
 - Automated version management (v0.3.0)
@@ -1168,11 +1240,12 @@ make dev
 - Directory structure prepared for DDD implementation
 - Ready for business logic modules
 
-#### Infrastructure Layer (`docker/`)
-- **PostgreSQL initialization scripts with parallel test support**
-- **Test database setup for multiple workers**
-- **Container helper scripts**
-- **Docker ignore configuration**
+#### Infrastructure Layer (`src/infrastructure/`)
+- **Database infrastructure** with async PostgreSQL support
+- **Base model** with timestamps and naming conventions
+- **Generic repository pattern** implementation
+- **Session management** with connection pooling
+- **FastAPI dependencies** for database injection
 
 #### Test Suite (`tests/`)
 - Unit tests with 100% coverage achieved
@@ -1192,29 +1265,29 @@ make dev
 - **Docker test fixtures** for container management
 
 <!-- README-METADATA
-Last Updated: 2025-06-21T10:00:00Z
-Last Commit: 09f5a7e
+Last Updated: 2025-06-22T14:30:00Z
+Last Commit: 0563fb4
 Schema Version: 2.0
 Sections: {
-  "overview": {"hash": "g7h8i9", "manual": false},
-  "tech-stack": {"hash": "updated-09f5a7e", "manual": false},
-  "quick-start": {"hash": "g7h8i9", "manual": false},
-  "architecture": {"hash": "updated-0e139eb", "manual": false},
-  "frameworks": {"hash": "updated-0e139eb", "manual": false},
+  "overview": {"hash": "updated-0563fb4", "manual": false},
+  "tech-stack": {"hash": "updated-0563fb4", "manual": false},
+  "quick-start": {"hash": "updated-0563fb4", "manual": false},
+  "architecture": {"hash": "updated-0563fb4", "manual": false},
+  "frameworks": {"hash": "updated-0563fb4", "manual": false},
   "observability": {"hash": "updated-da0a58e", "manual": false},
   "security": {"hash": "updated-5479972", "manual": false},
-  "testing": {"hash": "updated-09f5a7e", "manual": false},
-  "workflow": {"hash": "v4w5x7", "manual": false},
-  "tools": {"hash": "updated-a77fb47", "manual": false},
-  "cicd": {"hash": "b1c2d4", "manual": false},
-  "commands": {"hash": "updated-b149334", "manual": false},
+  "testing": {"hash": "updated-0563fb4", "manual": false},
+  "workflow": {"hash": "updated-0563fb4", "manual": false},
+  "tools": {"hash": "updated-0563fb4", "manual": false},
+  "cicd": {"hash": "updated-0563fb4", "manual": false},
+  "commands": {"hash": "updated-0563fb4", "manual": false},
   "version": {"hash": "updated-da0a58e", "manual": false},
   "infrastructure": {"hash": "k1l2m3", "manual": false},
   "docker": {"hash": "updated-09f5a7e", "manual": false},
   "database": {"hash": "updated-09f5a7e", "manual": false},
   "config": {"hash": "updated-da0a58e", "manual": false},
-  "structure": {"hash": "updated-09f5a7e", "manual": false},
-  "troubleshooting": {"hash": "updated-09f5a7e", "manual": false},
-  "status": {"hash": "updated-09f5a7e", "manual": false}
+  "structure": {"hash": "updated-0563fb4", "manual": false},
+  "troubleshooting": {"hash": "updated-0563fb4", "manual": false},
+  "status": {"hash": "updated-0563fb4", "manual": false}
 }
 -->
