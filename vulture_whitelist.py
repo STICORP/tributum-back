@@ -52,3 +52,10 @@ class _VultureWhitelist:
 
     def ensure_container_running(self) -> None:
         """Pytest fixture parameter for Docker container setup."""
+
+    # Async context manager __aexit__ parameters
+    def exc_val(self) -> None:
+        """Exception value parameter in __aexit__ methods."""
+
+    def exc_tb(self) -> None:
+        """Exception traceback parameter in __aexit__ methods."""
