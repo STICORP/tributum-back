@@ -37,6 +37,7 @@ def test_repository(
     return BaseRepository(mock_session, ModelForRepositoryTesting)
 
 
+@pytest.mark.unit
 @pytest.mark.asyncio
 class TestBaseRepository:
     """Test cases for BaseRepository class."""
@@ -341,3 +342,321 @@ class TestBaseRepository:
         assert isinstance(result, AnotherModel)
         assert result.title == "Another Test"
         assert result.id == 1
+
+    async def test_update_success(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test successful update of an existing instance."""
+        # Create an existing instance
+        existing_instance = ModelForRepositoryTesting(
+            id=1,
+            name="Original Name",
+            description="Original Description",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        # Mock get_by_id to return the existing instance
+        mocker.patch.object(
+            test_repository,
+            "get_by_id",
+            mocker.AsyncMock(return_value=existing_instance),
+        )
+
+        # Mock session methods
+        def update_timestamps(obj: ModelForRepositoryTesting) -> None:
+            obj.updated_at = datetime.now(UTC)
+
+        mocker.patch.object(mock_session, "flush", mocker.AsyncMock())
+        mocker.patch.object(
+            mock_session, "refresh", mocker.AsyncMock(side_effect=update_timestamps)
+        )
+
+        # Update data
+        update_data = {"name": "Updated Name", "description": "Updated Description"}
+
+        # Call the method
+        result = await test_repository.update(1, update_data)
+
+        # Verify the result with soft assertions
+        with pytest_check.check:
+            assert result is not None
+        with pytest_check.check:
+            assert result.id == 1
+        with pytest_check.check:
+            assert result.name == "Updated Name"
+        with pytest_check.check:
+            assert result.description == "Updated Description"
+        with pytest_check.check:
+            assert result.updated_at > existing_instance.created_at
+
+        # Verify methods were called
+        assert test_repository.get_by_id.called  # type: ignore[attr-defined]
+        assert mock_session.flush.called  # type: ignore[attr-defined]
+        assert mock_session.refresh.called  # type: ignore[attr-defined]
+
+    async def test_update_partial_data(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test update with partial data (only some fields)."""
+        # Create an existing instance
+        existing_instance = ModelForRepositoryTesting(
+            id=1,
+            name="Original Name",
+            description="Original Description",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        # Mock get_by_id
+        mocker.patch.object(
+            test_repository,
+            "get_by_id",
+            mocker.AsyncMock(return_value=existing_instance),
+        )
+
+        # Mock session methods
+        mocker.patch.object(mock_session, "flush", mocker.AsyncMock())
+        mocker.patch.object(mock_session, "refresh", mocker.AsyncMock())
+
+        # Update only name
+        update_data = {"name": "Updated Name Only"}
+
+        # Call the method
+        result = await test_repository.update(1, update_data)
+
+        # Verify partial update
+        assert result is not None
+        assert result.name == "Updated Name Only"
+        assert result.description == "Original Description"  # Unchanged
+
+    async def test_update_not_found(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mocker: MockerFixture,
+    ) -> None:
+        """Test update when instance doesn't exist."""
+        # Mock get_by_id to return None
+        mocker.patch.object(
+            test_repository, "get_by_id", mocker.AsyncMock(return_value=None)
+        )
+
+        # Call the method
+        result = await test_repository.update(999, {"name": "New Name"})
+
+        # Verify result is None
+        assert result is None
+
+    async def test_update_with_nonexistent_field(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test update with a field that doesn't exist on the model."""
+        # Create an existing instance
+        existing_instance = ModelForRepositoryTesting(
+            id=1,
+            name="Original Name",
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+
+        # Mock get_by_id
+        mocker.patch.object(
+            test_repository,
+            "get_by_id",
+            mocker.AsyncMock(return_value=existing_instance),
+        )
+
+        # Mock session methods
+        mocker.patch.object(mock_session, "flush", mocker.AsyncMock())
+        mocker.patch.object(mock_session, "refresh", mocker.AsyncMock())
+
+        # Update with non-existent field
+        update_data = {"name": "Updated Name", "nonexistent_field": "Value"}
+
+        # Call the method
+        result = await test_repository.update(1, update_data)
+
+        # Verify update succeeded for valid fields
+        assert result is not None
+        assert result.name == "Updated Name"
+        # The nonexistent field should be ignored with a warning logged
+
+    async def test_delete_success(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test successful deletion of an instance."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.rowcount = 1  # One row deleted
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.delete(1)
+
+        # Verify deletion was successful
+        assert result is True
+        assert mock_session.execute.called  # type: ignore[attr-defined]
+
+    async def test_delete_not_found(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test deletion when instance doesn't exist."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.rowcount = 0  # No rows deleted
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.delete(999)
+
+        # Verify deletion failed
+        assert result is False
+
+    async def test_count_with_instances(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test count when instances exist."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.scalar.return_value = 5
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.count()
+
+        # Verify count
+        assert result == 5
+        assert mock_session.execute.called  # type: ignore[attr-defined]
+
+    async def test_count_empty_table(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test count when no instances exist."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.scalar.return_value = 0
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.count()
+
+        # Verify count is 0
+        assert result == 0
+
+    async def test_count_with_none_result(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test count when database returns None."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.scalar.return_value = None
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.count()
+
+        # Verify count defaults to 0
+        assert result == 0
+
+    async def test_exists_true(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test exists when instance exists."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.scalar.return_value = 1
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.exists(1)
+
+        # Verify exists is True
+        assert result is True
+        assert mock_session.execute.called  # type: ignore[attr-defined]
+
+    async def test_exists_false(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test exists when instance doesn't exist."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.scalar.return_value = 0
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.exists(999)
+
+        # Verify exists is False
+        assert result is False
+
+    async def test_exists_with_none_result(
+        self,
+        test_repository: BaseRepository[ModelForRepositoryTesting],
+        mock_session: AsyncSession,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test exists when database returns None."""
+        # Mock the execute result
+        mock_result = mocker.MagicMock()
+        mock_result.scalar.return_value = None
+
+        mocker.patch.object(
+            mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
+        )
+
+        # Call the method
+        result = await test_repository.exists(1)
+
+        # Verify exists is False
+        assert result is False
