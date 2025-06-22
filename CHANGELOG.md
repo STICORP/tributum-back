@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Async database session management with connection pooling and automatic cleanup
 - Database base model with auto-incrementing IDs, timestamps, and naming conventions
 - Pyright type checking integration for VS Code compatibility
 - PostgreSQL test database setup infrastructure with wait-for-postgres.sh script
