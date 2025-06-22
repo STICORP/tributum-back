@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Database base model with auto-incrementing IDs, timestamps, and naming conventions
 - Pyright type checking integration for VS Code compatibility
 - PostgreSQL test database setup infrastructure with wait-for-postgres.sh script
 - Test environment database URLs for pytest-env configuration
