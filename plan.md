@@ -834,6 +834,8 @@ Note: Documentation tasks are embedded throughout phases to keep CLAUDE.md curre
 
 ### Phase 6: Database Infrastructure
 
+**Important Note**: The database implementation uses sequential auto-incrementing BigInteger IDs instead of UUIDs for primary keys. This provides better performance for indexing and simpler foreign key relationships.
+
 #### Task 6.1: Add Database Dependencies
 **Status**: Complete - All database dependencies added with latest versions
 **File**: `pyproject.toml`
@@ -1016,13 +1018,14 @@ This phase provides the minimal Docker setup needed to enable database testing f
 **File**: `src/infrastructure/database/base.py`
 **Implementation**:
 - Create SQLAlchemy declarative base
-- Create `BaseModel` with id (UUID), created_at, updated_at
+- Create `BaseModel` with id (BigInteger, primary_key, autoincrement), created_at, updated_at
 - Add naming convention for constraints
 **Tests**: `tests/unit/infrastructure/database/test_base.py`
 - Test model creation
 - Test timestamp defaults
+- Test sequential ID generation
 **Acceptance Criteria**:
-- UUID primary keys work
+- Sequential IDs auto-increment properly
 - Timestamps auto-populate
 - Naming conventions applied
 
@@ -1062,7 +1065,7 @@ This phase provides the minimal Docker setup needed to enable database testing f
 **File**: `src/infrastructure/database/repository.py`
 **Implementation**:
 - Create `BaseRepository[T]` generic class
-- Implement `get_by_id(id: UUID) -> T | None`
+- Implement `get_by_id(id: int) -> T | None`
 - Implement `get_all(skip: int, limit: int) -> list[T]`
 - Implement `create(obj: T) -> T`
 **Tests**: `tests/unit/infrastructure/database/test_repository.py`
@@ -1077,10 +1080,10 @@ This phase provides the minimal Docker setup needed to enable database testing f
 **Status**: Pending
 **File**: `src/infrastructure/database/repository.py`
 **Implementation**:
-- Add `update(id: UUID, data: dict) -> T | None`
-- Add `delete(id: UUID) -> bool`
+- Add `update(id: int, data: dict) -> T | None`
+- Add `delete(id: int) -> bool`
 - Add `count() -> int`
-- Add `exists(id: UUID) -> bool`
+- Add `exists(id: int) -> bool`
 **Tests**: Update `tests/unit/infrastructure/database/test_repository.py`
 - Test update with partial data
 - Test delete return value
