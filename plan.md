@@ -13,14 +13,14 @@
 
 **Pending Phases:**
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
-- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.3 complete ✅, Tasks 6.4-6.11 pending)
+- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.4 complete ✅, Tasks 6.5-6.11 pending)
 - ✅ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5 complete ✅)
 - ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.4) - NEW
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 6.4 - Create Async Session Factory
+**Next Task:** Task 6.5 - Create Database Dependencies
 
 ## Revision Notes (Granular Approach)
 
@@ -1044,20 +1044,37 @@ This phase provides the minimal Docker setup needed to enable database testing f
 - ✅ 100% test coverage for new code
 
 #### Task 6.4: Create Async Session Factory
-**Status**: Pending
+**Status**: Complete ✅
 **File**: `src/infrastructure/database/session.py`
 **Implementation**:
-- Create async engine with connection pool
-- Create async session factory
-- Create `get_async_session` context manager
+- ✅ Created `create_database_engine()` function with full connection pooling support:
+  - Configurable pool_size, max_overflow, pool_timeout, pool_pre_ping
+  - Additional performance settings: pool_recycle=3600, JIT disabled
+  - Support for custom database URL override
+- ✅ Created `_DatabaseManager` class for singleton pattern without global statements:
+  - `get_engine()`: Returns singleton AsyncEngine instance
+  - `get_session_factory()`: Returns singleton async session factory
+  - `close()`: Async cleanup of engine and connections
+  - `reset()`: For testing purposes
+- ✅ Created `get_async_session()` async context manager:
+  - Automatic session commit on success
+  - Automatic rollback on exception
+  - Ensures session cleanup with finally block
+  - Full structured logging integration
+- ✅ Exported all components in `__init__.py`
 **Tests**: `tests/unit/infrastructure/database/test_session.py`
-- Test session creation
-- Test connection pooling
-- Test context manager cleanup
-**Acceptance Criteria**:
-- Sessions are async
-- Pool respects configuration
-- Proper cleanup on exit
+- ✅ Test engine creation with default and custom configurations
+- ✅ Test singleton behavior for engine and session factory
+- ✅ Test session context manager with success and error scenarios
+- ✅ Test proper cleanup even with database errors
+- ✅ Test connection pool configuration application
+- ✅ Full lifecycle integration tests
+- ✅ 100% test coverage achieved
+**Acceptance Criteria**: ✅ All criteria met
+- ✅ Sessions are fully async with SQLAlchemy 2.0+
+- ✅ Connection pool respects all configuration settings
+- ✅ Proper cleanup on exit with rollback/commit/close
+- ✅ No SQLAlchemy warnings (fixed duplicate test model names)
 
 #### Task 6.5: Create Database Dependencies
 **Status**: Pending
@@ -1514,6 +1531,16 @@ The BaseModel implementation provides a solid foundation for all database models
 - **Naming conventions**: Applied via MetaData to ensure consistent constraint names across migrations
 - **PostgreSQL-only testing**: No SQLite fallback - tests use real PostgreSQL via Docker fixtures
 - **100% test coverage**: Including edge cases like `updated_at` changes and None ID representation
+
+### Async Session Factory Implementation Notes (Task 6.4)
+The session management implementation follows best practices for async SQLAlchemy:
+- **Singleton Pattern without globals**: Uses `_DatabaseManager` class to avoid global statements
+- **Full async support**: Compatible with SQLAlchemy 2.0+ async features
+- **Connection pooling**: Comprehensive configuration with sensible defaults
+- **Performance optimizations**: JIT disabled, connection recycling, command timeout
+- **Automatic cleanup**: Context manager handles commit/rollback/close automatically
+- **Structured logging**: Full integration with project's logging infrastructure
+- **Test isolation**: `reset()` method for clean test state
 
 ## Testing Strategy Reminders
 
