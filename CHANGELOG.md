@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parallel test execution support with isolated databases for each pytest-xdist worker
 - FastAPI database dependency injection with automatic session lifecycle management
 - Generic base repository pattern with type-safe CRUD operations
+- Extended base repository with update, delete, count, and exists methods
 
 ### Changed
 - Database implementation plan updated to use sequential IDs instead of UUIDs for better performance
