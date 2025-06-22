@@ -2,6 +2,7 @@
 
 from src.infrastructure.database.base import Base, BaseModel
 from src.infrastructure.database.dependencies import DatabaseSession, get_db
+from src.infrastructure.database.repository import BaseRepository
 from src.infrastructure.database.session import (
     close_database,
     create_database_engine,
@@ -13,6 +14,7 @@ from src.infrastructure.database.session import (
 __all__ = [
     "Base",
     "BaseModel",
+    "BaseRepository",
     "DatabaseSession",
     "close_database",
     "create_database_engine",
