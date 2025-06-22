@@ -135,30 +135,30 @@ class TestBaseModel:
         """Test the __repr__ method format."""
 
         # Create a test model that inherits from BaseModel
-        class TestModel(BaseModel):
-            __tablename__ = "test_model"
+        class TestModelRepr(BaseModel):
+            __tablename__ = "test_model_repr"
             __abstract__ = False
 
         # Create an instance with a mock ID
-        instance = TestModel()
+        instance = TestModelRepr()
         instance.id = 123
 
         # Test repr format
-        assert repr(instance) == "<TestModel(id=123)>"
+        assert repr(instance) == "<TestModelRepr(id=123)>"
 
     def test_repr_method_with_none_id(self) -> None:
         """Test the __repr__ method with None ID."""
 
         # Create a test model that inherits from BaseModel
-        class TestModel(BaseModel):
+        class TestModelNone(BaseModel):
             __tablename__ = "test_model_none"
             __abstract__ = False
 
         # Create an instance without setting ID
-        instance = TestModel()
+        instance = TestModelNone()
 
         # Test repr format with None ID
-        assert repr(instance) == "<TestModel(id=None)>"
+        assert repr(instance) == "<TestModelNone(id=None)>"
 
 
 @pytest.mark.unit
