@@ -1,7 +1,5 @@
 """Unit tests for observability and tracing module."""
 
-from unittest.mock import Mock
-
 import pytest
 import pytest_check
 from opentelemetry.sdk.trace import Span
@@ -59,11 +57,11 @@ class TestSetupTracing:
         mock_trace = mocker.patch("src.core.observability.trace")
 
         # Create mock instances
-        mock_resource_instance = Mock()
+        mock_resource_instance = mocker.Mock()
         mock_resource.create.return_value = mock_resource_instance
-        mock_sampler_instance = Mock()
+        mock_sampler_instance = mocker.Mock()
         mock_sampler.return_value = mock_sampler_instance
-        mock_provider = Mock()
+        mock_provider = mocker.Mock()
         mock_provider_class.return_value = mock_provider
 
         # Call setup_tracing
@@ -120,15 +118,15 @@ class TestSetupTracing:
         )
 
         # Create mock instances
-        mock_resource_instance = Mock()
+        mock_resource_instance = mocker.Mock()
         mock_resource.create.return_value = mock_resource_instance
-        mock_sampler_instance = Mock()
+        mock_sampler_instance = mocker.Mock()
         mock_sampler.return_value = mock_sampler_instance
-        mock_provider = Mock()
+        mock_provider = mocker.Mock()
         mock_provider_class.return_value = mock_provider
-        mock_exporter = Mock()
+        mock_exporter = mocker.Mock()
         mock_exporter_class.return_value = mock_exporter
-        mock_processor = Mock()
+        mock_processor = mocker.Mock()
         mock_processor_class.return_value = mock_processor
 
         # Call setup_tracing
@@ -173,7 +171,7 @@ class TestSetupTracing:
         mock_exporter_class.side_effect = RuntimeError("GCP connection failed")
 
         # Mock provider
-        mock_provider = Mock()
+        mock_provider = mocker.Mock()
         mock_provider_class.return_value = mock_provider
 
         # Call setup_tracing - should not raise
@@ -197,7 +195,7 @@ class TestGetTracer:
         """Test get_tracer returns tracer from OpenTelemetry."""
         # Mock trace.get_tracer
         mock_trace = mocker.patch("src.core.observability.trace")
-        mock_tracer = Mock()
+        mock_tracer = mocker.Mock()
         mock_trace.get_tracer.return_value = mock_tracer
 
         # Call get_tracer
@@ -212,10 +210,10 @@ class TestGetTracer:
 class TestRecordTributumErrorInSpan:
     """Test cases for record_tributum_error_in_span function."""
 
-    def test_record_critical_error(self) -> None:
+    def test_record_critical_error(self, mocker: MockerFixture) -> None:
         """Test recording a critical severity error in span."""
         # Create a mock span
-        mock_span = Mock(spec=Span)
+        mock_span = mocker.Mock(spec=Span)
 
         # Create a critical error
         error = TributumError(
@@ -263,10 +261,10 @@ class TestRecordTributumErrorInSpan:
                 == ErrorCode.INTERNAL_ERROR.value
             )
 
-    def test_record_low_severity_error(self) -> None:
+    def test_record_low_severity_error(self, mocker: MockerFixture) -> None:
         """Test recording a low severity error in span."""
         # Create a mock span
-        mock_span = Mock(spec=Span)
+        mock_span = mocker.Mock(spec=Span)
 
         # Create a low severity error
         error = TributumError(
@@ -284,10 +282,10 @@ class TestRecordTributumErrorInSpan:
         assert isinstance(status_call, Status)
         assert status_call.status_code == StatusCode.OK
 
-    def test_record_error_with_complex_context(self) -> None:
+    def test_record_error_with_complex_context(self, mocker: MockerFixture) -> None:
         """Test recording error with non-primitive context values."""
         # Create a mock span
-        mock_span = Mock(spec=Span)
+        mock_span = mocker.Mock(spec=Span)
 
         # Create error with complex context
         error = TributumError(
@@ -341,9 +339,9 @@ class TestRecordTributumErrorInSpan:
 class TestErrorTrackingSpanProcessor:
     """Test cases for ErrorTrackingSpanProcessor class."""
 
-    def test_processor_initialization(self) -> None:
+    def test_processor_initialization(self, mocker: MockerFixture) -> None:
         """Test processor initializes with exporter."""
-        mock_exporter = Mock()
+        mock_exporter = mocker.Mock()
         processor = ErrorTrackingSpanProcessor(mock_exporter)
 
         # Should inherit from BatchSpanProcessor
@@ -352,11 +350,11 @@ class TestErrorTrackingSpanProcessor:
     def test_on_end_without_error(self, mocker: MockerFixture) -> None:
         """Test on_end when span has no error."""
         # Create processor with mock exporter
-        mock_exporter = Mock()
+        mock_exporter = mocker.Mock()
         processor = ErrorTrackingSpanProcessor(mock_exporter)
 
         # Create a mock span without error
-        mock_span = Mock()
+        mock_span = mocker.Mock()
         mock_span.status.status_code = StatusCode.OK
 
         # Mock the parent on_end
@@ -373,11 +371,11 @@ class TestErrorTrackingSpanProcessor:
     def test_on_end_with_tributum_error(self, mocker: MockerFixture) -> None:
         """Test on_end when span has TributumError."""
         # Create processor with mock exporter
-        mock_exporter = Mock()
+        mock_exporter = mocker.Mock()
         processor = ErrorTrackingSpanProcessor(mock_exporter)
 
         # Create mock event with TributumError attributes
-        mock_event = Mock()
+        mock_event = mocker.Mock()
         mock_event.name = "exception"
         mock_event.attributes = {
             "exception.type": "TributumError",
@@ -387,7 +385,7 @@ class TestErrorTrackingSpanProcessor:
         }
 
         # Create a mock span with error
-        mock_span = Mock()
+        mock_span = mocker.Mock()
         mock_span.status.status_code = StatusCode.ERROR
         mock_span.events = [mock_event]
 
@@ -405,11 +403,11 @@ class TestErrorTrackingSpanProcessor:
     def test_on_end_without_events_attribute(self, mocker: MockerFixture) -> None:
         """Test on_end when span doesn't have events attribute."""
         # Create processor with mock exporter
-        mock_exporter = Mock()
+        mock_exporter = mocker.Mock()
         processor = ErrorTrackingSpanProcessor(mock_exporter)
 
         # Create a mock span with error but no events attribute
-        mock_span = Mock(spec=["status", "set_attribute"])
+        mock_span = mocker.Mock(spec=["status", "set_attribute"])
         mock_span.status.status_code = StatusCode.ERROR
 
         # Mock the parent on_end

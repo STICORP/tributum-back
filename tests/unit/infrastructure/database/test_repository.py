@@ -14,10 +14,10 @@ from src.infrastructure.database.base import BaseModel
 from src.infrastructure.database.repository import BaseRepository
 
 
-class TestModelForRepository(BaseModel):
+class ModelForRepositoryTesting(BaseModel):
     """Test model for repository testing."""
 
-    __tablename__ = "test_model_repository"
+    __tablename__ = "model_repository_testing"
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -32,9 +32,9 @@ def mock_session(mocker: MockerFixture) -> AsyncSession:
 @pytest.fixture
 def test_repository(
     mock_session: AsyncSession,
-) -> BaseRepository[TestModelForRepository]:
+) -> BaseRepository[ModelForRepositoryTesting]:
     """Create a test repository instance."""
-    return BaseRepository(mock_session, TestModelForRepository)
+    return BaseRepository(mock_session, ModelForRepositoryTesting)
 
 
 @pytest.mark.asyncio
@@ -43,19 +43,19 @@ class TestBaseRepository:
 
     async def test_init(self, mock_session: AsyncSession) -> None:
         """Test repository initialization."""
-        repo = BaseRepository(mock_session, TestModelForRepository)
+        repo = BaseRepository(mock_session, ModelForRepositoryTesting)
         assert repo.session is mock_session
-        assert repo.model_class is TestModelForRepository
+        assert repo.model_class is ModelForRepositoryTesting
 
     async def test_get_by_id_found(
         self,
-        test_repository: BaseRepository[TestModelForRepository],
+        test_repository: BaseRepository[ModelForRepositoryTesting],
         mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_by_id when the instance exists."""
         # Create a test instance
-        test_instance = TestModelForRepository(
+        test_instance = ModelForRepositoryTesting(
             id=1,
             name="Test Item",
             description="Test Description",
@@ -89,7 +89,7 @@ class TestBaseRepository:
 
     async def test_get_by_id_not_found(
         self,
-        test_repository: BaseRepository[TestModelForRepository],
+        test_repository: BaseRepository[ModelForRepositoryTesting],
         mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
@@ -112,14 +112,14 @@ class TestBaseRepository:
 
     async def test_get_all_with_results(
         self,
-        test_repository: BaseRepository[TestModelForRepository],
+        test_repository: BaseRepository[ModelForRepositoryTesting],
         mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_all with multiple results."""
         # Create test instances
         test_instances = [
-            TestModelForRepository(
+            ModelForRepositoryTesting(
                 id=i,
                 name=f"Test Item {i}",
                 description=f"Description {i}",
@@ -145,7 +145,7 @@ class TestBaseRepository:
 
         # Verify the result
         assert len(result) == 3
-        assert all(isinstance(item, TestModelForRepository) for item in result)
+        assert all(isinstance(item, ModelForRepositoryTesting) for item in result)
         assert result[0].id == 1
         assert result[0].name == "Test Item 1"
 
@@ -154,14 +154,14 @@ class TestBaseRepository:
 
     async def test_get_all_with_pagination(
         self,
-        test_repository: BaseRepository[TestModelForRepository],
+        test_repository: BaseRepository[ModelForRepositoryTesting],
         mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_all with skip and limit parameters."""
         # Create test instances
         test_instances = [
-            TestModelForRepository(
+            ModelForRepositoryTesting(
                 id=i,
                 name=f"Test Item {i}",
                 created_at=datetime.now(UTC),
@@ -193,7 +193,7 @@ class TestBaseRepository:
 
     async def test_get_all_empty_result(
         self,
-        test_repository: BaseRepository[TestModelForRepository],
+        test_repository: BaseRepository[ModelForRepositoryTesting],
         mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
@@ -218,13 +218,13 @@ class TestBaseRepository:
 
     async def test_create_success(
         self,
-        test_repository: BaseRepository[TestModelForRepository],
+        test_repository: BaseRepository[ModelForRepositoryTesting],
         mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test successful creation of a new instance."""
         # Create a new instance without ID
-        new_instance = TestModelForRepository(
+        new_instance = ModelForRepositoryTesting(
             name="New Item", description="New Description"
         )
 
@@ -232,7 +232,7 @@ class TestBaseRepository:
         def set_id() -> None:
             new_instance.id = 42
 
-        def set_timestamps(obj: TestModelForRepository) -> None:
+        def set_timestamps(obj: ModelForRepositoryTesting) -> None:
             obj.created_at = datetime.now(UTC)
             obj.updated_at = datetime.now(UTC)
 
@@ -266,19 +266,19 @@ class TestBaseRepository:
 
     async def test_create_with_minimal_data(
         self,
-        test_repository: BaseRepository[TestModelForRepository],
+        test_repository: BaseRepository[ModelForRepositoryTesting],
         mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test creation with only required fields."""
         # Create instance with only required fields
-        new_instance = TestModelForRepository(name="Minimal Item")
+        new_instance = ModelForRepositoryTesting(name="Minimal Item")
 
         # Mock the session methods
         def set_id() -> None:
             new_instance.id = 100
 
-        def set_timestamps(obj: TestModelForRepository) -> None:
+        def set_timestamps(obj: ModelForRepositoryTesting) -> None:
             obj.created_at = datetime.now(UTC)
             obj.updated_at = datetime.now(UTC)
 

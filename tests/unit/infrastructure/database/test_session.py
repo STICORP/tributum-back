@@ -1,9 +1,8 @@
 """Unit tests for database session management."""
 
-from unittest.mock import AsyncMock, MagicMock
-
 import pytest
 import pytest_check
+from pytest_mock import MockerFixture
 from sqlalchemy.exc import DatabaseError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -21,10 +20,10 @@ from src.infrastructure.database.session import (
 class TestCreateDatabaseEngine:
     """Test cases for create_database_engine function."""
 
-    def test_create_engine_with_default_config(self, mocker: MagicMock) -> None:
+    def test_create_engine_with_default_config(self, mocker: MockerFixture) -> None:
         """Test creating engine with default configuration."""
         # Mock settings
-        mock_settings = MagicMock()
+        mock_settings = mocker.MagicMock()
         mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
         mock_settings.database_config.pool_size = 10
         mock_settings.database_config.max_overflow = 5
@@ -38,7 +37,7 @@ class TestCreateDatabaseEngine:
         )
 
         # Mock create_async_engine
-        mock_engine = MagicMock(spec=AsyncEngine)
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
         mock_create_engine = mocker.patch(
             "src.infrastructure.database.session.create_async_engine",
             return_value=mock_engine,
@@ -64,10 +63,10 @@ class TestCreateDatabaseEngine:
 
         assert engine is mock_engine
 
-    def test_create_engine_with_custom_url(self, mocker: MagicMock) -> None:
+    def test_create_engine_with_custom_url(self, mocker: MockerFixture) -> None:
         """Test creating engine with custom database URL."""
         # Mock settings
-        mock_settings = MagicMock()
+        mock_settings = mocker.MagicMock()
         mock_settings.database_config.database_url = "postgresql+asyncpg://default/db"
         mock_settings.database_config.pool_size = 10
         mock_settings.database_config.max_overflow = 5
@@ -81,7 +80,7 @@ class TestCreateDatabaseEngine:
         )
 
         # Mock create_async_engine
-        mock_engine = MagicMock(spec=AsyncEngine)
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
         mock_create_engine = mocker.patch(
             "src.infrastructure.database.session.create_async_engine",
             return_value=mock_engine,
@@ -98,10 +97,10 @@ class TestCreateDatabaseEngine:
 
         assert engine is mock_engine
 
-    def test_create_engine_with_echo_enabled(self, mocker: MagicMock) -> None:
+    def test_create_engine_with_echo_enabled(self, mocker: MockerFixture) -> None:
         """Test creating engine with SQL echo enabled."""
         # Mock settings with echo enabled
-        mock_settings = MagicMock()
+        mock_settings = mocker.MagicMock()
         mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
         mock_settings.database_config.pool_size = 10
         mock_settings.database_config.max_overflow = 5
@@ -115,7 +114,7 @@ class TestCreateDatabaseEngine:
         )
 
         # Mock create_async_engine
-        mock_engine = MagicMock(spec=AsyncEngine)
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
         mock_create_engine = mocker.patch(
             "src.infrastructure.database.session.create_async_engine",
             return_value=mock_engine,
@@ -133,13 +132,13 @@ class TestCreateDatabaseEngine:
 class TestGetEngine:
     """Test cases for get_engine function."""
 
-    def test_get_engine_creates_singleton(self, mocker: MagicMock) -> None:
+    def test_get_engine_creates_singleton(self, mocker: MockerFixture) -> None:
         """Test that get_engine creates a singleton instance."""
         # Reset database manager
         src.infrastructure.database.session._db_manager.reset()
 
         # Mock create_database_engine
-        mock_engine = MagicMock(spec=AsyncEngine)
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
         mock_create = mocker.patch(
             "src.infrastructure.database.session.create_database_engine",
             return_value=mock_engine,
@@ -158,10 +157,10 @@ class TestGetEngine:
         # Cleanup
         src.infrastructure.database.session._db_manager.reset()
 
-    def test_get_engine_returns_existing_instance(self, mocker: MagicMock) -> None:
+    def test_get_engine_returns_existing_instance(self, mocker: MockerFixture) -> None:
         """Test that get_engine returns existing engine if already created."""
         # Set up existing engine
-        existing_engine = MagicMock(spec=AsyncEngine)
+        existing_engine = mocker.MagicMock(spec=AsyncEngine)
         src.infrastructure.database.session._db_manager._engine = existing_engine
 
         # Mock create_database_engine (should not be called)
@@ -182,20 +181,20 @@ class TestGetEngine:
 class TestGetSessionFactory:
     """Test cases for get_session_factory function."""
 
-    def test_get_session_factory_creates_singleton(self, mocker: MagicMock) -> None:
+    def test_get_session_factory_creates_singleton(self, mocker: MockerFixture) -> None:
         """Test that get_session_factory creates a singleton instance."""
         # Reset database manager
         src.infrastructure.database.session._db_manager.reset()
 
         # Mock engine
-        mock_engine = MagicMock(spec=AsyncEngine)
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
         mocker.patch(
             "src.infrastructure.database.session._db_manager.get_engine",
             return_value=mock_engine,
         )
 
         # Mock async_sessionmaker
-        mock_factory = MagicMock()
+        mock_factory = mocker.MagicMock()
         mock_sessionmaker = mocker.patch(
             "src.infrastructure.database.session.async_sessionmaker",
             return_value=mock_factory,
@@ -219,11 +218,11 @@ class TestGetSessionFactory:
         src.infrastructure.database.session._db_manager.reset()
 
     def test_get_session_factory_returns_existing_instance(
-        self, mocker: MagicMock
+        self, mocker: MockerFixture
     ) -> None:
         """Test that get_session_factory returns existing factory if already created."""
         # Set up existing factory
-        existing_factory = MagicMock()
+        existing_factory = mocker.MagicMock()
         src.infrastructure.database.session._db_manager._async_session_factory = (
             existing_factory
         )
@@ -247,17 +246,17 @@ class TestGetSessionFactory:
 class TestGetAsyncSession:
     """Test cases for get_async_session context manager."""
 
-    async def test_get_async_session_success(self, mocker: MagicMock) -> None:
+    async def test_get_async_session_success(self, mocker: MockerFixture) -> None:
         """Test successful session creation and cleanup."""
         # Mock session
-        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session = mocker.AsyncMock(spec=AsyncSession)
 
         # Mock session factory
-        mock_factory = AsyncMock()
+        mock_factory = mocker.AsyncMock()
         mock_factory.__aenter__.return_value = mock_session
         mock_factory.__aexit__.return_value = None
 
-        mock_sessionmaker = MagicMock()
+        mock_sessionmaker = mocker.MagicMock()
         mock_sessionmaker.return_value = mock_factory
 
         mocker.patch(
@@ -274,17 +273,19 @@ class TestGetAsyncSession:
         mock_session.close.assert_called_once()
         mock_session.rollback.assert_not_called()
 
-    async def test_get_async_session_with_exception(self, mocker: MagicMock) -> None:
+    async def test_get_async_session_with_exception(
+        self, mocker: MockerFixture
+    ) -> None:
         """Test session rollback on exception."""
         # Mock session
-        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session = mocker.AsyncMock(spec=AsyncSession)
 
         # Mock session factory
-        mock_factory = AsyncMock()
+        mock_factory = mocker.AsyncMock()
         mock_factory.__aenter__.return_value = mock_session
         mock_factory.__aexit__.return_value = None
 
-        mock_sessionmaker = MagicMock()
+        mock_sessionmaker = mocker.MagicMock()
         mock_sessionmaker.return_value = mock_factory
 
         mocker.patch(
@@ -307,20 +308,22 @@ class TestGetAsyncSession:
         mock_session.commit.assert_not_called()
         mock_session.close.assert_called_once()
 
-    async def test_get_async_session_database_error(self, mocker: MagicMock) -> None:
+    async def test_get_async_session_database_error(
+        self, mocker: MockerFixture
+    ) -> None:
         """Test session behavior with database error during commit."""
         # Mock session that raises error on commit
-        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session = mocker.AsyncMock(spec=AsyncSession)
         mock_session.commit.side_effect = DatabaseError(
             "Connection lost", "", Exception("Connection lost")
         )
 
         # Mock session factory
-        mock_factory = AsyncMock()
+        mock_factory = mocker.AsyncMock()
         mock_factory.__aenter__.return_value = mock_session
         mock_factory.__aexit__.return_value = None
 
-        mock_sessionmaker = MagicMock()
+        mock_sessionmaker = mocker.MagicMock()
         mock_sessionmaker.return_value = mock_factory
 
         mocker.patch(
@@ -338,21 +341,21 @@ class TestGetAsyncSession:
         mock_session.close.assert_called_once()
 
     async def test_get_async_session_cleanup_even_on_close_error(
-        self, mocker: MagicMock
+        self, mocker: MockerFixture
     ) -> None:
         """Test that close is called even if other operations fail."""
         # Mock session that raises error on rollback
-        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session = mocker.AsyncMock(spec=AsyncSession)
         mock_session.rollback.side_effect = DatabaseError(
             "Rollback failed", "", Exception("Rollback failed")
         )
 
         # Mock session factory
-        mock_factory = AsyncMock()
+        mock_factory = mocker.AsyncMock()
         mock_factory.__aenter__.return_value = mock_session
         mock_factory.__aexit__.return_value = None
 
-        mock_sessionmaker = MagicMock()
+        mock_sessionmaker = mocker.MagicMock()
         mock_sessionmaker.return_value = mock_factory
 
         mocker.patch(
@@ -380,13 +383,13 @@ class TestGetAsyncSession:
 class TestCloseDatabase:
     """Test cases for close_database function."""
 
-    async def test_close_database_disposes_engine(self) -> None:
+    async def test_close_database_disposes_engine(self, mocker: MockerFixture) -> None:
         """Test that close_database properly disposes the engine."""
         # Set up existing engine
-        mock_engine = AsyncMock(spec=AsyncEngine)
+        mock_engine = mocker.AsyncMock(spec=AsyncEngine)
         src.infrastructure.database.session._db_manager._engine = mock_engine
         src.infrastructure.database.session._db_manager._async_session_factory = (
-            MagicMock()
+            mocker.MagicMock()
         )
 
         # Call close_database
@@ -413,14 +416,16 @@ class TestCloseDatabase:
         assert db_manager._engine is None
         assert db_manager._async_session_factory is None
 
-    async def test_close_database_handles_dispose_error(self) -> None:
+    async def test_close_database_handles_dispose_error(
+        self, mocker: MockerFixture
+    ) -> None:
         """Test that close_database handles errors during engine disposal."""
         # Set up engine that raises error on dispose
-        mock_engine = AsyncMock(spec=AsyncEngine)
+        mock_engine = mocker.AsyncMock(spec=AsyncEngine)
         mock_engine.dispose.side_effect = Exception("Dispose failed")
         src.infrastructure.database.session._db_manager._engine = mock_engine
         src.infrastructure.database.session._db_manager._async_session_factory = (
-            MagicMock()
+            mocker.MagicMock()
         )
 
         # Call close_database - should propagate the exception
@@ -436,10 +441,10 @@ class TestCloseDatabase:
 class TestIntegrationScenarios:
     """Integration tests for session management."""
 
-    async def test_connection_pool_configuration(self, mocker: MagicMock) -> None:
+    async def test_connection_pool_configuration(self, mocker: MockerFixture) -> None:
         """Test that pool configuration is properly applied."""
         # Mock settings with specific pool config
-        mock_settings = MagicMock()
+        mock_settings = mocker.MagicMock()
         mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
         mock_settings.database_config.pool_size = 20
         mock_settings.database_config.max_overflow = 10
@@ -455,7 +460,7 @@ class TestIntegrationScenarios:
         # Mock create_async_engine
         mock_create_engine = mocker.patch(
             "src.infrastructure.database.session.create_async_engine",
-            return_value=MagicMock(spec=AsyncEngine),
+            return_value=mocker.MagicMock(spec=AsyncEngine),
         )
 
         # Reset database manager
@@ -478,13 +483,13 @@ class TestIntegrationScenarios:
         # Cleanup
         src.infrastructure.database.session._db_manager.reset()
 
-    async def test_full_lifecycle(self, mocker: MagicMock) -> None:
+    async def test_full_lifecycle(self, mocker: MockerFixture) -> None:
         """Test full lifecycle: create engine, get session, close database."""
         # Reset database manager
         src.infrastructure.database.session._db_manager.reset()
 
         # Mock dependencies
-        mock_settings = MagicMock()
+        mock_settings = mocker.MagicMock()
         mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
         mock_settings.database_config.pool_size = 10
         mock_settings.database_config.max_overflow = 5
@@ -498,19 +503,19 @@ class TestIntegrationScenarios:
         )
 
         # Mock engine
-        mock_engine = AsyncMock(spec=AsyncEngine)
+        mock_engine = mocker.AsyncMock(spec=AsyncEngine)
         mocker.patch(
             "src.infrastructure.database.session.create_async_engine",
             return_value=mock_engine,
         )
 
         # Mock session
-        mock_session = AsyncMock(spec=AsyncSession)
-        mock_factory = AsyncMock()
+        mock_session = mocker.AsyncMock(spec=AsyncSession)
+        mock_factory = mocker.AsyncMock()
         mock_factory.__aenter__.return_value = mock_session
         mock_factory.__aexit__.return_value = None
 
-        mock_sessionmaker_instance = MagicMock()
+        mock_sessionmaker_instance = mocker.MagicMock()
         mock_sessionmaker_instance.return_value = mock_factory
 
         mocker.patch(
@@ -540,11 +545,11 @@ class TestIntegrationScenarios:
 class TestDatabaseManager:
     """Test cases for _DatabaseManager class."""
 
-    def test_reset_method(self, mocker: MagicMock) -> None:
+    def test_reset_method(self, mocker: MockerFixture) -> None:
         """Test that reset method clears all state."""
         # Mock create_database_engine to return a different engine each time
-        mock_engine1 = MagicMock(spec=AsyncEngine)
-        mock_engine2 = MagicMock(spec=AsyncEngine)
+        mock_engine1 = mocker.MagicMock(spec=AsyncEngine)
+        mock_engine2 = mocker.MagicMock(spec=AsyncEngine)
         mock_create = mocker.patch(
             "src.infrastructure.database.session.create_database_engine",
             side_effect=[mock_engine1, mock_engine2],

@@ -4,7 +4,6 @@ import asyncio
 import importlib
 from collections.abc import Sequence
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -77,10 +76,10 @@ class TestTracingConfiguration:
 class TestCorrelationIdToSpan:
     """Test cases for _add_correlation_id_to_span function."""
 
-    def test_add_correlation_id_to_span_with_id(self) -> None:
+    def test_add_correlation_id_to_span_with_id(self, mocker: MockerFixture) -> None:
         """Test that correlation ID is added to span when available."""
         # Mock span
-        mock_span = Mock()
+        mock_span = mocker.Mock()
 
         # Set a correlation ID in context
         test_correlation_id = "test-corr-123"
@@ -99,13 +98,13 @@ class TestCorrelationIdToSpan:
         # Clean up
         RequestContext.clear()
 
-    def test_add_correlation_id_to_span_without_id(self) -> None:
+    def test_add_correlation_id_to_span_without_id(self, mocker: MockerFixture) -> None:
         """Test that function handles missing correlation ID gracefully."""
         # Ensure no correlation ID is set
         RequestContext.clear()
 
         # Mock span
-        mock_span = Mock()
+        mock_span = mocker.Mock()
 
         # Call the function
         _add_correlation_id_to_span(mock_span, {})
@@ -113,10 +112,10 @@ class TestCorrelationIdToSpan:
         # Verify no attributes were set
         mock_span.set_attribute.assert_not_called()
 
-    def test_add_correlation_id_to_span_with_path(self) -> None:
+    def test_add_correlation_id_to_span_with_path(self, mocker: MockerFixture) -> None:
         """Test that request path is added to span when available."""
         # Mock span
-        mock_span = Mock()
+        mock_span = mocker.Mock()
 
         # Call the function with request scope containing path
         request_scope = {"path": "/api/v1/test"}
