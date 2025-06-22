@@ -1,0 +1,21 @@
+{
+  "include": ["src", "tests", "stubs"],
+  "stubPath": "stubs",
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.13",
+  "pythonPlatform": "Linux",
+  "venvPath": ".",
+  "venv": ".venv",
+  "reportPrivateImportUsage": false,
+  "reportUnknownMemberType": false,
+  "reportUnknownArgumentType": false,
+  "reportUnknownVariableType": false,
+  "reportMissingTypeStubs": false,
+  "reportIncompatibleMethodOverride": false,
+  "reportUnusedFunction": false,
+  "reportPrivateUsage": false,
+  "reportUnnecessaryIsInstance": false,
+  "reportAttributeAccessIssue": false,
+  "reportOptionalSubscript": false,
+  "reportUnknownParameterType": false
+}
