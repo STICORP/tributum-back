@@ -1,0 +1,44 @@
+"""Database dependencies for FastAPI.
+
+This module provides dependency injection functions for database sessions
+in FastAPI routes, ensuring proper lifecycle management and cleanup.
+"""
+
+from collections.abc import AsyncGenerator
+from typing import Annotated
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.logging import get_logger
+from src.infrastructure.database.session import get_async_session
+
+logger = get_logger(__name__)
+
+
+async def get_db() -> AsyncGenerator[AsyncSession]:
+    """Provide a database session for FastAPI dependency injection.
+
+    This function is designed to be used with FastAPI's Depends mechanism
+    to inject database sessions into route handlers. It ensures proper
+    cleanup of the session after the request completes.
+
+    Yields:
+        AsyncGenerator[AsyncSession]: An async SQLAlchemy session that will be
+                                     automatically committed on success or rolled
+                                     back on error.
+
+    Example:
+        @app.get("/users")
+        async def get_users(db: DatabaseSession):
+            result = await db.execute(select(User))
+            return result.scalars().all()
+    """
+    async with get_async_session() as session:
+        logger.debug("Providing database session for request")
+        yield session
+        logger.debug("Database session dependency completed")
+
+
+# Type alias for cleaner dependency injection
+DatabaseSession = Annotated[AsyncSession, Depends(get_db)]
