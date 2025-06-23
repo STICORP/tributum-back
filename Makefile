@@ -1,4 +1,4 @@
-.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check all-checks
+.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check shellcheck shellcheck-fix all-checks
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -168,4 +168,13 @@ docstring-quality:  ## Check only docstring quality (not presence)
 pylint-check:  ## Run pylint for code quality checks
 	uv run pylint --rcfile=pyproject.toml src/
 
-all-checks: format-check lint type-check pyright complexity-check security dead-code docstring-check pylint-check  ## Run all checks including dead code and docstring quality
+shellcheck:  ## Run shellcheck on all shell scripts
+	@echo "Running shellcheck on shell scripts..."
+	@find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -exec uv run shellcheck {} +
+	@if [ -f scripts/tool ]; then uv run shellcheck scripts/tool; fi
+
+shellcheck-fix:  ## Run shellcheck with auto-fix suggestions
+	@echo "Running shellcheck with fix suggestions..."
+	@find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -exec uv run shellcheck -f diff {} \; | patch -p1
+
+all-checks: format-check lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck  ## Run all checks including dead code, docstring quality, and shell scripts

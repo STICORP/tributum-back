@@ -73,6 +73,7 @@ dev = [
     "vulture>=2.14",
     "pydoclint>=0.6.6",
     "pylint>=3.3.7",
+    "shellcheck-py>=0.10.0.1",
 
     # Testing framework and plugins
     "pytest>=8.4.0",

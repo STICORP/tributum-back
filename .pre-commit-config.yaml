@@ -133,6 +133,16 @@ repos:
         pass_filenames: false
         exclude: ^tests/  # Exclude test files as shadowing is common in fixtures
 
+  # Shellcheck for shell script linting
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        entry: make shellcheck
+        language: system
+        pass_filenames: false
+        types: [shell]
+
   # Run all tests to catch breaking changes
   - repo: local
     hooks:

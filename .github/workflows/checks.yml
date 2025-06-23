@@ -63,6 +63,9 @@ jobs:
     - name: Docstring Quality
       run: make docstring-quality
 
+    - name: Shellcheck
+      run: make shellcheck
+
     - name: Run tests
       run: make test-ci
 
