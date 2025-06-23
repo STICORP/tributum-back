@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FastAPI database dependency injection with automatic session lifecycle management
 - Generic base repository pattern with type-safe CRUD operations
 - Extended base repository with update, delete, count, and exists methods
+- Dynamic filtering methods (filter_by and find_one_by) for flexible database queries
 
 ### Changed
 - Database implementation plan updated to use sequential IDs instead of UUIDs for better performance
