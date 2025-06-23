@@ -48,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README documentation updated with comprehensive database infrastructure details
 - README documentation enhanced with parallel test execution, database fixtures, and Docker testing infrastructure details
 - CLAUDE.md development guidance expanded with database architecture, observability patterns, and infrastructure setup
+- CLAUDE.md documentation enhanced with Docker workflow, configuration patterns, and Cloud Run deployment guidance
 - Test suite standardized to use pytest-mock fixtures instead of unittest.mock for better test isolation
 - Project documentation reorganized into .specs directory for better structure
 
