@@ -81,6 +81,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         """
         return {"message": "Hello from Tributum!"}
 
+    @application.get("/health")
+    async def health() -> dict[str, str]:
+        """Health check endpoint for monitoring and container orchestration.
+
+        Used by:
+        - Docker health checks
+        - Kubernetes liveness/readiness probes
+        - GCP Cloud Run health checks
+        - Load balancers
+
+        Returns:
+            dict[str, str]: A dictionary with status "healthy".
+        """
+        return {"status": "healthy"}
+
     @application.get("/info")
     async def info(
         app_settings: Annotated[Settings, Depends(get_settings)],
