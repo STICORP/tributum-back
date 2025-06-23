@@ -1,6 +1,7 @@
 """Integration tests for API endpoints."""
 
 import pytest
+import pytest_check
 from httpx import AsyncClient
 
 
@@ -40,3 +41,28 @@ class TestAPIEndpoints:
         assert schema["info"]["version"]  # Just verify version exists
         assert "paths" in schema
         assert "/" in schema["paths"]
+
+    async def test_health_endpoint(self, client: AsyncClient) -> None:
+        """Test GET /health endpoint returns correct response."""
+        response = await client.get("/health")
+
+        assert response.status_code == 200
+        assert response.json() == {"status": "healthy"}
+
+    async def test_info_endpoint(self, client: AsyncClient) -> None:
+        """Test GET /info endpoint returns application information."""
+        response = await client.get("/info")
+
+        assert response.status_code == 200
+
+        data = response.json()
+        with pytest_check.check:
+            assert "app_name" in data
+        with pytest_check.check:
+            assert data["app_name"] == "Tributum"
+        with pytest_check.check:
+            assert "version" in data
+        with pytest_check.check:
+            assert "environment" in data
+        with pytest_check.check:
+            assert "debug" in data
