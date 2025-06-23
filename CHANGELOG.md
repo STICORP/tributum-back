@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Generic base repository pattern with type-safe CRUD operations
 - Extended base repository with update, delete, count, and exists methods
 - Dynamic filtering methods (filter_by and find_one_by) for flexible database queries
+- Testing philosophy documentation outlining current and future testing strategies
 
 ### Changed
 - Database implementation plan updated to use sequential IDs instead of UUIDs for better performance
@@ -32,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README documentation enhanced with parallel test execution, database fixtures, and Docker testing infrastructure details
 - CLAUDE.md development guidance expanded with database architecture, observability patterns, and infrastructure setup
 - Test suite standardized to use pytest-mock fixtures instead of unittest.mock for better test isolation
+- Project documentation reorganized into .specs directory for better structure
 
 ### Fixed
 - CI pipeline failure due to missing docker/scripts directory
