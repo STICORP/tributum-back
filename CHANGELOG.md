@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Alembic database migration framework with full async SQLAlchemy support
+- Automatic database migrations for test fixtures during test execution
+- Comprehensive migration management commands in Makefile (create, up, down, history, etc.)
 - Async database session management with connection pooling and automatic cleanup
 - Database base model with auto-incrementing IDs, timestamps, and naming conventions
 - Pyright type checking integration for VS Code compatibility
@@ -27,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FastAPI best practices validation guide for ensuring code quality and consistency
 
 ### Changed
+- Database default configuration updated to match Docker PostgreSQL credentials
+- Environment variable structure fixed in .env.example for nested configuration
 - Database implementation plan updated to use sequential IDs instead of UUIDs for better performance
 - Test suite organization with consistent pytest markers on all test files
 - Test structure refactored to use class-based organization for better maintainability
