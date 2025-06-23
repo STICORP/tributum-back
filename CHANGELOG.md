@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Initial database migration baseline for schema version control
 - Alembic database migration framework with full async SQLAlchemy support
 - Automatic database migrations for test fixtures during test execution
 - Comprehensive migration management commands in Makefile (create, up, down, history, etc.)
