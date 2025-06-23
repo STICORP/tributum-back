@@ -12,6 +12,10 @@
 - Fully read /src/core/config.py
 - Fully read /src/api/main.py
 
+## Dependencies
+
+- If you added any new dependency to the project, make sure you added the absolutely latest version of that library that is supported by our project.
+
 ## Check the usage of the project frameworks
 
 - Was the configuration management done according with the project patterns and how the project expects the configuration management framework to be used?
@@ -28,6 +32,13 @@
 - Check if you are actually using the installed pytest plugins everywhere you should instead of relying on vanilla test implementations (e.g. pytest_mock instead of unittest mock)
 - Check if you did not introduce any test behavior that will be impossible or difficult to test on our CI (Github Actions)
 - Check if the test coverage remains at 100% and if not, implement the tests for missing lines.
+
+## Docker implementation
+
+- Check if what we implemented needs to be integrated with our docker implementation
+- Check if we need to change Dockerfiles, docker-compose files
+- Check if we introduced configuration that should be integrated in docker
+- Check if we introduced or changed anything that will require that we change anything anywhere in our docker implementation
 
 ## Quality checks and linting
 
