@@ -101,7 +101,7 @@ Dockerfile*
 # Development tools config
 .pre-commit-config.yaml
 Makefile
-pyproject.toml
+# pyproject.toml is needed for Docker builds
 vulture_whitelist.py
 
 # Scripts not needed in production
