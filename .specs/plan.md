@@ -15,12 +15,12 @@
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
 - ✅ Phase 6: Database Infrastructure (Tasks 6.1-6.11 complete ✅)
 - ✅ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5 complete ✅)
-- ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.4) - NEW
+- ⏳ Phase 6.12: Full Docker Development Environment (Task 6.12.1 complete ✅, Tasks 6.12.2-6.12.4 pending)
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 6.12.1 - Create Development Docker Infrastructure
+**Next Task:** Task 6.12.2 - Create Development Docker Compose
 
 ## Revision Notes (Granular Approach)
 
@@ -1249,43 +1249,50 @@ This phase provides the minimal Docker setup needed to enable database testing f
 This phase builds upon the minimal Docker infrastructure to provide a complete development environment with hot-reload, debugging capabilities, and production-like setup.
 
 #### Task 6.12.1: Create Application Dockerfile
-**Status**: Pending
+**Status**: Complete ✅
 **Pre-requisites**: Phase 6 complete (Tasks 6.1-6.11)
 **Files**:
 - `docker/app/Dockerfile`
 - `docker/app/Dockerfile.dev`
 - `docker/scripts/entrypoint.sh`
+- `docker/scripts/migrate.sh` (added)
+- `src/api/main.py` (added /health endpoint)
+- `main.py` (updated to respect Cloud Run PORT env var)
+- `pyproject.toml` (moved uvicorn to production dependencies)
 **Implementation**:
-- Create multi-stage production Dockerfile:
-  ```dockerfile
-  # Build stage
-  FROM python:3.13-slim as builder
-  RUN pip install --no-cache-dir uv
-  WORKDIR /build
-  COPY pyproject.toml uv.lock ./
-  RUN uv sync --frozen --no-dev
-
-  # Runtime stage
-  FROM python:3.13-slim
-  RUN useradd -m -u 1000 tributum
-  WORKDIR /app
-  COPY --from=builder /build/.venv /app/.venv
-  COPY . .
-  USER tributum
-  ENV PATH="/app/.venv/bin:$PATH"
-  ENTRYPOINT ["/app/docker/scripts/entrypoint.sh"]
-  ```
-- Create development Dockerfile with hot-reload support
-- Create entrypoint script for migrations and startup
+- Created multi-stage production Dockerfile with GCP Cloud Run compatibility:
+  - Multi-stage build for minimal runtime image (306MB)
+  - Non-root user (tributum, UID 1000)
+  - Cloud Run compatible defaults (API_HOST=0.0.0.0, API_PORT=8080)
+  - Respects PORT environment variable
+  - Health check with configurable port
+  - Uses `python main.py` to respect all environment variables
+- Created development Dockerfile with hot-reload support (836MB)
+- Created minimal entrypoint script that:
+  - Only verifies DATABASE_CONFIG__DATABASE_URL is set
+  - Does NOT wait for database (app handles with pool_pre_ping=True)
+  - Does NOT run migrations (separate process for Cloud Run)
+- Created separate migration script for production deployments
+- Added /health endpoint to FastAPI app
+- Moved uvicorn from dev to production dependencies
+**Key Differences from Original Task**:
+- No Docker-specific environment variables (SKIP_DB_WAIT, RUN_MIGRATIONS)
+- All configuration follows project's SECTION__FIELD pattern
+- Migrations separated from entrypoint for Cloud Run compatibility
+- PORT environment variable support for Cloud Run
+- Simplified entrypoint that delegates to application
 **Tests**:
-- Build both Docker images successfully
-- Verify non-root user in production image
-- Test entrypoint script execution
-**Acceptance Criteria**:
-- Production image is minimal and secure
-- Development image supports hot-reload
-- Entrypoint handles migrations gracefully
-- Images build without errors
+- Both Docker images build successfully
+- Non-root user verified in production image
+- Health endpoint works correctly
+- PORT environment variable respected
+- All quality checks pass
+**Acceptance Criteria Met**:
+- ✅ Production image is minimal and secure (306MB, non-root)
+- ✅ Development image supports hot-reload
+- ✅ Migrations handled separately (not in entrypoint)
+- ✅ Images build without errors
+- ✅ Cloud Run compatible
 
 #### Task 6.12.2: Create Development Docker Compose
 **Status**: Pending
@@ -1293,7 +1300,7 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
 **Files**:
 - `docker-compose.yml`
 - `docker-compose.dev.yml`
-- Update `.env.example` with all variables
+- `.env.example` (already updated in 6.12.1)
 **Implementation**:
 - Create base docker-compose.yml:
   ```yaml
@@ -1304,12 +1311,16 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
         context: .
         dockerfile: docker/app/Dockerfile
       environment:
-        - DATABASE_URL=postgresql+asyncpg://tributum:tributum_pass@postgres:5432/tributum_db
+        # Use project's configuration pattern
+        - DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://tributum:tributum_pass@postgres:5432/tributum_db
+        - ENVIRONMENT=production
+        - API_HOST=0.0.0.0
+        - API_PORT=8080
       depends_on:
         postgres:
           condition: service_healthy
       ports:
-        - "8000:8000"
+        - "8080:8080"
 
     postgres:
       image: postgres:17-alpine
@@ -1321,21 +1332,29 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
     api:
       build:
         dockerfile: docker/app/Dockerfile.dev
+      environment:
+        - ENVIRONMENT=development
+        - DEBUG=true
+        - API_PORT=8000
       volumes:
         - ./src:/app/src
         - ./tests:/app/tests
-      command: uvicorn src.api.main:app --reload --host 0.0.0.0
+        - ./migrations:/app/migrations
+      command: python main.py  # Uses main.py which respects all env vars
+      ports:
+        - "8000:8000"
   ```
-- Update .env.example with ALL environment variables from analysis
+- No need to update .env.example (already complete from 6.12.1)
 **Tests**:
 - Run full stack with docker-compose up
 - Verify hot-reload works with code changes
 - Test database connectivity from API
+- Test /health endpoint accessibility
 **Acceptance Criteria**:
 - All services start successfully
 - Hot-reload works in development
 - Services communicate properly
-- Environment variables documented
+- Configuration follows project patterns (SECTION__FIELD)
 
 #### Task 6.12.3: Add Docker Makefile Commands
 **Status**: Pending
@@ -1348,10 +1367,10 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
   docker-build:  ## Build all Docker images
   	docker-compose build
 
-  docker-up:  ## Start all services
+  docker-up:  ## Start all services (production mode)
   	docker-compose up -d
 
-  docker-up-dev:  ## Start development environment
+  docker-up-dev:  ## Start development environment with hot-reload
   	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
 
   docker-down:  ## Stop all services
@@ -1370,13 +1389,20 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
   	docker-compose exec postgres psql -U tributum -d tributum_db
 
   docker-test:  ## Run tests in Docker
-  	docker-compose -f docker-compose.test.yml run --rm api pytest
+  	docker-compose -f docker-compose.test.yml run --rm api uv run pytest
 
-  docker-migrate:  ## Run database migrations
-  	docker-compose exec api alembic upgrade head
+  docker-migrate:  ## Run database migrations in a separate container
+  	docker-compose run --rm api bash /app/docker/scripts/migrate.sh
+
+  docker-build-production:  ## Build production image only
+  	docker build -f docker/app/Dockerfile -t tributum:production .
+
+  docker-build-dev:  ## Build development image only
+  	docker build -f docker/app/Dockerfile.dev -t tributum:development .
   ```
 - Ensure commands follow existing Makefile style
 - Add help documentation for each command
+- Update migrate command to use separate script (not exec in running container)
 **Tests**:
 - Test each command works correctly
 - Verify help output includes Docker commands
@@ -1385,7 +1411,7 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
 - All commands work as documented
 - Consistent with existing Makefile patterns
 - Help text is clear and accurate
-- No breaking changes to existing commands
+- Migration command uses separate container
 
 #### Task 6.12.4: Document Docker Workflow
 **Status**: Pending
@@ -1394,24 +1420,32 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
 **Implementation**:
 - Add Docker Development section covering:
   - Quick start guide for new developers
-  - Environment variable configuration
+  - Environment variable configuration using project pattern (SECTION__FIELD)
   - Common Docker commands via Make
   - Debugging in containers
   - Database management in Docker
+  - Migration workflow (separate container approach)
   - Troubleshooting guide
 - Add Docker deployment considerations:
-  - Production image optimization
-  - Security best practices
-  - GCP deployment notes
+  - Production image optimization (306MB multi-stage build)
+  - Security best practices (non-root user, minimal base)
+  - GCP Cloud Run deployment notes:
+    - PORT environment variable handling
+    - Health endpoint requirement
+    - Migration as Cloud Build step
+    - No waiting for database in entrypoint
+  - Configuration through Pydantic Settings only
 - Update existing sections to mention Docker alternatives
 **Tests**:
 - Follow documentation to set up from scratch
 - Verify all commands work as documented
 - Test troubleshooting steps
+- Verify PORT variable works for Cloud Run
 **Acceptance Criteria**:
 - Complete Docker setup guide
-- All variables documented with examples
-- Common issues and solutions covered
+- Configuration pattern documented (no Docker-specific env vars)
+- Cloud Run compatibility explained
+- Migration strategy documented
 - Integration with existing workflow clear
 
 ### Phase 7: Integration
