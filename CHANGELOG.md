@@ -8,12 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Database lifecycle management with startup checks and graceful shutdown
 - Complete middleware integration with security headers, correlation IDs, and request logging
 - Docker commands in Makefile for simplified container management and development workflow
 - Docker Compose configuration for development and production environments
 - Shellcheck integration for shell script linting in CI/CD and pre-commit hooks
 - Docker infrastructure for production and development environments with multi-stage builds
-- Health check endpoint (/health) for container orchestration and monitoring
+- Health check endpoint (/health) for container orchestration and monitoring with database status reporting
 - Cloud Run compatibility with PORT environment variable support
 - Initial database migration baseline for schema version control
 - Alembic database migration framework with full async SQLAlchemy support
