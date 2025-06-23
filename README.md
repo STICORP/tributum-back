@@ -893,15 +893,14 @@ class DatabaseConfig:
 
 ```bash
 # Database Configuration
-DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/tributum
+DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_db
 DATABASE_CONFIG__POOL_SIZE=10
 DATABASE_CONFIG__MAX_OVERFLOW=5
 DATABASE_CONFIG__POOL_TIMEOUT=30.0
 DATABASE_CONFIG__POOL_PRE_PING=true
 DATABASE_CONFIG__ECHO=false
 
-# Test Database (for pytest)
-TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/tributum_test
+# Note: In test environment, the database URL automatically points to tributum_test
 ```
 
 ### Database Features
@@ -953,14 +952,6 @@ LOG_CONFIG__LOG_LEVEL=INFO
 LOG_CONFIG__LOG_FORMAT=console  # console|json
 LOG_CONFIG__RENDER_JSON_LOGS=false  # auto-true in staging/production
 
-# Request Logging
-REQUEST_LOGGING__LOG_REQUEST_BODY=true
-REQUEST_LOGGING__LOG_RESPONSE_BODY=true
-REQUEST_LOGGING__MAX_BODY_SIZE=10240
-
-# Security Headers
-SECURITY_HEADERS__HSTS_MAX_AGE=31536000
-
 # Observability
 OBSERVABILITY_CONFIG__ENABLE_TRACING=false
 OBSERVABILITY_CONFIG__SERVICE_NAME=tributum
@@ -968,7 +959,7 @@ OBSERVABILITY_CONFIG__GCP_PROJECT_ID=  # Optional GCP project
 OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE=1.0  # 0.0 to 1.0
 
 # Database
-DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/tributum
+DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_db
 DATABASE_CONFIG__POOL_SIZE=10
 DATABASE_CONFIG__MAX_OVERFLOW=5
 DATABASE_CONFIG__POOL_TIMEOUT=30.0
@@ -1093,7 +1084,7 @@ pg_isready -h localhost -p 5432
 psql -U postgres -c "\l" | grep tributum
 
 # Test connection with async driver
-python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('postgresql://postgres:postgres@localhost:5432/tributum'))"
+python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('postgresql://tributum:tributum_pass@localhost:5432/tributum_db'))"
 
 # For parallel tests, verify worker databases
 psql -U postgres -c "\l" | grep tributum_test_gw

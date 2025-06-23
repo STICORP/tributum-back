@@ -112,7 +112,7 @@ src/
 ### Configuration
 ```python
 class DatabaseConfig(BaseModel):
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/tributum"
+    database_url: str = "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_db"
     pool_size: int = 10
     max_overflow: int = 5
     pool_timeout: float = 30.0

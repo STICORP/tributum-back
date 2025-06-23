@@ -63,13 +63,9 @@ async def run_migrations_on_database(database_url: str) -> None:
 @pytest.fixture(scope="session")
 def database_url_base() -> str:
     """Get the base database URL without a specific database name."""
-    # First try to get TEST_DATABASE_URL from environment
-    # Then fall back to DATABASE_URL or use configured value
-    url = (
-        os.environ.get("TEST_DATABASE_URL")
-        or os.environ.get("DATABASE_URL")
-        or get_settings().database_config.database_url
-    )
+    # Get database URL from settings (which uses DATABASE_CONFIG__DATABASE_URL)
+    # The settings will automatically use the test database URL in test environment
+    url = get_settings().database_config.database_url
 
     # Remove the database name to get base URL
     return url.rsplit("/", 1)[0]

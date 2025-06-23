@@ -300,8 +300,12 @@ class TestSettings:
         with pytest_check.check:
             assert settings.observability_config.trace_sample_rate == 1.0
 
-    def test_default_database_config(self) -> None:
+    def test_default_database_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test default database configuration."""
+        # Clear the test environment database URL to test actual defaults
+        monkeypatch.delenv("DATABASE_CONFIG__DATABASE_URL", raising=False)
+        get_settings.cache_clear()
+
         settings = Settings()
 
         # Database
