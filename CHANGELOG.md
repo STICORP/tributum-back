@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Docker infrastructure for production and development environments with multi-stage builds
+- Health check endpoint (/health) for container orchestration and monitoring
+- Cloud Run compatibility with PORT environment variable support
 - Initial database migration baseline for schema version control
 - Alembic database migration framework with full async SQLAlchemy support
 - Automatic database migrations for test fixtures during test execution
@@ -31,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FastAPI best practices validation guide for ensuring code quality and consistency
 
 ### Changed
+- Uvicorn moved to production dependencies for container deployments
 - Database default configuration updated to match Docker PostgreSQL credentials
 - Environment variable structure fixed in .env.example for nested configuration
 - Database implementation plan updated to use sequential IDs instead of UUIDs for better performance
