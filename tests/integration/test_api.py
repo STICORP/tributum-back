@@ -3,6 +3,7 @@
 import pytest
 import pytest_check
 from httpx import AsyncClient
+from pytest_mock import MockerFixture
 
 
 @pytest.mark.integration
@@ -47,7 +48,37 @@ class TestAPIEndpoints:
         response = await client.get("/health")
 
         assert response.status_code == 200
-        assert response.json() == {"status": "healthy"}
+        data = response.json()
+        assert data["status"] in ("healthy", "degraded")
+        assert "database" in data
+
+    async def test_health_endpoint_with_mock_database(
+        self, client: AsyncClient, mocker: MockerFixture
+    ) -> None:
+        """Test /health endpoint with mock database ensuring scalar() is called."""
+        # Mock the engine and connection
+        mock_result = mocker.Mock()
+        mock_result.scalar.return_value = 1  # Mock the scalar() method to return 1
+
+        mock_conn = mocker.AsyncMock()
+        mock_conn.execute.return_value = mock_result
+        mock_conn.__aenter__.return_value = mock_conn
+        mock_conn.__aexit__.return_value = None
+
+        mock_engine = mocker.Mock()
+        mock_engine.connect.return_value = mock_conn
+
+        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
+
+        response = await client.get("/health")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "healthy"
+        assert data["database"] is True
+
+        # Verify that scalar() was called
+        mock_result.scalar.assert_called_once()
 
     async def test_info_endpoint(self, client: AsyncClient) -> None:
         """Test GET /info endpoint returns application information."""

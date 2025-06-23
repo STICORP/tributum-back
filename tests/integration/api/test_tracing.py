@@ -140,6 +140,21 @@ class TestTracingIntegration:
         # Mock setup_tracing
         mock_setup_tracing = mocker.patch("src.api.main.setup_tracing")
 
+        # Mock database operations
+        mock_engine = mocker.Mock()
+        mock_connect = mocker.Mock()
+        mock_engine.connect.return_value = mock_connect
+        mock_connect.__aenter__ = mocker.AsyncMock(return_value=mock_connect)
+        mock_connect.__aexit__ = mocker.AsyncMock()
+        mock_connect.execute = mocker.AsyncMock()
+        mock_result = mocker.Mock()
+        mock_result.scalar = mocker.Mock(return_value=1)
+        mock_connect.execute.return_value = mock_result
+        mock_engine.pool.size.return_value = 10
+
+        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
+        mocker.patch("src.api.main.close_database", new=mocker.AsyncMock())
+
         # Create app with tracing enabled
         obs_config = ObservabilityConfig(
             enable_tracing=True,
@@ -243,6 +258,21 @@ class TestTracingIntegration:
 
     async def test_observability_configuration(self, mocker: MockerFixture) -> None:
         """Test that observability configuration is properly passed to setup."""
+        # Mock database operations
+        mock_engine = mocker.Mock()
+        mock_connect = mocker.Mock()
+        mock_engine.connect.return_value = mock_connect
+        mock_connect.__aenter__ = mocker.AsyncMock(return_value=mock_connect)
+        mock_connect.__aexit__ = mocker.AsyncMock()
+        mock_connect.execute = mocker.AsyncMock()
+        mock_result = mocker.Mock()
+        mock_result.scalar = mocker.Mock(return_value=1)
+        mock_connect.execute.return_value = mock_result
+        mock_engine.pool.size.return_value = 10
+
+        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
+        mocker.patch("src.api.main.close_database", new=mocker.AsyncMock())
+
         # Create app with specific observability config
         obs_config = ObservabilityConfig(
             enable_tracing=True,

@@ -128,7 +128,9 @@ async def test_health_endpoint_with_middleware() -> None:
         response = await client.get("/health")
 
         assert response.status_code == 200
-        assert response.json() == {"status": "healthy"}
+        data = response.json()
+        assert data["status"] in ("healthy", "degraded")
+        assert "database" in data
 
         # All middleware should be active
         assert "X-Content-Type-Options" in response.headers

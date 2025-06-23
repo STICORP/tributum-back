@@ -7,6 +7,8 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI
 from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.middleware.error_handler import register_exception_handlers
 from src.api.middleware.request_context import RequestContextMiddleware
@@ -16,7 +18,8 @@ from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.context import RequestContext
 from src.core.logging import get_logger
-from src.core.observability import setup_tracing
+from src.core.observability import get_tracer, setup_tracing
+from src.infrastructure.database.session import close_database, get_engine
 
 
 @asynccontextmanager
@@ -28,12 +31,45 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
 
     Yields:
         None: Nothing is yielded, this is just a lifespan context.
+
+    Raises:
+        Exception: If database connection fails during startup.
     """
+    logger = get_logger(__name__)
+    tracer = get_tracer(__name__)
+
     # Startup: Initialize tracing
     setup_tracing()
 
+    # Startup: Check database connection
+    with tracer.start_as_current_span("startup_database_check") as span:
+        try:
+            engine = get_engine()
+            async with engine.connect() as conn:
+                result = await conn.execute(text("SELECT 1"))
+                _ = result.scalar()
+
+            pool_size = engine.pool.size() if hasattr(engine.pool, "size") else "N/A"
+            span.set_attribute("database.pool_size", str(pool_size))
+            span.set_attribute("database.connection_check", "success")
+
+            logger.info(
+                "Database connection successful",
+                pool_size=pool_size,
+            )
+        except Exception as e:
+            span.set_attribute("database.connection_check", "failed")
+            span.set_attribute("error.type", type(e).__name__)
+            span.record_exception(e)
+            span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
+
+            logger.exception(
+                "Database connection failed during startup",
+                error_type=type(e).__name__,
+            )
+            raise
+
     # Log startup with app info
-    logger = get_logger(__name__)
     logger.info(
         "Application startup complete",
         app_name=app_instance.title,
@@ -41,7 +77,11 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
     )
 
     yield
-    # Shutdown: Cleanup would go here if needed
+
+    # Shutdown: Cleanup database connections
+    logger.info("Application shutdown initiated")
+    await close_database()
+    logger.info("Application shutdown complete")
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -94,7 +134,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return {"message": "Hello from Tributum!"}
 
     @application.get("/health")
-    async def health() -> dict[str, str]:
+    async def health() -> dict[str, object]:
         """Health check endpoint for monitoring and container orchestration.
 
         Used by:
@@ -104,9 +144,41 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         - Load balancers
 
         Returns:
-            dict[str, str]: A dictionary with status "healthy".
+            dict[str, object]: A dictionary with status and database connectivity.
         """
-        return {"status": "healthy"}
+        health_status: dict[str, object] = {"status": "healthy", "database": False}
+        tracer = get_tracer(__name__)
+
+        # Check database connectivity
+        with tracer.start_as_current_span("health_check_database") as span:
+            try:
+                engine = get_engine()
+                async with engine.connect() as conn:
+                    result = await conn.execute(text("SELECT 1"))
+                    _ = result.scalar()
+                health_status["database"] = True
+                span.set_attribute("database.available", "true")
+            except SQLAlchemyError as e:
+                # Log error but don't fail the health check entirely
+                # This allows the service to report as "degraded" rather than "down"
+                logger = get_logger(__name__)
+                logger.warning("Database health check failed")
+                health_status["status"] = "degraded"
+
+                span.set_attribute("database.available", "false")
+                span.set_attribute("error.type", type(e).__name__)
+                span.record_exception(e)
+                # Don't set ERROR status - degraded state is expected behavior
+                span.set_status(
+                    trace.Status(
+                        trace.StatusCode.OK,
+                        "Database unavailable but service operational",
+                    )
+                )
+
+            span.set_attribute("health.status", str(health_status["status"]))
+
+        return health_status
 
     @application.get("/info")
     async def info(

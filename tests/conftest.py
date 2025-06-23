@@ -8,6 +8,8 @@ from httpx import ASGITransport, AsyncClient
 from src.api.main import app
 from src.core.config import get_settings
 from src.core.context import RequestContext
+from src.core.logging import get_logger
+from src.infrastructure.database.session import _db_manager, close_database
 
 # Import database and docker fixtures for parallel test execution
 from tests.fixtures.test_database_fixtures import (
@@ -81,6 +83,44 @@ def clean_request_context() -> Generator[None]:
 
     # Clear after test
     RequestContext.clear()
+
+
+@pytest.fixture(autouse=True)
+async def clean_database_connections() -> AsyncGenerator[None]:
+    """Automatically clean database connections after each test.
+
+    This ensures that database connections are properly closed and
+    the database manager is reset between tests. This prevents
+    asyncpg event loop issues when tests run in random order.
+    """
+    yield
+
+    # Only try to close the database if we have a real engine
+    if _db_manager._engine is not None:
+        # Check if this is a mock object (from unit tests)
+        if hasattr(_db_manager._engine, "_mock_name"):
+            # It's a mock, just reset without closing
+            _db_manager.reset()
+        else:
+            # It's a real engine, try to close it properly
+            try:
+                await close_database()
+            except (RuntimeError, ConnectionError, OSError) as e:
+                # These specific errors are expected during test cleanup:
+                # - RuntimeError: Event loop is closed
+                # - ConnectionError/OSError: Connection already closed
+                # Log them for debugging but don't fail the test
+                logger = get_logger(__name__)
+                logger.debug(
+                    "Expected error during database cleanup",
+                    error_type=type(e).__name__,
+                    error=str(e),
+                )
+                # Still reset the manager to clear references
+                _db_manager.reset()
+    else:
+        # No engine to close, just reset
+        _db_manager.reset()
 
 
 @pytest.fixture
