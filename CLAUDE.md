@@ -129,6 +129,70 @@ docker-compose -f docker-compose.test.yml up -d  # PostgreSQL 17-alpine
 - Fixtures: `database_url`, `db_engine`, `worker_database_name`
 - Located in `tests/fixtures/test_database_fixtures.py`
 
+### Repository Pattern
+```python
+# Base repository with CRUD operations
+from src.infrastructure.database.repository import BaseRepository
+
+class UserRepository(BaseRepository[User]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(User, session)
+
+# Usage in routes
+async def get_user(user_id: int, db: DatabaseSession):
+    repo = UserRepository(db)
+    return await repo.get_by_id(user_id)
+```
+
+### Async Database Patterns
+```python
+# Dependency injection
+from src.infrastructure.database.dependencies import DatabaseSession
+
+@router.get("/{id}")
+async def get_item(id: int, db: DatabaseSession):
+    async with db.begin():  # Transaction
+        result = await db.execute(select(Item).where(Item.id == id))
+        return result.scalar_one_or_none()
+
+# Manual session management
+from src.infrastructure.database.session import get_async_session
+
+async with get_async_session() as session:
+    # Automatic commit on success, rollback on error
+    user = User(name="test")
+    session.add(user)
+```
+
+### Migration Commands
+```bash
+make migrate-create MSG="add users table"  # Create migration
+make migrate-up                            # Apply migrations
+make migrate-down                          # Rollback one
+make migrate-check                         # Check for changes
+make migrate-history                       # Show history
+```
+
+### Testing with Async Database
+```python
+# Integration test with real PostgreSQL
+@pytest.mark.integration
+async def test_user_creation(db_engine: AsyncEngine):
+    async with AsyncSession(db_engine) as session:
+        user = User(name="test")
+        session.add(user)
+        await session.commit()
+
+        result = await session.get(User, user.id)
+        assert result.name == "test"
+
+# Fixtures auto-manage Docker containers
+async def test_with_database(database_url: str):
+    # database_url points to worker-specific test database
+    engine = create_database_engine(database_url)
+    # Test runs with isolated database
+```
+
 ## Claude Code Commands
 
 - `/analyze-project` - Project analysis and recommendations

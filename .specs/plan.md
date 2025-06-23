@@ -13,14 +13,14 @@
 
 **Pending Phases:**
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
-- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.10 complete ✅, Task 6.11 pending)
+- ✅ Phase 6: Database Infrastructure (Tasks 6.1-6.11 complete ✅)
 - ✅ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5 complete ✅)
 - ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.4) - NEW
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 6.11 - Document Database Patterns
+**Next Task:** Task 6.12.1 - Create Development Docker Infrastructure
 
 ## Revision Notes (Granular Approach)
 
@@ -1230,18 +1230,19 @@ This phase provides the minimal Docker setup needed to enable database testing f
 - ✅ All quality checks pass (ruff, mypy, etc.)
 
 #### Task 6.11: Document Database Patterns
-**Status**: Pending
+**Status**: Complete ✅
 **File**: `CLAUDE.md`
 **Implementation**:
-- Document repository pattern implementation
-- Add async database examples
-- Document transaction patterns
-- Add migration workflow and commands
-- Show testing strategies with async DB
-**Acceptance Criteria**:
-- Repository pattern clearly explained
-- Async patterns documented
-- Migration workflow complete
+- ✅ Documented repository pattern with BaseRepository example
+- ✅ Added async database patterns including dependency injection and transactions
+- ✅ Documented all migration commands (create, up, down, check, history)
+- ✅ Added testing strategies showing integration tests with async database
+- ✅ Kept documentation concise and practical with code examples
+**Tests**: All quality checks pass
+**Acceptance Criteria**: ✅ All criteria met
+- ✅ Repository pattern clearly explained with usage example
+- ✅ Async patterns documented with transaction example
+- ✅ Migration workflow complete with all Make commands
 
 ### Phase 6.12: Full Docker Development Environment
 
