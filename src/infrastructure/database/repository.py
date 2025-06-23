@@ -284,3 +284,94 @@ class BaseRepository[T: BaseModel]:
         )
 
         return exists_value
+
+    async def filter_by(self, **kwargs: object) -> list[T]:
+        """Filter model instances by multiple conditions.
+
+        Args:
+            **kwargs: Field-value pairs to filter by.
+
+        Returns:
+            list[T]: List of model instances matching all conditions.
+        """
+        logger.debug(
+            "Filtering instances",
+            model=self.model_class.__name__,
+            filters=kwargs,
+        )
+
+        # Build query with all filter conditions
+        stmt = select(self.model_class)
+        for field, value in kwargs.items():
+            if hasattr(self.model_class, field):
+                stmt = stmt.where(getattr(self.model_class, field) == value)
+            else:
+                logger.warning(
+                    "Attempted to filter by non-existent field",
+                    model=self.model_class.__name__,
+                    field=field,
+                )
+
+        # Order by ID for consistent results
+        stmt = stmt.order_by(self.model_class.id)
+
+        result = await self.session.execute(stmt)
+        instances = list(result.scalars().all())
+
+        logger.debug(
+            "Filtered instances",
+            model=self.model_class.__name__,
+            filters=kwargs,
+            count=len(instances),
+        )
+
+        return instances
+
+    async def find_one_by(self, **kwargs: object) -> T | None:
+        """Find the first model instance matching the given conditions.
+
+        Args:
+            **kwargs: Field-value pairs to filter by.
+
+        Returns:
+            T | None: The first matching instance if found, None otherwise.
+        """
+        logger.debug(
+            "Finding one instance",
+            model=self.model_class.__name__,
+            filters=kwargs,
+        )
+
+        # Build query with all filter conditions
+        stmt = select(self.model_class)
+        for field, value in kwargs.items():
+            if hasattr(self.model_class, field):
+                stmt = stmt.where(getattr(self.model_class, field) == value)
+            else:
+                logger.warning(
+                    "Attempted to filter by non-existent field",
+                    model=self.model_class.__name__,
+                    field=field,
+                )
+
+        # Order by ID and limit to 1 for consistent results
+        stmt = stmt.order_by(self.model_class.id).limit(1)
+
+        result = await self.session.execute(stmt)
+        instance = result.scalar_one_or_none()
+
+        if instance:
+            logger.debug(
+                "Found instance",
+                model=self.model_class.__name__,
+                filters=kwargs,
+                id=instance.id,
+            )
+        else:
+            logger.debug(
+                "Instance not found",
+                model=self.model_class.__name__,
+                filters=kwargs,
+            )
+
+        return instance
