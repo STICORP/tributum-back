@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Docker Compose configuration for development and production environments
 - Shellcheck integration for shell script linting in CI/CD and pre-commit hooks
 - Docker infrastructure for production and development environments with multi-stage builds
 - Health check endpoint (/health) for container orchestration and monitoring
