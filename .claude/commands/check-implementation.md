@@ -35,7 +35,7 @@
 - Check if your implementation of **logging** was done in the way the project expects you to.
 - Check if you properly used the **logging framework** and patterns implemented by the project.
 
-## Logging
+## Observability
 
 - Check if you implemented **observability** where it is required by best practices.
 - Check if your implementation of **observability** was done in the way the project expects you to.
