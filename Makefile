@@ -1,4 +1,4 @@
-.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check shellcheck shellcheck-fix all-checks
+.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check shellcheck shellcheck-fix all-checks docker-build docker-up docker-up-dev docker-down docker-clean docker-logs docker-shell docker-psql docker-test docker-migrate docker-build-production docker-build-dev test-random test-seed test-no-random
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -178,3 +178,40 @@ shellcheck-fix:  ## Run shellcheck with auto-fix suggestions
 	@find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -exec uv run shellcheck -f diff {} \; | patch -p1
 
 all-checks: format-check lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck  ## Run all checks including dead code, docstring quality, and shell scripts
+
+# Docker commands
+docker-build:  ## Build all Docker images
+	docker-compose build
+
+docker-up:  ## Start all services (production mode)
+	docker-compose up -d
+
+docker-up-dev:  ## Start development environment with hot-reload
+	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+docker-down:  ## Stop all services
+	docker-compose down
+
+docker-clean:  ## Clean all Docker resources
+	docker-compose down -v --remove-orphans
+
+docker-logs:  ## View logs (use SERVICE=api for specific service)
+	docker-compose logs -f $${SERVICE:-}
+
+docker-shell:  ## Shell into API container
+	docker-compose exec api /bin/bash
+
+docker-psql:  ## Connect to PostgreSQL
+	docker-compose exec postgres psql -U tributum -d tributum_db
+
+docker-test:  ## Run tests in Docker
+	docker-compose -f docker-compose.test.yml run --rm api uv run pytest
+
+docker-migrate:  ## Run database migrations in a separate container
+	docker-compose run --rm api bash /app/docker/scripts/migrate.sh
+
+docker-build-production:  ## Build production image only
+	docker build -f docker/app/Dockerfile -t tributum:production .
+
+docker-build-dev:  ## Build development image only
+	docker build -f docker/app/Dockerfile.dev -t tributum:development .
