@@ -345,10 +345,51 @@ Note: `clear_settings_cache` and `clean_request_context` fixtures run automatica
 ## Infrastructure
 
 ### Docker Development
+
+#### Quick Start
+```bash
+make docker-up-dev      # Start development environment with hot-reload
+make docker-logs        # View logs
+make docker-down        # Stop services
+```
+
+#### Docker Commands
+```bash
+make docker-build       # Build all images
+make docker-up          # Production mode
+make docker-up-dev      # Development with hot-reload
+make docker-shell       # Shell into API container
+make docker-psql        # Connect to PostgreSQL
+make docker-migrate     # Run migrations (separate container)
+make docker-test        # Run tests in Docker
+make docker-clean       # Remove volumes and containers
+```
+
+#### Configuration
+- All config via environment variables using `SECTION__FIELD` pattern
+- No Docker-specific env vars (SKIP_DB_WAIT, RUN_MIGRATIONS)
+- `pool_pre_ping=True` handles database availability
+- Migrations run separately (not in entrypoint)
+
+#### Production Deployment (GCP Cloud Run)
+- Respects `PORT` environment variable
+- Multi-stage build (306MB, non-root user)
+- Health endpoint at `/health`
+- Migrations as Cloud Build step:
+  ```yaml
+  - name: 'gcr.io/$PROJECT_ID/tributum:$COMMIT_SHA'
+    entrypoint: 'bash'
+    args: ['/app/docker/scripts/migrate.sh']
+  ```
+
+#### Files
+- `docker-compose.yml` - Production configuration
+- `docker-compose.dev.yml` - Development overrides
 - `docker-compose.test.yml` - PostgreSQL for testing
-- `docker/postgres/init.sql` - DB initialization
-- `docker/scripts/wait-for-postgres.sh` - Health check script
-- PostgreSQL setup: user `tributum` with CREATEDB privilege
+- `docker/app/Dockerfile` - Production image
+- `docker/app/Dockerfile.dev` - Development image
+- `docker/scripts/entrypoint.sh` - Minimal startup
+- `docker/scripts/migrate.sh` - Migration runner
 
 ### Terraform
 - `terraform/bootstrap/` - GCP setup
