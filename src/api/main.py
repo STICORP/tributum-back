@@ -10,6 +10,8 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from src.api.middleware.error_handler import register_exception_handlers
 from src.api.middleware.request_context import RequestContextMiddleware
+from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.context import RequestContext
@@ -69,7 +71,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     register_exception_handlers(application)
 
     # Register middleware AFTER exception handlers
+    # Order is important: middleware are executed in reverse order of registration
+    # So the last middleware added is the first to process requests
+
+    # 3. Request logging middleware (logs requests/responses with correlation ID)
+    application.add_middleware(RequestLoggingMiddleware)
+
+    # 2. Request context middleware (creates correlation ID)
     application.add_middleware(RequestContextMiddleware)
+
+    # 1. Security headers middleware (adds security headers to all responses)
+    application.add_middleware(SecurityHeadersMiddleware)
 
     # Define routes
     @application.get("/")
