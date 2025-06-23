@@ -1,0 +1,58 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+    environment:
+      # Database configuration using project's pattern
+      DATABASE_CONFIG__DATABASE_URL: postgresql+asyncpg://tributum:tributum_pass@postgres:5432/tributum_db
+      DATABASE_CONFIG__POOL_SIZE: "10"
+      DATABASE_CONFIG__MAX_OVERFLOW: "5"
+      DATABASE_CONFIG__POOL_TIMEOUT: "30.0"
+      DATABASE_CONFIG__POOL_PRE_PING: "true"
+      DATABASE_CONFIG__ECHO: "false"
+      # Application settings for production
+      ENVIRONMENT: production
+      DEBUG: "false"
+      # API settings
+      API_HOST: 0.0.0.0
+      API_PORT: "8080"
+      # Logging configuration for production
+      LOG_CONFIG__LOG_LEVEL: INFO
+      LOG_CONFIG__LOG_FORMAT: json
+      # Observability (can be enabled via .env override)
+      OBSERVABILITY_CONFIG__ENABLE_TRACING: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 5s
+      retries: 3
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: tributum
+      POSTGRES_PASSWORD: tributum_pass
+      POSTGRES_DB: tributum_db
+    volumes:
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tributum -d tributum_db"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local

@@ -1,0 +1,52 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile.dev
+    environment:
+      # Override for development environment
+      ENVIRONMENT: development
+      DEBUG: "true"
+      # Development API port
+      API_PORT: "8000"
+      # Development logging
+      LOG_CONFIG__LOG_LEVEL: DEBUG
+      LOG_CONFIG__LOG_FORMAT: console
+      # Enable SQL echo for development debugging
+      DATABASE_CONFIG__ECHO: "false"
+      # Hot reload configuration
+      WATCHFILES_FORCE_POLLING: "true"
+    volumes:
+      # Mount source code for hot reload
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./migrations:/app/migrations
+      - ./alembic.ini:/app/alembic.ini
+      # Mount scripts for easy editing
+      - ./docker/scripts:/app/docker/scripts
+      # Mount pyproject.toml and lock file for dependency changes
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./uv.lock:/app/uv.lock
+      # Persist logs between restarts
+      - ./logs:/app/logs
+      # Preserve pytest cache
+      - ./.pytest_cache:/app/.pytest_cache
+    command: python main.py  # Uses main.py which respects all env vars and enables reload in debug mode
+    ports:
+      - "8000:8000"  # Development port
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s  # More frequent checks during development
+      timeout: 5s
+      start_period: 10s  # Longer start period for initial dependency installation
+      retries: 5
+    restart: no  # Don't auto-restart in development
+
+  postgres:
+    # PostgreSQL doesn't need overrides for development
+    # It uses the same configuration as production
+    ports:
+      - "5432:5432"  # Ensure we can connect directly for debugging
+    environment:
+      # Add development-specific PostgreSQL settings if needed
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.utf8"
