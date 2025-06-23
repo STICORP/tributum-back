@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extended base repository with update, delete, count, and exists methods
 - Dynamic filtering methods (filter_by and find_one_by) for flexible database queries
 - Testing philosophy documentation outlining current and future testing strategies
+- FastAPI best practices validation guide for ensuring code quality and consistency
 
 ### Changed
 - Database implementation plan updated to use sequential IDs instead of UUIDs for better performance
