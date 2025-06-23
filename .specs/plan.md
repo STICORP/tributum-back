@@ -15,12 +15,12 @@
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
 - ✅ Phase 6: Database Infrastructure (Tasks 6.1-6.11 complete ✅)
 - ✅ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5 complete ✅)
-- ⏳ Phase 6.12: Full Docker Development Environment (Task 6.12.1 complete ✅, Tasks 6.12.2-6.12.4 pending)
+- ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.2 complete ✅, Tasks 6.12.3-6.12.4 pending)
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 6.12.2 - Create Development Docker Compose
+**Next Task:** Task 6.12.3 - Add Docker Makefile Commands
 
 ## Revision Notes (Granular Approach)
 
@@ -1295,66 +1295,40 @@ This phase builds upon the minimal Docker infrastructure to provide a complete d
 - ✅ Cloud Run compatible
 
 #### Task 6.12.2: Create Development Docker Compose
-**Status**: Pending
+**Status**: Complete ✅
 **Pre-requisites**: Task 6.12.1
 **Files**:
 - `docker-compose.yml`
 - `docker-compose.dev.yml`
-- `.env.example` (already updated in 6.12.1)
 **Implementation**:
-- Create base docker-compose.yml:
-  ```yaml
-  version: '3.8'
-  services:
-    api:
-      build:
-        context: .
-        dockerfile: docker/app/Dockerfile
-      environment:
-        # Use project's configuration pattern
-        - DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://tributum:tributum_pass@postgres:5432/tributum_db
-        - ENVIRONMENT=production
-        - API_HOST=0.0.0.0
-        - API_PORT=8080
-      depends_on:
-        postgres:
-          condition: service_healthy
-      ports:
-        - "8080:8080"
-
-    postgres:
-      image: postgres:17-alpine
-      # ... (reuse configuration from test compose)
-  ```
-- Create docker-compose.dev.yml with overrides:
-  ```yaml
-  services:
-    api:
-      build:
-        dockerfile: docker/app/Dockerfile.dev
-      environment:
-        - ENVIRONMENT=development
-        - DEBUG=true
-        - API_PORT=8000
-      volumes:
-        - ./src:/app/src
-        - ./tests:/app/tests
-        - ./migrations:/app/migrations
-      command: python main.py  # Uses main.py which respects all env vars
-      ports:
-        - "8000:8000"
-  ```
-- No need to update .env.example (already complete from 6.12.1)
+- Created base docker-compose.yml:
+  - Production-like configuration with all env vars using SECTION__FIELD pattern
+  - PostgreSQL 17-alpine with persistent volume
+  - Health checks for both API and database services
+  - Database pool settings explicitly configured
+  - Production defaults: ENVIRONMENT=production, DEBUG=false, json logs
+  - Restart policy: unless-stopped
+  - Removed deprecated `version` field
+- Created docker-compose.dev.yml with development overrides:
+  - Development Dockerfile with hot-reload support
+  - Volume mounts for source code, tests, migrations, scripts
+  - Development settings: DEBUG=true, console logs, port 8000
+  - Additional volume mounts for pyproject.toml, uv.lock, logs, pytest cache
+  - Command uses main.py which enables reload when DEBUG=true
+  - No auto-restart in development
+  - More frequent health checks with longer start period
 **Tests**:
-- Run full stack with docker-compose up
-- Verify hot-reload works with code changes
-- Test database connectivity from API
-- Test /health endpoint accessibility
-**Acceptance Criteria**:
-- All services start successfully
-- Hot-reload works in development
-- Services communicate properly
-- Configuration follows project patterns (SECTION__FIELD)
+- ✅ Stack started successfully with both compose files
+- ✅ Hot-reload tested and working (detected file changes)
+- ✅ Database connectivity verified via health checks
+- ✅ Health endpoint accessible on correct ports (8000 for dev, 8080 for prod)
+- ✅ API responses working correctly
+**Acceptance Criteria Met**:
+- ✅ All services start successfully
+- ✅ Hot-reload works in development
+- ✅ Services communicate properly
+- ✅ Configuration follows project patterns (SECTION__FIELD)
+- ✅ All quality checks pass (except 2 non-critical semgrep warnings)
 
 #### Task 6.12.3: Add Docker Makefile Commands
 **Status**: Pending
