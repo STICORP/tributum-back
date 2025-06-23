@@ -30,6 +30,7 @@
 - [⚙️ Configuration Management](#️-configuration-management)
 - [📁 Project Structure](#-project-structure)
 - [🔍 Troubleshooting Guide](#-troubleshooting-guide)
+- [🌐 API Endpoints](#-api-endpoints)
 - [✅ Current Implementation Status](#-current-implementation-status)
 
 ## 🎯 Project Overview
@@ -83,7 +84,7 @@
 - **Pytest-randomly**: Randomized test execution to detect inter-test dependencies
 - **Pytest-check**: Soft assertions for comprehensive test failure reporting
 - **Pytest-xdist**: Parallel test execution for faster CI/CD
-- **Docker**: Containerization for development databases
+- **Docker**: Containerization for development and production
 
 ### Security Tools
 - **Bandit**: AST-based security scanner
@@ -93,12 +94,14 @@
 
 ### Infrastructure
 - **Terraform**: Infrastructure as Code
-- **Google Cloud Platform**: Cloud provider
+- **Google Cloud Platform**: Cloud provider (Cloud Run support)
 - **GitHub Actions**: CI/CD pipeline
-- **Docker**: Development and testing infrastructure
-- **Docker Compose**: Multi-container orchestration for testing
+- **Docker**: Development and production containers
+- **Docker Compose**: Multi-container orchestration
 
 ## 🚀 Quick Start
+
+### Local Development
 
 ```bash
 # Clone repository
@@ -113,6 +116,25 @@ make dev
 
 # Run all quality checks
 make all-checks
+```
+
+### Docker Development
+
+```bash
+# Start development environment with hot-reload
+make docker-up-dev
+
+# View logs
+make docker-logs
+
+# Access PostgreSQL
+make docker-psql
+
+# Run database migrations
+make docker-migrate
+
+# Stop containers
+make docker-down
 ```
 
 ### Essential Commands
@@ -133,6 +155,11 @@ make all-checks     # Run all checks
 # Security
 make security       # Run all security scans
 make security-deps  # Check dependencies only
+
+# Docker
+make docker-up-dev  # Development with hot-reload
+make docker-test    # Run tests in Docker
+make docker-clean   # Remove containers and volumes
 ```
 
 ## 🏗️ Architecture Deep Dive
@@ -175,6 +202,56 @@ graph TB
     H --> R
 ```
 
+### Middleware Stack
+
+The application uses a carefully ordered middleware stack for optimal request processing:
+
+```mermaid
+graph TB
+    subgraph "Request Flow"
+        A[HTTP Request] --> B[SecurityHeadersMiddleware]
+        B --> C[RequestContextMiddleware]
+        C --> D[RequestLoggingMiddleware]
+        D --> E[OpenTelemetry Instrumentation]
+        E --> F[Route Handler]
+    end
+
+    subgraph "Response Flow"
+        F --> G[RequestLoggingMiddleware]
+        G --> H[RequestContextMiddleware]
+        H --> I[SecurityHeadersMiddleware]
+        I --> J[HTTP Response]
+    end
+```
+
+#### Middleware Components
+
+1. **SecurityHeadersMiddleware** (Outermost)
+   - Adds security headers to all responses
+   - HSTS, X-Content-Type-Options, X-Frame-Options
+   - CSP headers for XSS protection
+   - Applied to both successful and error responses
+
+2. **RequestContextMiddleware**
+   - Creates UUID4 correlation IDs for request tracking
+   - Stores context in contextvars for async safety
+   - Adds X-Correlation-ID to response headers
+   - Propagates context to logs and traces
+
+3. **RequestLoggingMiddleware**
+   - Logs request/response with correlation IDs
+   - Captures request body (with size limits)
+   - Records response time and status
+   - Integrates with structured logging
+
+4. **OpenTelemetry Instrumentation**
+   - Automatic span creation for requests
+   - Trace context propagation
+   - Error recording in spans
+   - Integration with Cloud Trace
+
+The middleware are registered as pure ASGI middleware (not BaseHTTPMiddleware) for better performance and proper async handling.
+
 ### Request Flow with Tracing
 
 ```mermaid
@@ -189,6 +266,7 @@ sequenceDiagram
     participant CT as Cloud Trace
 
     C->>M: HTTP Request
+    M->>M: Add Security Headers
     M->>M: Add Correlation ID
     M->>T: Start Span
     T->>M: Span Context
@@ -219,6 +297,8 @@ sequenceDiagram
 8. **Database Architecture**: Async PostgreSQL with connection pooling and pre-ping health checks
 9. **Repository Pattern**: Generic base repository for consistent data access patterns
 10. **Database IDs**: Sequential BigInteger IDs for performance and PostgreSQL optimization
+11. **Database Lifecycle**: Managed in FastAPI lifespan with proper error handling
+12. **Cloud Run Compatibility**: Respects PORT environment variable for container deployment
 
 ## 🔧 Internal Frameworks Explained
 
@@ -298,15 +378,24 @@ class BaseModel(Base):
         onupdate=func.now()
     )
 
-# Generic repository pattern
+# Generic repository pattern with extended CRUD
 class BaseRepository[T: BaseModel]:
-    """CRUD operations for any model."""
+    """Extended CRUD operations for any model."""
 
+    # Basic operations
     async def get_by_id(self, entity_id: int) -> T | None
     async def get_all(self) -> list[T]
     async def create(self, **kwargs) -> T
+
+    # Extended operations
     async def update(self, entity: T, **kwargs) -> T
     async def delete(self, entity: T) -> None
+    async def count(self) -> int
+    async def exists(self, **filters) -> bool
+
+    # Dynamic filtering
+    async def filter_by(self, **filters) -> list[T]
+    async def find_one_by(self, **filters) -> T | None
 
 # Dependency injection
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
@@ -322,6 +411,28 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 - Database dependency injection for FastAPI
 - Transaction management with context managers
 - Optimized for PostgreSQL with sequential IDs
+- Extended CRUD operations with filtering
+- Structured logging for all database operations
+
+### Database Lifecycle Management
+
+The application manages database connections through FastAPI's lifespan context:
+
+```python
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifecycle."""
+    # Startup
+    await test_database_connection()  # Validates database is accessible
+
+    # OpenTelemetry setup
+    setup_opentelemetry(app)
+
+    yield  # Application runs
+
+    # Shutdown
+    await dispose_database_engine()  # Closes all connections
+```
 
 ### Observability Framework
 
@@ -592,6 +703,7 @@ make test-coverage    # With HTML report
 make test-random      # With random ordering
 make test-seed SEED=12345  # Debug with specific seed
 make test-no-random   # Without randomization
+make test-ci         # Optimized for CI environment
 ```
 
 ## 💻 Development Workflow
@@ -732,6 +844,34 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 | `make security-pip-audit` | Audit Python packages |
 | `make security-semgrep` | Static analysis |
 
+### Database Commands
+
+| Command | Description |
+|---------|-------------|
+| `make migrate-create MSG="description"` | Create new migration |
+| `make migrate-up` | Apply pending migrations |
+| `make migrate-down` | Rollback last migration |
+| `make migrate-check` | Check for model changes |
+| `make migrate-history` | Show migration history |
+| `make migrate-current` | Show current revision |
+
+### Docker Commands
+
+| Command | Description |
+|---------|-------------|
+| `make docker-build` | Build all Docker images |
+| `make docker-build-production` | Build production image |
+| `make docker-build-dev` | Build development image |
+| `make docker-up` | Start containers (production mode) |
+| `make docker-up-dev` | Start containers (dev mode with hot-reload) |
+| `make docker-down` | Stop all containers |
+| `make docker-clean` | Remove containers and volumes |
+| `make docker-logs` | View container logs |
+| `make docker-shell` | Shell into API container |
+| `make docker-psql` | Connect to PostgreSQL |
+| `make docker-test` | Run tests in Docker |
+| `make docker-migrate` | Run migrations in Docker |
+
 ### Code Analysis Commands
 
 | Command | Description |
@@ -800,6 +940,7 @@ terraform/
 - **Project**: tributum-new
 - **Environments**: dev, staging, production
 - **State Storage**: GCS backend with encryption
+- **Cloud Run**: Container deployment support
 
 ### Infrastructure Management
 
@@ -815,58 +956,159 @@ terraform plan
 terraform apply
 ```
 
+### Production Deployment
+
+The application is optimized for Google Cloud Run deployment:
+
+- **Container Size**: 306MB multi-stage build
+- **Security**: Non-root user execution
+- **Port Configuration**: Respects PORT environment variable
+- **Health Checks**: `/health` endpoint for container orchestration
+- **Database Migrations**: Run as separate Cloud Build step
+
+Example Cloud Build configuration:
+```yaml
+steps:
+  # Run migrations
+  - name: 'gcr.io/$PROJECT_ID/tributum:$COMMIT_SHA'
+    entrypoint: 'bash'
+    args: ['/app/docker/scripts/migrate.sh']
+    env:
+      - 'DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://...'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args: ['run', 'deploy', 'tributum', '--image=gcr.io/$PROJECT_ID/tributum:$COMMIT_SHA']
+```
+
 ## 🐳 Docker Infrastructure
 
-### Docker Support
+### Docker Development Workflow
 
-The project includes comprehensive Docker infrastructure for development and testing:
+The project includes comprehensive Docker infrastructure for both development and production environments:
+
+```bash
+# Quick start for development
+make docker-up-dev      # Start with hot-reload
+make docker-logs        # View logs
+make docker-shell       # Shell into container
+make docker-psql        # PostgreSQL CLI
+make docker-down        # Stop everything
+```
+
+### Docker Architecture
 
 ```
 docker/
-├── postgres/                # PostgreSQL initialization
-│   └── init.sql            # Database setup with parallel test support
-├── scripts/                 # Container helper scripts
-│   └── wait-for-postgres.sh # Health check script
-└── docker-compose files:
-    ├── docker-compose.test.yml          # Single test database
-    └── docker-compose.test-parallel.yml # Parallel test databases (removed)
+├── app/
+│   ├── Dockerfile          # Production multi-stage build
+│   └── Dockerfile.dev      # Development with hot-reload
+├── postgres/
+│   └── init.sql           # Database initialization
+└── scripts/
+    ├── entrypoint.sh      # Container startup script
+    ├── migrate.sh         # Migration runner
+    └── wait-for-postgres.sh  # Health check utility
 ```
 
-### PostgreSQL Development Setup
+### Production Docker Image
 
-The Docker infrastructure provides:
-- **Test Database Creation**: Automatically creates `tributum_test` database
-- **Parallel Test Support**: Creates worker-specific test databases (tributum_test_gw0, gw1, etc.)
-- **User Permissions**: Grants full privileges to `tributum` user
-- **Schema Management**: Ensures proper permissions for test operations
-- **Health Checks**: Wait-for-postgres script ensures database readiness
+Multi-stage build optimized for Cloud Run:
+- **Base**: Python 3.13-slim
+- **Size**: ~306MB final image
+- **Security**: Non-root user (appuser)
+- **Features**:
+  - Dependency caching
+  - Source code isolation
+  - Health check support
+  - PORT environment variable
 
-### Test Database Initialization
+### Development Docker Image
 
-The `docker/postgres/init.sql` script:
-```sql
--- Creates main test database
-CREATE DATABASE tributum_test;
+Optimized for local development:
+- **Hot Reload**: Volume-mounted source code
+- **Debug Tools**: Full development dependencies
+- **Database**: Auto-configured PostgreSQL
+- **Features**:
+  - Instant code changes
+  - Debugger support
+  - Test execution
+  - Migration tools
 
--- Creates worker databases for parallel testing
-CREATE DATABASE tributum_test_gw0;
-CREATE DATABASE tributum_test_gw1;
--- ... up to gw7 for 8-core systems
+### Docker Compose Configuration
 
--- Grants full permissions to tributum user
-GRANT ALL PRIVILEGES ON DATABASE tributum_test TO tributum;
+#### Production Mode (`docker-compose.yml`)
+```yaml
+services:
+  api:
+    image: tributum:production
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_CONFIG__DATABASE_URL=postgresql+asyncpg://...
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tributum"]
 ```
 
-### Docker Ignore Configuration
+#### Development Mode (`docker-compose.dev.yml`)
+```yaml
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile.dev
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+```
 
-The `.dockerignore` file optimizes container builds by excluding:
-- Development tools and configurations
-- Test files and coverage reports
-- CI/CD configurations
-- Documentation files
-- Terraform infrastructure
+### Database Container Features
 
-**Note**: `.env.example` is explicitly included for documentation purposes.
+- **Test Database**: Automatically created `tributum_test`
+- **Parallel Testing**: Worker databases for pytest-xdist
+- **Health Checks**: Wait scripts ensure readiness
+- **Permissions**: Full grants to tributum user
+- **Init Script**: Custom initialization for test support
+
+### Docker Best Practices
+
+1. **No Hardcoded Configs**: All configuration via environment variables
+2. **Health Checks**: Database availability handled by `pool_pre_ping`
+3. **Migrations**: Run as separate container/job, not in entrypoint
+4. **Logging**: JSON format for container environments
+5. **Signals**: Proper handling for graceful shutdown
+
+### Common Docker Operations
+
+```bash
+# Build images
+make docker-build          # All images
+make docker-build-production  # Production only
+make docker-build-dev      # Development only
+
+# Development workflow
+make docker-up-dev         # Start development
+make docker-migrate        # Run migrations
+make docker-test          # Run tests in container
+
+# Debugging
+make docker-logs          # View all logs
+make docker-shell         # Shell access
+make docker-psql          # Database access
+
+# Cleanup
+make docker-down          # Stop containers
+make docker-clean         # Remove everything
+```
 
 ## 💾 Database Configuration
 
@@ -911,6 +1153,48 @@ DATABASE_CONFIG__ECHO=false
 - **Test Isolation**: Separate test database with automatic URL generation
 - **Parallel Testing**: Worker-specific databases for pytest-xdist
 - **URL Validation**: Enforces `postgresql+asyncpg://` driver for async support
+- **Lifecycle Management**: Proper startup/shutdown in FastAPI lifespan
+
+### Database Migrations with Alembic
+
+The project uses Alembic for database schema management with async support:
+
+#### Migration Commands
+```bash
+# Create a new migration
+make migrate-create MSG="add users table"
+
+# Apply all pending migrations
+make migrate-up
+
+# Rollback last migration
+make migrate-down
+
+# Check for model changes
+make migrate-check
+
+# Show migration history
+make migrate-history
+
+# Show current revision
+make migrate-current
+```
+
+#### Migration Configuration
+- **Location**: `src/infrastructure/database/migrations/`
+- **Async Support**: Configured for asyncpg driver
+- **Auto-generation**: Detects model changes automatically
+- **Naming Convention**: SQL naming conventions for constraints
+- **Initial Migration**: Empty migration created as starting point
+
+#### Docker Migration Support
+```bash
+# Run migrations in Docker container
+make docker-migrate
+
+# Migrations run in separate container
+# Never in application entrypoint
+```
 
 ### Test Database Infrastructure
 
@@ -942,7 +1226,7 @@ DEBUG=true
 
 # API Configuration
 API_HOST=0.0.0.0
-API_PORT=8000
+API_PORT=8000  # Overridden by PORT in Cloud Run
 DOCS_URL=/docs
 REDOC_URL=/redoc
 OPENAPI_URL=/openapi.json
@@ -965,6 +1249,9 @@ DATABASE_CONFIG__MAX_OVERFLOW=5
 DATABASE_CONFIG__POOL_TIMEOUT=30.0
 DATABASE_CONFIG__POOL_PRE_PING=true
 DATABASE_CONFIG__ECHO=false
+
+# Cloud Run Compatibility
+PORT=8000  # Automatically respected when set
 ```
 
 ### Configuration Validation
@@ -976,17 +1263,27 @@ All configs validated at startup using Pydantic Settings v2:
 - Environment-specific defaults
 - Automatic JSON logging for staging/production environments
 
+### Docker Configuration
+
+The application uses standard environment variables without Docker-specific settings:
+- **No SKIP_DB_WAIT**: Database availability handled by `pool_pre_ping`
+- **No RUN_MIGRATIONS**: Migrations run as separate container/job
+- **PORT Support**: Automatically uses PORT env var for Cloud Run
+- **Unified Config**: Same environment variables for local and Docker
+
 ## 📁 Project Structure
 
 ```
 src/
 ├── api/                    # HTTP layer
-│   ├── main.py            # FastAPI app with OpenTelemetry
+│   ├── main.py            # FastAPI app with lifespan management
 │   ├── middleware/        # ASGI middleware
 │   │   ├── error_handler.py      # Global exception handling
 │   │   ├── request_context.py    # Correlation ID management
 │   │   ├── request_logging.py    # Request/response logging
 │   │   └── security_headers.py   # Security headers
+│   ├── routes/            # API endpoints
+│   │   └── health.py     # Health check endpoint
 │   ├── schemas/           # Pydantic models
 │   │   └── errors.py     # Error response schemas
 │   └── utils/
@@ -1005,7 +1302,12 @@ src/
     └── database/         # Database infrastructure
         ├── base.py       # Base model with timestamps
         ├── dependencies.py # FastAPI database dependencies
-        ├── repository.py # Generic repository pattern
+        ├── migrations/   # Alembic migrations
+        │   ├── alembic.ini
+        │   ├── env.py
+        │   ├── script.py.mako
+        │   └── versions/
+        ├── repository.py # Extended generic repository pattern
         └── session.py    # Async session management
 
 tests/
@@ -1019,9 +1321,14 @@ tests/
 └── conftest.py          # Shared fixtures with auto-clearing cache
 
 docker/
+├── app/                 # Application containers
+│   ├── Dockerfile       # Production multi-stage build
+│   └── Dockerfile.dev   # Development with hot-reload
 ├── postgres/            # PostgreSQL development setup
-│   └── init.sql        # Test database initialization with parallel support
+│   └── init.sql        # Test database initialization
 └── scripts/            # Container helper scripts
+    ├── entrypoint.sh   # Minimal startup script
+    ├── migrate.sh      # Migration runner
     └── wait-for-postgres.sh  # Database readiness check
 ```
 
@@ -1090,6 +1397,42 @@ python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('postgres
 psql -U postgres -c "\l" | grep tributum_test_gw
 ```
 
+#### Docker Issues
+```bash
+# Check Docker daemon
+docker info
+
+# View container logs
+make docker-logs
+
+# Check container health
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# Database connection in Docker
+docker exec -it tributum-postgres psql -U tributum -d tributum_db
+
+# Rebuild images
+make docker-clean
+make docker-build
+```
+
+#### Migration Issues
+```bash
+# Check current revision
+make migrate-current
+
+# Generate migration SQL
+cd src/infrastructure/database
+alembic upgrade head --sql
+
+# Manual migration
+cd src/infrastructure/database
+alembic upgrade head
+
+# Rollback
+alembic downgrade -1
+```
+
 #### Parallel Test Issues
 ```bash
 # Check if running with xdist
@@ -1124,6 +1467,73 @@ export LOG_CONFIG__LOG_LEVEL=DEBUG
 make dev
 ```
 
+## 🌐 API Endpoints
+
+### Health Check Endpoint
+
+**GET** `/health`
+
+Returns the health status of the application and its dependencies.
+
+#### Response Format
+```json
+{
+  "status": "healthy",
+  "database": true
+}
+```
+
+#### Status Codes
+- **200 OK**: Application is healthy
+- **503 Service Unavailable**: Application is unhealthy (database unavailable)
+
+#### Features
+- Database connectivity check with fallback
+- OpenTelemetry span creation for monitoring
+- Correlation ID propagation
+- Used by:
+  - Docker health checks
+  - Kubernetes liveness/readiness probes
+  - Cloud Run health checks
+  - Load balancer health checks
+
+#### Example Usage
+```bash
+# Check health
+curl http://localhost:8000/health
+
+# With correlation ID
+curl -H "X-Correlation-ID: 123e4567-e89b-12d3-a456-426614174000" \
+     http://localhost:8000/health
+```
+
+### Info Endpoint
+
+**GET** `/info`
+
+Returns application metadata and configuration information.
+
+#### Response Format
+```json
+{
+  "app_name": "tributum",
+  "app_version": "0.3.0",
+  "environment": "development",
+  "debug": true,
+  "docs_url": "/docs",
+  "correlation_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+### API Documentation
+
+Interactive API documentation is available at:
+- **Swagger UI**: `/docs`
+- **ReDoc**: `/redoc`
+- **OpenAPI Schema**: `/openapi.json`
+
+Documentation can be disabled by setting environment variables to empty strings.
+
 ## ✅ Current Implementation Status
 
 ### Implemented Features
@@ -1133,6 +1543,9 @@ make dev
 - Pydantic Settings v2 configuration with nested support
 - Domain-driven design directory structure
 - High-performance JSON serialization with ORJSON
+- **Integrated middleware stack with proper ordering**
+- **Health check endpoint with database connectivity verification**
+- **Cloud Run compatibility with PORT environment variable**
 
 #### Database Infrastructure
 - **Database configuration system** with async PostgreSQL support
@@ -1143,9 +1556,11 @@ make dev
 - **Docker infrastructure** for PostgreSQL development
 - **Database dependencies**: SQLAlchemy 2.0+, asyncpg, Alembic, greenlet
 - **Base model** with automatic timestamps (created_at, updated_at)
-- **Generic repository pattern** for consistent CRUD operations
+- **Extended generic repository pattern** with full CRUD operations and filtering
 - **FastAPI dependency injection** for database sessions
 - **Sequential BigInteger IDs** optimized for PostgreSQL
+- **Alembic migration system** with async support and initial migration
+- **Database lifecycle management** in FastAPI lifespan context
 
 #### Exception & Error Handling
 - Comprehensive exception hierarchy with severity levels
@@ -1169,11 +1584,21 @@ make dev
 - **Error context enrichment in spans**
 
 #### Middleware Stack
-- RequestContextMiddleware for correlation IDs
-- RequestLoggingMiddleware for observability
-- SecurityHeadersMiddleware for security headers
-- Global error handling middleware
-- **OpenTelemetry instrumentation middleware**
+- **SecurityHeadersMiddleware** for security headers
+- **RequestContextMiddleware** for correlation IDs
+- **RequestLoggingMiddleware** for observability
+- **Global error handling** with proper exception propagation
+- **OpenTelemetry instrumentation** middleware
+- **Pure ASGI implementation** for performance
+
+#### Docker Infrastructure
+- **Production Docker image** with multi-stage build (~306MB)
+- **Development Docker image** with hot-reload support
+- **Docker Compose** for local development and testing
+- **Database initialization** scripts for test support
+- **Health check utilities** for container readiness
+- **Migration support** as separate container/job
+- **Comprehensive Makefile commands** for Docker operations
 
 #### Testing Infrastructure
 - **Parallel test execution** with pytest-xdist
@@ -1197,7 +1622,7 @@ make dev
 - pytest-check for soft assertions in tests
 - pytest-rich with xdist compatibility
 - Claude Code automation commands including `/investigate-deps`, `/start`, and enhanced `/check-implementation`
-- **Docker development infrastructure** for database testing
+- **Docker development workflow** with hot-reload
 - **Parallel test execution** for faster CI/CD
 - **Pyright type checking** for enhanced IDE support
 
@@ -1207,14 +1632,16 @@ make dev
 - Multi-environment support (dev/staging/prod)
 - Automated version management (v0.3.0)
 - Changelog automation
-- **Docker Compose configurations** for testing
+- **Docker support** for CI/CD pipelines
+- **Cloud Run deployment** compatibility
 
 ### Architecture Components
 
 #### API Layer (`src/api/`)
 - Main FastAPI application with ORJSONResponse
-- **OpenTelemetry lifespan management**
-- Middleware implementations
+- **Lifespan management** for startup/shutdown
+- **Integrated middleware stack**
+- **Health check route**
 - Error response schemas
 - Utility functions
 
@@ -1234,9 +1661,10 @@ make dev
 #### Infrastructure Layer (`src/infrastructure/`)
 - **Database infrastructure** with async PostgreSQL support
 - **Base model** with timestamps and naming conventions
-- **Generic repository pattern** implementation
+- **Extended generic repository pattern** with filtering
 - **Session management** with connection pooling
 - **FastAPI dependencies** for database injection
+- **Alembic migrations** with async configuration
 
 #### Test Suite (`tests/`)
 - Unit tests with 100% coverage achieved
@@ -1256,29 +1684,30 @@ make dev
 - **Docker test fixtures** for container management
 
 <!-- README-METADATA
-Last Updated: 2025-06-22T14:30:00Z
-Last Commit: 0563fb4
+Last Updated: 2025-06-23T14:30:00Z
+Last Commit: 76a15ba
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "updated-0563fb4", "manual": false},
-  "tech-stack": {"hash": "updated-0563fb4", "manual": false},
-  "quick-start": {"hash": "updated-0563fb4", "manual": false},
-  "architecture": {"hash": "updated-0563fb4", "manual": false},
-  "frameworks": {"hash": "updated-0563fb4", "manual": false},
+  "tech-stack": {"hash": "updated-76a15ba", "manual": false},
+  "quick-start": {"hash": "updated-76a15ba", "manual": false},
+  "architecture": {"hash": "updated-76a15ba", "manual": false},
+  "frameworks": {"hash": "updated-76a15ba", "manual": false},
   "observability": {"hash": "updated-da0a58e", "manual": false},
   "security": {"hash": "updated-5479972", "manual": false},
   "testing": {"hash": "updated-0563fb4", "manual": false},
   "workflow": {"hash": "updated-0563fb4", "manual": false},
   "tools": {"hash": "updated-0563fb4", "manual": false},
   "cicd": {"hash": "updated-0563fb4", "manual": false},
-  "commands": {"hash": "updated-0563fb4", "manual": false},
+  "commands": {"hash": "updated-76a15ba", "manual": false},
   "version": {"hash": "updated-da0a58e", "manual": false},
-  "infrastructure": {"hash": "k1l2m3", "manual": false},
-  "docker": {"hash": "updated-09f5a7e", "manual": false},
-  "database": {"hash": "updated-09f5a7e", "manual": false},
-  "config": {"hash": "updated-da0a58e", "manual": false},
-  "structure": {"hash": "updated-0563fb4", "manual": false},
-  "troubleshooting": {"hash": "updated-0563fb4", "manual": false},
-  "status": {"hash": "updated-0563fb4", "manual": false}
+  "infrastructure": {"hash": "updated-76a15ba", "manual": false},
+  "docker": {"hash": "updated-76a15ba", "manual": false},
+  "database": {"hash": "updated-76a15ba", "manual": false},
+  "config": {"hash": "updated-76a15ba", "manual": false},
+  "structure": {"hash": "updated-76a15ba", "manual": false},
+  "troubleshooting": {"hash": "updated-76a15ba", "manual": false},
+  "api-endpoints": {"hash": "new-76a15ba", "manual": false},
+  "status": {"hash": "updated-76a15ba", "manual": false}
 }
 -->
