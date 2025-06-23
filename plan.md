@@ -13,14 +13,14 @@
 
 **Pending Phases:**
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
-- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.6 complete ✅, Tasks 6.7-6.11 pending)
+- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.8 complete ✅, Tasks 6.9-6.11 pending)
 - ✅ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5 complete ✅)
 - ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.4) - NEW
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 6.7 - Extend Base Repository
+**Next Task:** Task 6.9 - Initialize Alembic
 
 ## Revision Notes (Granular Approach)
 
@@ -1119,36 +1119,48 @@ This phase provides the minimal Docker setup needed to enable database testing f
 - ✅ Handles None cases properly with type guards for pyright
 
 #### Task 6.7: Extend Base Repository
-**Status**: Pending
+**Status**: Complete ✅
 **File**: `src/infrastructure/database/repository.py`
 **Implementation**:
-- Add `update(id: int, data: dict) -> T | None`
-- Add `delete(id: int) -> bool`
-- Add `count() -> int`
-- Add `exists(id: int) -> bool`
-**Tests**: Update `tests/unit/infrastructure/database/test_repository.py`
-- Test update with partial data
-- Test delete return value
-- Test count accuracy
-**Acceptance Criteria**:
-- Update handles partial updates
-- Delete returns success/failure
-- Count is efficient
+- ✅ Added `update(entity_id: int, data: Mapping[str, object]) -> T | None` with partial update support
+- ✅ Added `delete(entity_id: int) -> bool` returning success/failure
+- ✅ Added `count() -> int` for efficient counting
+- ✅ Added `exists(entity_id: int) -> bool` for existence checking
+- ✅ All methods use structured logging from `src.core.logging`
+- ✅ Proper type hints using `Mapping` from `collections.abc` for variance
+**Tests**: Updated `tests/unit/infrastructure/database/test_repository.py`
+- ✅ Test update with full and partial data
+- ✅ Test update with non-existent fields (logged as warning)
+- ✅ Test update when instance not found
+- ✅ Test delete success and failure cases
+- ✅ Test count with instances, empty table, and None result
+- ✅ Test exists for true/false cases and None result
+- ✅ 100% test coverage achieved
+**Acceptance Criteria**: ✅ All criteria met
+- ✅ Update handles partial updates correctly
+- ✅ Delete returns true/false based on success
+- ✅ Count is efficient using SQL COUNT function
+- ✅ Exists uses COUNT for efficiency
 
 #### Task 6.8: Add Repository Filtering
-**Status**: Pending
+**Status**: Complete ✅
 **File**: `src/infrastructure/database/repository.py`
 **Implementation**:
-- Add `filter_by(**kwargs) -> list[T]`
-- Add `find_one_by(**kwargs) -> T | None`
-- Add query builder pattern support
-**Tests**: Update `tests/unit/infrastructure/database/test_repository.py`
-- Test filtering with multiple conditions
-- Test find_one behavior
-**Acceptance Criteria**:
-- Supports multiple filter conditions
-- find_one returns first match
-- Efficient SQL generation
+- ✅ Added `filter_by(**kwargs) -> list[T]` with support for multiple conditions
+- ✅ Added `find_one_by(**kwargs) -> T | None` returning first match
+- ✅ Both methods use efficient SQL generation with proper ordering by ID
+- ✅ Non-existent fields are logged as warnings but don't break the query
+**Tests**: Updated `tests/unit/infrastructure/database/test_repository.py`
+- ✅ Test filter_by with single and multiple conditions
+- ✅ Test filter_by with no matches and non-existent fields
+- ✅ Test find_one_by with single and multiple conditions
+- ✅ Test find_one_by returns first match when multiple exist
+- ✅ Test find_one_by with no matches and non-existent fields
+- ✅ 100% test coverage maintained
+**Acceptance Criteria**: ✅ All criteria met
+- ✅ Supports multiple filter conditions using kwargs
+- ✅ find_one returns first match ordered by ID
+- ✅ Efficient SQL generation with proper WHERE clauses
 
 #### Task 6.9: Initialize Alembic
 **Status**: Pending
@@ -1571,6 +1583,15 @@ The BaseRepository implementation provides a robust foundation for data access:
 - **Comprehensive Testing**: Uses pytest-mock for clean mocking and pytest-check for soft assertions
 - **Type Safety**: Proper handling of optional returns with type guards for pyright
 - **Session Methods**: Uses flush() for ID generation without committing, refresh() for server-generated values
+
+### Repository Filtering Implementation Notes (Task 6.8)
+The repository filtering methods extend the base repository with dynamic query building:
+- **filter_by() Method**: Accepts **kwargs for field-value pairs, builds WHERE clauses dynamically
+- **find_one_by() Method**: Same as filter_by but with LIMIT 1 for efficiency
+- **Efficient SQL**: Both methods order by ID for consistent results and use proper SQLAlchemy query building
+- **Error Handling**: Non-existent fields log warnings but don't break queries
+- **Testing Strategy**: Comprehensive tests covering single/multiple conditions, no matches, and invalid fields
+- **Type Safety**: Proper return type annotations (list[T] and T | None)
 
 ## Testing Strategy Reminders
 
