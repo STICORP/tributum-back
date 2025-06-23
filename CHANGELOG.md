@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - FastAPI best practices validation guide for ensuring code quality and consistency
 
 ### Changed
+- Enhanced check-implementation command with dependency version and Docker integration validation
 - Uvicorn moved to production dependencies for container deployments
 - Database default configuration updated to match Docker PostgreSQL credentials
 - Environment variable structure fixed in .env.example for nested configuration
@@ -47,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md development guidance expanded with database architecture, observability patterns, and infrastructure setup
 - Test suite standardized to use pytest-mock fixtures instead of unittest.mock for better test isolation
 - Project documentation reorganized into .specs directory for better structure
+
+### Removed
+- do command from Claude command list as redundant with existing development workflow
 
 ### Fixed
 - Database credentials standardized across documentation to match Docker setup (tributum/tributum_pass)
