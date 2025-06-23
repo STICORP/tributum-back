@@ -7,12 +7,57 @@ enabling true parallel test execution against a single PostgreSQL container.
 import asyncio
 import os
 from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
 
 import asyncpg
 import pytest
+from alembic import command as alembic_command
+from alembic.config import Config
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from src.core.config import get_settings
+from src.core.logging import get_logger
+
+logger = get_logger(__name__)
+
+
+async def run_migrations_on_database(database_url: str) -> None:
+    """Run Alembic migrations on the specified database.
+
+    Args:
+        database_url: The database URL to run migrations on
+    """
+    # Find the alembic.ini file
+    project_root = Path(__file__).parent.parent.parent
+    alembic_ini_path = project_root / "alembic.ini"
+
+    if not alembic_ini_path.exists():
+        msg = f"alembic.ini not found at {alembic_ini_path}"
+        raise FileNotFoundError(msg)
+
+    # Create Alembic configuration
+    alembic_cfg = Config(str(alembic_ini_path))
+
+    # Override the database URL in the environment
+    # This is necessary because our env.py reads from get_settings()
+    # We need to temporarily override the DATABASE_CONFIG__DATABASE_URL
+    original_db_url = os.environ.get("DATABASE_CONFIG__DATABASE_URL")
+    try:
+        os.environ["DATABASE_CONFIG__DATABASE_URL"] = database_url
+
+        # Run migrations up to head
+        # We need to run this in a thread because Alembic's command.upgrade
+        # expects to manage its own event loop
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, alembic_command.upgrade, alembic_cfg, "head")
+
+        logger.info("Migrations completed successfully", database_url=database_url)
+    finally:
+        # Restore original environment variable
+        if original_db_url is not None:
+            os.environ["DATABASE_CONFIG__DATABASE_URL"] = original_db_url
+        else:
+            os.environ.pop("DATABASE_CONFIG__DATABASE_URL", None)
 
 
 @pytest.fixture(scope="session")
@@ -44,13 +89,14 @@ def worker_database_name(worker_id: str) -> str:
 async def setup_worker_database(
     database_url_base: str, worker_database_name: str
 ) -> AsyncGenerator[str]:
-    """Create a database for the current test worker.
+    """Create a database for the current test worker and run migrations.
 
     This fixture:
     1. Connects to PostgreSQL using the tributum_test database
     2. Creates a new database for this worker
-    3. Yields the database URL
-    4. Drops the database after tests complete
+    3. Runs Alembic migrations to set up the schema
+    4. Yields the database URL
+    5. Drops the database after tests complete
     """
     # Connect to the test database to create our worker-specific test databases
     # The tributum user has CREATE DATABASE permissions
@@ -61,6 +107,7 @@ async def setup_worker_database(
     )
 
     # Create the database
+    logger.info("Creating test database", database_name=worker_database_name)
     conn = await asyncpg.connect(admin_url)
     try:
         # Drop if exists and create fresh
@@ -71,6 +118,11 @@ async def setup_worker_database(
 
     # Yield the database URL for this worker
     database_url = f"{database_url_base}/{worker_database_name}"
+
+    # Run migrations on the new database
+    logger.info("Running migrations", database_name=worker_database_name)
+    await run_migrations_on_database(database_url)
+
     yield database_url
 
     # Cleanup: drop the database

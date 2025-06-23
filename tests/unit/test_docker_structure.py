@@ -153,7 +153,6 @@ class TestDockerStructure:
             "DATABASE_CONFIG__POOL_TIMEOUT",
             "DATABASE_CONFIG__POOL_PRE_PING",
             "DATABASE_CONFIG__ECHO",
-            "TEST_DATABASE_URL",  # For pytest
         ]
 
         for var in required_vars:
@@ -173,12 +172,6 @@ class TestDockerStructure:
                 "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_db"
                 in content
             ), "DATABASE_CONFIG__DATABASE_URL should have proper default"
-        with pytest_check.check:
-            assert (
-                "TEST_DATABASE_URL="
-                "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_test"
-                in content
-            ), "TEST_DATABASE_URL should point to test database"
 
     def test_docker_structure_follows_best_practices(self, project_root: Path) -> None:
         """Test that Docker structure follows best practices."""

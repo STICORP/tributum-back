@@ -1,4 +1,4 @@
-.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check all-checks
+.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check all-checks
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -99,6 +99,39 @@ test-seed:  ## Run tests with specific seed (usage: make test-seed SEED=12345)
 
 test-no-random:  ## Run tests without randomization (for debugging)
 	uv run pytest -p no:randomly
+
+# Database migration commands
+migrate-create:  ## Create new migration (usage: make migrate-create MSG="add users table")
+	@if [ -z "$(MSG)" ]; then echo "Error: MSG is required. Usage: make migrate-create MSG=\"your message\""; exit 1; fi
+	uv run alembic revision --autogenerate -m "$(MSG)"
+
+migrate-up:  ## Run all pending migrations
+	uv run alembic upgrade head
+
+migrate-down:  ## Downgrade one migration
+	uv run alembic downgrade -1
+
+migrate-history:  ## Show migration history
+	uv run alembic history --verbose
+
+migrate-current:  ## Show current migration revision
+	uv run alembic current
+
+migrate-check:  ## Check if there are pending model changes
+	uv run alembic check
+
+migrate-init:  ## Initialize database with all migrations (useful for fresh installs)
+	@echo "Initializing database with all migrations..."
+	uv run alembic upgrade head
+	@echo "Database initialization complete!"
+
+migrate-reset:  ## Reset database (drop all tables and re-run migrations) - DESTRUCTIVE!
+	@echo "WARNING: This will drop all tables and data!"
+	@echo "Press Ctrl+C to cancel, or Enter to continue..."
+	@read confirm
+	uv run alembic downgrade base
+	uv run alembic upgrade head
+	@echo "Database reset complete!"
 
 clean:  ## Clean up temporary files
 	find . -type d -name "__pycache__" -exec rm -rf {} +

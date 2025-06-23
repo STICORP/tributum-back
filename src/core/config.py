@@ -53,7 +53,7 @@ class DatabaseConfig(BaseModel):
     """Database configuration settings."""
 
     database_url: str = Field(
-        default="postgresql+asyncpg://postgres:postgres@localhost:5432/tributum",
+        default="postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_db",
         description="Database connection URL (postgresql+asyncpg://...)",
     )
     pool_size: int = Field(
@@ -101,8 +101,10 @@ class DatabaseConfig(BaseModel):
         Returns:
             str: Test database URL
         """
-        # Parse the database URL to append _test suffix
-        if "tributum" in self.database_url:
+        # Parse the database URL to replace the database name with test database
+        if "/tributum_db" in self.database_url:
+            return self.database_url.replace("/tributum_db", "/tributum_test")
+        if "/tributum" in self.database_url:
             return self.database_url.replace("/tributum", "/tributum_test")
         # For other database names, parse and append _test
         # This handles cases where the database name might be different

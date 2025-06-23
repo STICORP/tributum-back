@@ -91,7 +91,7 @@ class TestDatabaseConfig:
         config = DatabaseConfig()
         assert (
             config.database_url
-            == "postgresql+asyncpg://postgres:postgres@localhost:5432/tributum"
+            == "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_db"
         )
         assert config.pool_size == 10
         assert config.max_overflow == 5
@@ -185,7 +185,7 @@ class TestDatabaseConfig:
         config = DatabaseConfig()
         assert (
             config.get_test_database_url()
-            == "postgresql+asyncpg://postgres:postgres@localhost:5432/tributum_test"
+            == "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_test"
         )
 
         # Custom database name
@@ -310,7 +310,7 @@ class TestSettings:
         with pytest_check.check:
             assert (
                 settings.database_config.database_url
-                == "postgresql+asyncpg://postgres:postgres@localhost:5432/tributum"
+                == "postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_db"
             )
         with pytest_check.check:
             assert settings.database_config.pool_size == 10

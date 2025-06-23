@@ -13,14 +13,14 @@
 
 **Pending Phases:**
 - ✅ Phase 5: OpenTelemetry Setup (Tasks 5.1-5.5)
-- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.8 complete ✅, Tasks 6.9-6.11 pending)
+- ⏳ Phase 6: Database Infrastructure (Tasks 6.1-6.9 complete ✅, Tasks 6.10-6.11 pending)
 - ✅ Phase 6.2a: Minimal Docker Infrastructure (Tasks 6.2a.1-6.2a.5 complete ✅)
 - ⏳ Phase 6.12: Full Docker Development Environment (Tasks 6.12.1-6.12.4) - NEW
 - ⏳ Phase 7: Integration (Tasks 7.1-7.4)
 - ⏳ Phase 8: Error Aggregator Integration (Tasks 8.1-8.5)
 - ⏳ Phase 9: Final Documentation Review (Task 9.1)
 
-**Next Task:** Task 6.9 - Initialize Alembic
+**Next Task:** Task 6.10 - Create Initial Migration
 
 ## Revision Notes (Granular Approach)
 
@@ -1163,17 +1163,50 @@ This phase provides the minimal Docker setup needed to enable database testing f
 - ✅ Efficient SQL generation with proper WHERE clauses
 
 #### Task 6.9: Initialize Alembic
-**Status**: Pending
+**Status**: Complete ✅
 **Implementation**:
-- Run `alembic init alembic`
-- Update alembic.ini for async
-- Create async migration env.py
-- Update Makefile with migration commands
-**Tests**: Manual verification
-**Acceptance Criteria**:
-- Alembic initialized
-- Async migrations work
-- Makefile commands work
+- ✅ Ran `alembic init alembic` then renamed to `migrations/` to avoid import conflicts
+- ✅ Updated alembic.ini for async configuration:
+  - Enabled timestamp-based file naming template
+  - Configured to use database URL from env.py (no hardcoded URL)
+  - Added ruff formatting hook for new migration files
+  - Removed logging configuration (uses project's structured logging)
+- ✅ Created async migration env.py:
+  - Full async support with `async_engine_from_config`
+  - Integrates with project's configuration system (get_settings)
+  - Uses structured logging (get_logger)
+  - Imports Base metadata from database models
+  - Supports both offline and online migration modes
+  - Uses NullPool for migrations (no connection pooling)
+- ✅ Enhanced test database fixtures to run migrations automatically:
+  - Added `run_migrations_on_database()` function
+  - Integrated into `setup_worker_database` fixture
+  - Handles environment variable override for test databases
+  - Proper async execution with thread executor
+- ✅ Updated Makefile with migration commands:
+  - `migrate-create MSG="..."` - Create new migration (with validation)
+  - `migrate-up` - Run all pending migrations
+  - `migrate-down` - Downgrade one migration
+  - `migrate-history` - Show migration history
+  - `migrate-current` - Show current revision
+  - `migrate-check` - Check for pending model changes
+  - `migrate-init` - Initialize database with all migrations
+  - `migrate-reset` - Reset database (with warning prompt)
+- ✅ Fixed configuration and environment issues:
+  - Updated default database URL to match Docker setup
+  - Fixed .env.example with correct nested environment variables
+  - Fixed `get_test_database_url()` to handle new database name
+  - Created .env file from .env.example for development
+- ✅ Updated tests for new database configuration
+**Tests**:
+- ✅ Integration tests automatically run migrations on test databases
+- ✅ Verified migrations run successfully in parallel test execution
+- ✅ All quality checks pass with 100% test coverage maintained
+**Acceptance Criteria**: ✅ All criteria met and exceeded
+- ✅ Alembic initialized with proper async support
+- ✅ Test databases automatically migrate without manual intervention
+- ✅ Makefile commands work seamlessly with .env configuration
+- ✅ No quality check bypasses or ignored rules
 
 #### Task 6.10: Create Initial Migration
 **Status**: Pending
