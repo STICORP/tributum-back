@@ -18,6 +18,7 @@
 
 ## Configuration management
 
+- **COMPLETELY UNDERSTAND** the configuration framework for this project and how it is supposed to be used.
 - Check if you added, removed or changed any project configuration.
 - Check if you were consistent and are using configuration the way that the project expects you to.
 - Check if the configuration follows the established project patterns and you properly used the project configuration framework.
@@ -25,24 +26,29 @@
 
 ## Error handling
 
+- **COMPLETELY UNDERSTAND** the error handling framework for this project and how it is supposed to be used.
+- Are we using the proper custom exceptions we have and should we implement new ones to make this code properly use error handling?
 - Check if properly **handled errors** where it needs to be handled.
 - Check if you **handled errors** in the way the project expects you to.
 - Check if you properly used the **error handling framework** and patterns implemented by the project.
 
 ## Logging
 
+- **COMPLETELY UNDERSTAND** the logging framework for this project and how it is supposed to be used.
 - Check if you implemented **logging** where it is required by best practices.
 - Check if your implementation of **logging** was done in the way the project expects you to.
 - Check if you properly used the **logging framework** and patterns implemented by the project.
 
 ## Observability
 
+- **COMPLETELY UNDERSTAND** the observability framework for this project and how it is supposed to be used.
 - Check if you implemented **observability** where it is required by best practices.
 - Check if your implementation of **observability** was done in the way the project expects you to.
 - Check if you properly used the **observability framework** and patterns implemented by the project.
 
 ## Database interaction
 
+- **COMPLETELY UNDERSTAND** the database interaction framework for this project and how it is supposed to be used.
 - Check if your implementation of **database interaction** was done in the way the project expects you to.
 - Check if you properly used the **database framework** and patterns implemented by the project.
 
@@ -52,6 +58,7 @@
 
 ## Tests implementation
 
+- **COMPLETELY UNDERSTAND** the test framework for this project and how it is supposed to be used.
 - Check if the tests you implemented meaningful test that actually tests code behavior.
 - Check other test files to verify that you are being consistent on how you implemented the tests and are actually following the tests patterns the project expects.
 - Check if you are actually using the installed pytest plugins everywhere you should instead of relying on vanilla test implementations (e.g. pytest_mock instead of unittest mock)
@@ -60,6 +67,7 @@
 
 ## Docker implementation
 
+- **COMPLETELY UNDERSTAND** how docker is used in this project.
 - Check if what we implemented needs to be integrated with our docker implementation
 - Check if we need to change Dockerfiles, docker-compose files
 - Check if we introduced configuration that should be integrated in docker
@@ -76,4 +84,9 @@
 - Check if you did not ignore any quality checks by using "# type: ignore", "# noqa" or anything of the sort.
 - Make sure you did not added rules to the ignore section in pyproject.toml.
 - If you did, remove them and properly fix quality checks and add proper types.
-- Before finishing, run pre-commit and fix any issues without trying to ignore the errors.
+
+## **FINAL INSTRUCTIONS**
+
+- Before finishing, run pre-commit and fix any issues without trying to ignore the errors or bypass tests in any way.
+- This command will only be finished when all pre-commit passes perfectly
+- This command will only be successful when we achieve 100% test coverage
