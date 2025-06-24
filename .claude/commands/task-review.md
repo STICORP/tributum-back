@@ -1,0 +1,3 @@
+# /task-review
+
+I need you to analyse $ARGUMENTS$ and make sure you made this plan specifically for this project, its architecture, its code and does not include any generic hallucinations. When I say specific for this project, I DO NOT mean its business purpose. You should assume this is a generic software that can serve any business purpose. Your analysis should be purely technical about best practices of what $ARGUMENTS is planning to implement and completely IGNORE any possible business purpose. After your analysis is done, begin modifying the document accordingly and also include in the file, the project context necessary to accomplish the tasks. Think harder.
