@@ -13,31 +13,18 @@ from starlette.responses import Response as StarletteResponse
 from starlette.types import ASGIApp
 
 from src.core.constants import (
+    FORM_CONTENT_TYPES,
+    JSON_CONTENT_TYPES,
     MAX_BODY_SIZE,
     MILLISECONDS_PER_SECOND,
     REQUEST_BODY_METHODS,
+    SENSITIVE_HEADERS,
+    TEXT_CONTENT_TYPES,
+    TRUNCATED_SUFFIX,
 )
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_context
 from src.core.logging import get_logger
-
-# Constants for body logging
-TRUNCATED_SUFFIX = "... [TRUNCATED]"
-
-# Headers to exclude from logging for security
-SENSITIVE_HEADERS = {
-    "authorization",
-    "cookie",
-    "x-api-key",
-    "x-auth-token",
-    "x-csrf-token",
-    "set-cookie",
-}
-
-# Content types that support body logging
-JSON_CONTENT_TYPES = {"application/json", "text/json"}
-FORM_CONTENT_TYPES = {"application/x-www-form-urlencoded", "multipart/form-data"}
-TEXT_CONTENT_TYPES = {"text/plain", "text/html", "text/xml", "application/xml"}
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -201,10 +188,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Use a mapping to handle different content types
             if content_type in JSON_CONTENT_TYPES:
                 parsed = self._parse_json_body(body_bytes)
-            elif content_type == "application/x-www-form-urlencoded":
-                parsed = self._parse_form_body(body_bytes)
-            elif content_type == "multipart/form-data":
-                parsed = self._get_body_metadata(body_bytes, "multipart/form-data")
+            elif content_type in FORM_CONTENT_TYPES:
+                if content_type == "application/x-www-form-urlencoded":
+                    parsed = self._parse_form_body(body_bytes)
+                else:  # multipart/form-data
+                    parsed = self._get_body_metadata(body_bytes, content_type)
             elif content_type in TEXT_CONTENT_TYPES:
                 parsed = self._truncate_body(body_bytes)
             else:

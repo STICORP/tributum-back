@@ -6,6 +6,8 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
+from src.core.constants import DEFAULT_HSTS_MAX_AGE
+
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Middleware to add security headers to all responses.
@@ -29,7 +31,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         app: ASGIApp,
         *,
         hsts_enabled: bool = True,
-        hsts_max_age: int = 31536000,  # 1 year in seconds
+        hsts_max_age: int = DEFAULT_HSTS_MAX_AGE,
         hsts_include_subdomains: bool = True,
         hsts_preload: bool = False,
     ) -> None:

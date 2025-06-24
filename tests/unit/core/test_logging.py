@@ -14,6 +14,7 @@ from pytest_mock import MockerFixture
 from structlog.testing import LogCapture
 
 from src.core.config import LogConfig, Settings
+from src.core.constants import MAX_CONTEXT_DEPTH, MAX_VALUE_SIZE
 from src.core.context import RequestContext
 from src.core.exceptions import (
     BusinessRuleError,
@@ -25,8 +26,6 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging import (
-    MAX_CONTEXT_DEPTH,
-    MAX_VALUE_SIZE,
     LogContextManager,
     MergeStrategy,
     ORJSONRenderer,

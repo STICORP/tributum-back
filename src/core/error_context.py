@@ -8,6 +8,7 @@ import re
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
+from src.core.constants import REDACTED, SENSITIVE_FIELD_PATTERNS, SENSITIVE_HEADERS
 from src.core.exceptions import TributumError
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -15,44 +16,6 @@ if TYPE_CHECKING:  # pragma: no cover
     from fastapi import Request
 
 T = TypeVar("T")
-
-# Patterns for identifying sensitive field names
-SENSITIVE_FIELD_PATTERNS = [
-    r".*password.*",
-    r".*passwd.*",
-    r".*pwd.*",
-    r".*secret.*",
-    r".*token.*",
-    r".*key.*",
-    r".*auth.*",
-    r".*credential.*",
-    r".*api[-_]?key.*",
-    r".*access[-_]?token.*",
-    r".*refresh[-_]?token.*",
-    r".*private.*",
-    r".*ssn.*",
-    r".*social[-_]?security.*",
-    r".*credit[-_]?card.*",
-    r".*cvv.*",
-    r".*pin.*",
-    r".*session.*",
-    r".*bearer.*",
-]
-
-# Replacement value for sensitive data
-REDACTED = "[REDACTED]"
-
-# Headers to exclude from error context for security
-SENSITIVE_HEADERS = {
-    "authorization",
-    "cookie",
-    "x-api-key",
-    "x-auth-token",
-    "x-csrf-token",
-    "set-cookie",
-    "x-secret-key",
-    "proxy-authorization",
-}
 
 
 def is_sensitive_field(field_name: str) -> bool:

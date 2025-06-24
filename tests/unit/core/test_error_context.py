@@ -5,9 +5,8 @@ from typing import cast
 import pytest
 from pytest_mock import MockerFixture
 
+from src.core.constants import REDACTED, SENSITIVE_HEADERS
 from src.core.error_context import (
-    REDACTED,
-    SENSITIVE_HEADERS,
     capture_request_context,
     enrich_error,
     is_sensitive_field,

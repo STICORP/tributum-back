@@ -11,6 +11,7 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import DEFAULT_PAGINATION_LIMIT
 from src.core.logging import get_logger
 from src.infrastructure.database.base import BaseModel
 
@@ -80,7 +81,9 @@ class BaseRepository[T: BaseModel]:
 
         return instance
 
-    async def get_all(self, skip: int = 0, limit: int = 100) -> list[T]:
+    async def get_all(
+        self, skip: int = 0, limit: int = DEFAULT_PAGINATION_LIMIT
+    ) -> list[T]:
         """Retrieve all model instances with pagination.
 
         Args:

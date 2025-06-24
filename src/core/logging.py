@@ -18,13 +18,9 @@ import structlog
 from structlog.typing import EventDict, Processor
 
 from src.core.config import get_settings
+from src.core.constants import MAX_CONTEXT_DEPTH, MAX_CONTEXT_SIZE, MAX_VALUE_SIZE
 from src.core.context import RequestContext
 from src.core.exceptions import TributumError
-
-# Constants for context management
-MAX_CONTEXT_SIZE = 10000  # Maximum total size of context in bytes
-MAX_CONTEXT_DEPTH = 10  # Maximum nesting depth for context layers
-MAX_VALUE_SIZE = 1000  # Maximum size for individual context values
 
 
 class MergeStrategy(Enum):

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.core.config import get_settings
+from src.core.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
 from src.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -45,12 +46,12 @@ def create_database_engine(database_url: str | None = None) -> AsyncEngine:
         pool_pre_ping=db_config.pool_pre_ping,
         echo=db_config.echo,
         # Additional performance and reliability settings
-        pool_recycle=3600,  # Recycle connections after 1 hour
+        pool_recycle=POOL_RECYCLE_SECONDS,
         connect_args={
             "server_settings": {
                 "jit": "off"
             },  # Disable JIT for more predictable performance
-            "command_timeout": 60,  # 60 second command timeout
+            "command_timeout": COMMAND_TIMEOUT_SECONDS,
         },
     )
 

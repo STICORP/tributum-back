@@ -12,11 +12,8 @@ from pytest_mock import MockerFixture
 from starlette.datastructures import Headers
 
 from src.api.middleware.request_context import RequestContextMiddleware
-from src.api.middleware.request_logging import (
-    TRUNCATED_SUFFIX,
-    RequestLoggingMiddleware,
-)
-from src.core.constants import MAX_BODY_SIZE
+from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.core.constants import MAX_BODY_SIZE, TRUNCATED_SUFFIX
 from src.core.context import CORRELATION_ID_HEADER
 
 
