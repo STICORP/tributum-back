@@ -1,16 +1,20 @@
 # /check-implementation
 
 - Think Harder
+- Read and understand all uncommited changes in the git repository
 - **IMPORTANT AND MANDATORY** All the validations below are to be conducted only on uncommited and changed code. **DO NOT** validate what is already commited.
 
 ## Understand the project
 
+Execute these analyses in parallel:
+```
 - Fully read pyproject.toml
 - Fully read Makefile
 - Fully read .pre-commit-config.yaml
 - Fully read main.py
 - Fully read /src/core/config.py
 - Fully read /src/api/main.py
+```
 
 ## Dependencies
 

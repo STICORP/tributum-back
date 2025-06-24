@@ -1,4 +1,4 @@
-# /commit
+# /create-commit
 
 Analyze project changes and create logical commits using conventional commit messaging.
 

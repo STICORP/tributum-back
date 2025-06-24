@@ -1,4 +1,4 @@
-# /release
+# /create-release
 
 Manage semantic versioning and changelog updates for the Tributum project.
 

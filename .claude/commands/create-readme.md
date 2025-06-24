@@ -1,4 +1,4 @@
-# /readme
+# /create-readme
 
 Generate or update a comprehensive, developer-focused README.md with intelligent diff-based updates and safe emoji usage.
 
