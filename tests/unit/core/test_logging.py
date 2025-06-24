@@ -25,16 +25,23 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging import (
+    MAX_CONTEXT_DEPTH,
+    MAX_VALUE_SIZE,
+    LogContextManager,
+    MergeStrategy,
     ORJSONRenderer,
+    _context_manager,
     add_log_level_upper,
     bind_logger_context,
     clear_logger_context,
     configure_structlog,
     get_logger,
+    get_logger_context,
     inject_correlation_id,
     inject_logger_context,
     log_context,
     log_exception,
+    unbind_logger_context,
 )
 
 
@@ -1448,3 +1455,441 @@ class TestORJSONRenderer:
         assert parsed["request"]["method"] == "POST"
         assert parsed["response"]["duration_ms"] == 45.23
         assert parsed["tags"] == ["api", "success"]
+
+
+@pytest.mark.unit
+class TestEnhancedContextManagement:
+    """Test the enhanced context management features."""
+
+    @pytest.fixture(autouse=True)
+    def setup_and_teardown(self) -> Generator[None]:
+        """Set up structlog and clean up context after each test."""
+        configure_structlog()
+        # Clear any existing context
+        clear_logger_context()
+        # Reset the global context manager
+        _context_manager._context_stack.clear()
+        yield
+        # Clean up after test
+        clear_logger_context()
+        _context_manager._context_stack.clear()
+        structlog.reset_defaults()
+
+    def test_get_logger_context_empty(self) -> None:
+        """Test get_logger_context returns empty dict when no context."""
+        context = get_logger_context()
+        assert context == {}
+
+    def test_get_logger_context_with_data(self) -> None:
+        """Test get_logger_context returns copy of current context."""
+        bind_logger_context(user_id=123, session_id="abc")
+
+        context = get_logger_context()
+        assert context == {"user_id": 123, "session_id": "abc"}
+
+        # Verify it's a copy, not a reference
+        context["user_id"] = 456
+        new_context = get_logger_context()
+        assert new_context["user_id"] == 123
+
+    def test_unbind_logger_context_single_key(self) -> None:
+        """Test unbinding a single key from context."""
+        bind_logger_context(user_id=123, session_id="abc", temp="value")
+
+        unbind_logger_context("temp")
+
+        context = get_logger_context()
+        assert context == {"user_id": 123, "session_id": "abc"}
+        assert "temp" not in context
+
+    def test_unbind_logger_context_multiple_keys(self) -> None:
+        """Test unbinding multiple keys from context."""
+        bind_logger_context(a=1, b=2, c=3, d=4)
+
+        unbind_logger_context("b", "d")
+
+        context = get_logger_context()
+        assert context == {"a": 1, "c": 3}
+
+    def test_unbind_logger_context_nonexistent_key(self) -> None:
+        """Test unbinding nonexistent key doesn't raise error."""
+        bind_logger_context(user_id=123)
+
+        unbind_logger_context("nonexistent")
+
+        context = get_logger_context()
+        assert context == {"user_id": 123}
+
+    def test_unbind_logger_context_clears_when_empty(self) -> None:
+        """Test context is set to None when all keys are unbound."""
+        bind_logger_context(only_key="value")
+
+        unbind_logger_context("only_key")
+
+        context = get_logger_context()
+        assert context == {}
+
+
+@pytest.mark.unit
+class TestLogContextManager:
+    """Test the LogContextManager class."""
+
+    @pytest.fixture
+    def manager(self) -> LogContextManager:
+        """Create a fresh LogContextManager for each test."""
+        return LogContextManager()
+
+    def test_push_single_layer(self, manager: LogContextManager) -> None:
+        """Test pushing a single context layer."""
+        manager.push(user_id=123, action="login")
+
+        assert manager.depth == 1
+        assert manager.peek() == {"user_id": 123, "action": "login"}
+
+    def test_push_multiple_layers(self, manager: LogContextManager) -> None:
+        """Test pushing multiple context layers."""
+        manager.push(level1="value1")
+        manager.push(level2="value2")
+        manager.push(level3="value3")
+
+        assert manager.depth == 3
+        # Later layers override earlier ones
+        context = manager.peek()
+        assert context == {"level1": "value1", "level2": "value2", "level3": "value3"}
+
+    def test_push_max_depth_exceeded(self, manager: LogContextManager) -> None:
+        """Test that pushing beyond max depth raises error."""
+        # Push to max depth
+        for i in range(MAX_CONTEXT_DEPTH):
+            manager.push(layer=i)
+
+        # Try to exceed max depth
+        with pytest.raises(
+            RuntimeError, match=f"Context depth exceeded maximum of {MAX_CONTEXT_DEPTH}"
+        ):
+            manager.push(extra="layer")
+
+    def test_pop_single_layer(self, manager: LogContextManager) -> None:
+        """Test popping a single context layer."""
+        manager.push(user_id=123)
+
+        popped = manager.pop()
+
+        assert popped == {"user_id": 123}
+        assert manager.depth == 0
+        assert manager.peek() == {}
+
+    def test_pop_multiple_layers(self, manager: LogContextManager) -> None:
+        """Test popping multiple context layers."""
+        manager.push(layer1="value1")
+        manager.push(layer2="value2")
+
+        # Pop second layer
+        popped2 = manager.pop()
+        assert popped2 == {"layer2": "value2"}
+        assert manager.peek() == {"layer1": "value1"}
+
+        # Pop first layer
+        popped1 = manager.pop()
+        assert popped1 == {"layer1": "value1"}
+        assert manager.peek() == {}
+
+    def test_pop_empty_stack(self, manager: LogContextManager) -> None:
+        """Test popping from empty stack returns None."""
+        result = manager.pop()
+        assert result is None
+
+    def test_peek_empty_stack(self, manager: LogContextManager) -> None:
+        """Test peeking at empty stack returns empty dict."""
+        assert manager.peek() == {}
+
+    def test_merge_shallow_strategy(self, manager: LogContextManager) -> None:
+        """Test shallow merge strategy."""
+        manager.push(config={"a": 1, "b": 2}, user="alice")
+        manager.merge(
+            {"config": {"b": 3, "c": 4}, "user": "bob"}, MergeStrategy.SHALLOW
+        )
+
+        context = manager.peek()
+        # Shallow merge replaces entire values
+        assert context == {"config": {"b": 3, "c": 4}, "user": "bob"}
+
+    def test_merge_deep_strategy(self, manager: LogContextManager) -> None:
+        """Test deep merge strategy."""
+        manager.push(config={"a": 1, "b": 2}, user="alice")
+        manager.merge({"config": {"b": 3, "c": 4}, "user": "bob"}, MergeStrategy.DEEP)
+
+        context = manager.peek()
+        # Deep merge combines nested dicts
+        assert context == {"config": {"a": 1, "b": 3, "c": 4}, "user": "bob"}
+
+    def test_merge_deep_nested(self, manager: LogContextManager) -> None:
+        """Test deep merge with multiple nesting levels."""
+        manager.push(
+            settings={
+                "database": {"host": "localhost", "port": 5432},
+                "cache": {"enabled": True},
+            }
+        )
+        manager.merge(
+            {
+                "settings": {
+                    "database": {"port": 3306, "user": "root"},
+                    "cache": {"ttl": 300},
+                }
+            },
+            MergeStrategy.DEEP,
+        )
+
+        context = manager.peek()
+        assert context == {
+            "settings": {
+                "database": {"host": "localhost", "port": 3306, "user": "root"},
+                "cache": {"enabled": True, "ttl": 300},
+            }
+        }
+
+    def test_merge_empty_stack(self, manager: LogContextManager) -> None:
+        """Test merging into empty stack creates new layer."""
+        manager.merge({"key": "value"})
+
+        assert manager.depth == 1
+        assert manager.peek() == {"key": "value"}
+
+    def test_context_var_integration(self, manager: LogContextManager) -> None:
+        """Test that LogContextManager updates the context var."""
+        manager.push(test_key="test_value")
+
+        # Check that the context var was updated
+        current = get_logger_context()
+        assert current == {"test_key": "test_value"}
+
+    def test_deep_copy_in_deep_merge(self, manager: LogContextManager) -> None:
+        """Test that deep merge creates copies of nested dicts."""
+        original_dict = {"nested": {"value": 1}}
+        manager.push(data=original_dict)
+
+        # Modify the original
+        original_dict["nested"]["value"] = 2
+
+        # Context should still have original value
+        context = manager.peek()
+        assert context["data"]["nested"]["value"] == 1
+
+
+@pytest.mark.unit
+class TestEnhancedInjectLoggerContext:
+    """Test the enhanced inject_logger_context processor."""
+
+    @pytest.fixture(autouse=True)
+    def setup_and_teardown(self) -> Generator[None]:
+        """Set up and clean up for each test."""
+        clear_logger_context()
+        _context_manager._context_stack.clear()
+        yield
+        clear_logger_context()
+        _context_manager._context_stack.clear()
+
+    def test_inject_with_none_values_filtered(self, mocker: MockerFixture) -> None:
+        """Test that None values are filtered out."""
+        bind_logger_context(user_id=123, session_id=None, action="login")
+
+        logger = mocker.MagicMock()
+        event_dict: dict[str, object] = {"event": "test"}
+
+        result = inject_logger_context(logger, "info", event_dict)
+
+        assert result["user_id"] == 123
+        assert result["action"] == "login"
+        assert "session_id" not in result
+
+    def test_inject_with_context_depth(self, mocker: MockerFixture) -> None:
+        """Test that context depth is added when using LogContextManager."""
+        _context_manager.push(layer1="value1")
+        _context_manager.push(layer2="value2")
+
+        logger = mocker.MagicMock()
+        event_dict: dict[str, object] = {"event": "test"}
+
+        result = inject_logger_context(logger, "info", event_dict)
+
+        assert result["context_depth"] == 2
+        assert result["layer1"] == "value1"
+        assert result["layer2"] == "value2"
+
+    def test_inject_with_value_truncation(self, mocker: MockerFixture) -> None:
+        """Test that large values are truncated."""
+        large_value = "x" * (MAX_VALUE_SIZE + 100)
+        bind_logger_context(large_field=large_value)
+
+        logger = mocker.MagicMock()
+        event_dict: dict[str, object] = {"event": "test"}
+
+        result = inject_logger_context(logger, "info", event_dict)
+
+        # Check that the field was injected and truncated
+        assert "large_field" in result
+        # Should be truncated to MAX_VALUE_SIZE characters total
+        assert len(result["large_field"]) == MAX_VALUE_SIZE
+        assert result["large_field"].endswith("...")
+        # The actual content should be MAX_VALUE_SIZE - 3 characters plus "..."
+        assert result["large_field"] == large_value[: MAX_VALUE_SIZE - 3] + "..."
+
+    def test_inject_with_total_size_limit(self, mocker: MockerFixture) -> None:
+        """Test that total context size is limited."""
+        # Create context that exceeds total size
+        context_data = {}
+        for i in range(100):
+            key = f"field_{i:03d}"
+            value = "x" * 200  # Each field is ~200 bytes
+            context_data[key] = value
+
+        bind_logger_context(**context_data)
+
+        logger = mocker.MagicMock()
+        event_dict: dict[str, object] = {"event": "test"}
+
+        result = inject_logger_context(logger, "info", event_dict)
+
+        # Should have truncation indicator
+        assert result["context_truncated"] is True
+
+        # Should have some fields but not all
+        injected_fields = [k for k in result if k.startswith("field_")]
+        assert len(injected_fields) > 0
+        assert len(injected_fields) < 100
+
+    def test_inject_preserves_event_dict_priority(self, mocker: MockerFixture) -> None:
+        """Test that event_dict values take precedence over context."""
+        bind_logger_context(user_id=123, action="context_action")
+
+        logger = mocker.MagicMock()
+        event_dict: dict[str, object] = {
+            "event": "test",
+            "user_id": 456,  # Should override context
+        }
+
+        result = inject_logger_context(logger, "info", event_dict)
+
+        assert result["user_id"] == 456  # Event dict value
+        assert result["action"] == "context_action"  # From context
+
+
+@pytest.mark.unit
+class TestEnhancedLogContext:
+    """Test the enhanced log_context context manager."""
+
+    @pytest.fixture(autouse=True)
+    def setup_and_teardown(self) -> Generator[None]:
+        """Set up structlog and clean up context after each test."""
+        configure_structlog()
+        clear_logger_context()
+        _context_manager._context_stack.clear()
+        yield
+        clear_logger_context()
+        _context_manager._context_stack.clear()
+        structlog.reset_defaults()
+
+    def test_log_context_uses_context_manager(self) -> None:
+        """Test that log_context now uses LogContextManager."""
+        cap = LogCapture()
+        structlog.configure(
+            processors=[
+                inject_logger_context,
+                cap,
+            ]
+        )
+
+        # Before context
+        assert _context_manager.depth == 0
+
+        with log_context(user_id=123, request_id="abc") as logger:
+            # Inside context
+            assert _context_manager.depth == 1
+            logger.info("test event")
+
+        # After context
+        assert _context_manager.depth == 0
+
+        # Verify log entry
+        assert len(cap.entries) == 1
+        entry = cap.entries[0]
+        assert entry["user_id"] == 123
+        assert entry["request_id"] == "abc"
+        assert entry["context_depth"] == 1
+
+    def test_nested_log_contexts_with_manager(self) -> None:
+        """Test nested log contexts using the enhanced system."""
+        cap = LogCapture()
+        structlog.configure(
+            processors=[
+                inject_logger_context,
+                cap,
+            ]
+        )
+
+        with log_context(level1="value1") as logger1:
+            logger1.info("outer")
+
+            with log_context(level2="value2") as logger2:
+                logger2.info("inner")
+                assert _context_manager.depth == 2
+
+            logger1.info("outer again")
+            assert _context_manager.depth == 1
+
+        assert _context_manager.depth == 0
+
+        # Check logs
+        assert len(cap.entries) == 3
+
+        # First log - only level1
+        assert cap.entries[0]["level1"] == "value1"
+        assert "level2" not in cap.entries[0]
+        assert cap.entries[0]["context_depth"] == 1
+
+        # Second log - both levels
+        assert cap.entries[1]["level1"] == "value1"
+        assert cap.entries[1]["level2"] == "value2"
+        assert cap.entries[1]["context_depth"] == 2
+
+        # Third log - back to only level1
+        assert cap.entries[2]["level1"] == "value1"
+        assert "level2" not in cap.entries[2]
+        assert cap.entries[2]["context_depth"] == 1
+
+    def test_log_context_exception_cleanup(self) -> None:
+        """Test that context is cleaned up even on exception."""
+        assert _context_manager.depth == 0
+
+        try:
+            with log_context(temp="value"):
+                assert _context_manager.depth == 1
+                raise ValueError("Test exception")
+        except ValueError:
+            pass
+
+        # Context should be cleaned up
+        assert _context_manager.depth == 0
+
+    async def test_log_context_async_compatibility(self) -> None:
+        """Test log_context works correctly in async code."""
+        cap = LogCapture()
+        structlog.configure(
+            processors=[
+                inject_logger_context,
+                cap,
+            ]
+        )
+
+        async def async_operation() -> None:
+            """Async operation using log context."""
+            with log_context(async_op="test") as logger:
+                logger.info("async log")
+                await asyncio.sleep(0.01)
+                logger.info("after sleep")
+
+        await async_operation()
+
+        assert len(cap.entries) == 2
+        assert all(entry["async_op"] == "test" for entry in cap.entries)

@@ -98,9 +98,10 @@ The project has a sophisticated logging system built on structlog with the follo
 ---
 
 ### Task 1.2: Enhanced Context Management
-**Status**: pending
-**Files to modify**:
+**Status**: completed
+**Files modified**:
 - `src/core/logging.py`
+- `tests/unit/core/test_logging.py`
 
 **Current State**:
 The codebase already has context management using contextvars:
@@ -149,6 +150,23 @@ The codebase already has context management using contextvars:
 - No performance degradation
 - Context size is bounded
 - Better visibility into context state
+
+**Completion Summary**:
+- ✅ Added `get_logger_context()` function to retrieve current context as a copy
+- ✅ Added `unbind_logger_context(*keys)` to remove specific keys from context
+- ✅ Created `MergeStrategy` enum with SHALLOW and DEEP options
+- ✅ Implemented `LogContextManager` class with push/pop/peek/merge operations
+- ✅ Added context size limits with constants: MAX_CONTEXT_SIZE (10KB), MAX_CONTEXT_DEPTH (10), MAX_VALUE_SIZE (1KB)
+- ✅ Enhanced `inject_logger_context` processor to:
+  - Filter None values automatically
+  - Add context_depth when using LogContextManager
+  - Truncate large values with "..." indicator
+  - Add context_truncated flag when total size exceeded
+- ✅ Enhanced `log_context()` to use LogContextManager while maintaining backward compatibility
+- ✅ Deep copy support in LogContextManager to prevent mutations
+- ✅ Comprehensive test coverage including async compatibility
+- ✅ All pre-commit checks pass (fixed pydoclint issue)
+- ✅ Backward compatible - existing code continues to work
 
 ---
 

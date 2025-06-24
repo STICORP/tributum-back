@@ -9,6 +9,8 @@ import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
+from copy import deepcopy
+from enum import Enum
 from typing import Any
 
 import orjson
@@ -18,6 +20,18 @@ from structlog.typing import EventDict, Processor
 from src.core.config import get_settings
 from src.core.context import RequestContext
 from src.core.exceptions import TributumError
+
+# Constants for context management
+MAX_CONTEXT_SIZE = 10000  # Maximum total size of context in bytes
+MAX_CONTEXT_DEPTH = 10  # Maximum nesting depth for context layers
+MAX_VALUE_SIZE = 1000  # Maximum size for individual context values
+
+
+class MergeStrategy(Enum):
+    """Strategy for merging context values."""
+
+    SHALLOW = "shallow"  # New values override existing
+    DEEP = "deep"  # Deep merge of dictionaries
 
 
 class ORJSONRenderer:
@@ -154,6 +168,7 @@ def inject_logger_context(
 
     This processor adds any context stored in the logger context var
     to all log entries, enabling context propagation across async boundaries.
+    It also adds context depth indicator and filters out None values.
 
     Args:
         logger: The logger instance.
@@ -166,10 +181,37 @@ def inject_logger_context(
     _ = logger, method_name  # Required by structlog processor interface
     context = _logger_context_var.get()
     if context is not None:
+        # Add context depth if using LogContextManager
+        if hasattr(_context_manager, "depth") and _context_manager.depth > 0:
+            event_dict["context_depth"] = _context_manager.depth
+
         # Merge context, with event_dict taking precedence
+        total_size = 0
         for key, value in context.items():
-            if key not in event_dict:
+            # Skip None values
+            if value is None:
+                continue
+
+            # Skip if key already exists in event_dict
+            if key in event_dict:
+                continue
+
+            # Apply size limits
+            value_str = str(value)
+            if len(value_str) > MAX_VALUE_SIZE:
+                # Truncate large values
+                truncated_value = value_str[: MAX_VALUE_SIZE - 3] + "..."
+                event_dict[key] = truncated_value
+                total_size += len(str(key)) + len(truncated_value)
+            else:
                 event_dict[key] = value
+                total_size += len(str(key)) + len(str(value))
+
+            # Check total context size
+            if total_size > MAX_CONTEXT_SIZE:
+                # Add truncation indicator and stop
+                event_dict["context_truncated"] = True
+                break
     return event_dict
 
 
@@ -286,11 +328,13 @@ def get_logger(name: str | None = None, **initial_context: Any) -> Any:  # noqa:
 
 
 @contextmanager
-def log_context(**bindings: Any) -> Iterator[Any]:  # noqa: ANN401 - structlog.BoundLogger lacks stable typing
+def log_context(
+    **bindings: Any,  # noqa: ANN401 - flexible context bindings
+) -> Iterator[Any]:
     """Context manager for temporary log context bindings.
 
-    This allows adding temporary context to all log messages within
-    the context manager scope without using contextvars.
+    This context manager maintains backward compatibility while using the enhanced
+    LogContextManager. It yields a bound logger that includes the temporary context.
 
     Args:
         **bindings: Key-value pairs to bind to the logger context.
@@ -301,13 +345,21 @@ def log_context(**bindings: Any) -> Iterator[Any]:  # noqa: ANN401 - structlog.B
     Example:
         with log_context(user_id=123, request_id="abc") as logger:
             logger.info("User action")  # Will include user_id and request_id
+            with log_context(operation="delete") as nested_logger:
+                nested_logger.info("Nested")  # Includes operation, but not user_id
     """
-    # Get current logger and bind the context
+    # Get current logger and bind the context for backward compatibility
     logger = structlog.get_logger()
     bound_logger = logger.bind(**bindings)
 
-    # Yield the bound logger for use within the context
-    yield bound_logger
+    # Also push to context manager for enhanced features
+    _context_manager.push(**bindings)
+
+    try:
+        yield bound_logger
+    finally:
+        # Pop the context layer when exiting
+        _context_manager.pop()
 
 
 def log_exception(
@@ -403,3 +455,182 @@ def clear_logger_context() -> None:
     a clean state for the next request.
     """
     _logger_context_var.set(None)
+
+
+def get_logger_context() -> dict[str, Any]:
+    """Get the current logger context without modification.
+
+    Returns:
+        dict[str, Any]: A copy of the current context, or empty dict if no context.
+
+    Example:
+        context = get_logger_context()
+        print(f"Current context: {context}")
+    """
+    current_context = _logger_context_var.get()
+    return dict(current_context) if current_context is not None else {}
+
+
+def unbind_logger_context(*keys: str) -> None:
+    """Remove specific keys from the logger context.
+
+    This function removes one or more keys from the current logger context
+    without clearing the entire context.
+
+    Args:
+        *keys: The keys to remove from the context.
+
+    Example:
+        bind_logger_context(user_id=123, session_id="abc", temp_value="xyz")
+        unbind_logger_context("temp_value")  # Only removes temp_value
+    """
+    current_context = _logger_context_var.get()
+    if current_context is not None:
+        updated_context = {k: v for k, v in current_context.items() if k not in keys}
+        # Set to None if context becomes empty
+        _logger_context_var.set(updated_context if updated_context else None)
+
+
+class LogContextManager:
+    """Manager for advanced logger context operations with layering support.
+
+    This class provides a more sophisticated context management system with
+    support for nested contexts, merge strategies, and size limits.
+    It initializes with an empty stack for layered contexts.
+    """
+
+    def __init__(self) -> None:
+        self._context_stack: list[dict[str, Any]] = []
+
+    def push(self, **bindings: Any) -> None:  # noqa: ANN401 - flexible context
+        """Push a new context layer onto the stack.
+
+        Args:
+            **bindings: Key-value pairs to add as a new context layer.
+
+        Raises:
+            RuntimeError: If context depth exceeds MAX_CONTEXT_DEPTH.
+
+        Example:
+            context_manager.push(user_id=123)
+            context_manager.push(action="delete")  # Nested context
+        """
+        if len(self._context_stack) >= MAX_CONTEXT_DEPTH:
+            raise RuntimeError(f"Context depth exceeded maximum of {MAX_CONTEXT_DEPTH}")
+
+        # Deep copy any dict values to prevent mutations
+        copied_bindings = {}
+        for key, value in bindings.items():
+            if isinstance(value, dict):
+                copied_bindings[key] = deepcopy(value)
+            else:
+                copied_bindings[key] = value
+
+        # Add new layer
+        self._context_stack.append(copied_bindings)
+        self._update_context_var()
+
+    def pop(self) -> dict[str, Any] | None:
+        """Remove and return the top context layer.
+
+        Returns:
+            dict[str, Any] | None: The removed context layer, or None if stack is empty.
+
+        Example:
+            context_manager.push(temp="value")
+            popped = context_manager.pop()  # Returns {"temp": "value"}
+        """
+        if not self._context_stack:
+            return None
+
+        popped = self._context_stack.pop()
+        self._update_context_var()
+        return popped
+
+    def peek(self) -> dict[str, Any]:
+        """Get the current merged context without modification.
+
+        Returns:
+            dict[str, Any]: The current merged context from all layers.
+        """
+        return self._merge_contexts()
+
+    def merge(
+        self,
+        bindings: dict[str, Any],
+        strategy: MergeStrategy = MergeStrategy.SHALLOW,
+    ) -> None:
+        """Merge new values into the current top context layer.
+
+        Args:
+            bindings: Dictionary of values to merge.
+            strategy: Merge strategy to use (SHALLOW or DEEP).
+
+        Example:
+            context_manager.push(config={"a": 1})
+            context_manager.merge({"config": {"b": 2}}, MergeStrategy.DEEP)
+            # Result: config={"a": 1, "b": 2}
+        """
+        if not self._context_stack:
+            # No existing context, just push new one
+            self.push(**bindings)
+            return
+
+        top_layer = self._context_stack[-1]
+
+        if strategy == MergeStrategy.SHALLOW:
+            # Simple update - new values override
+            top_layer.update(bindings)
+        else:
+            # Deep merge
+            self._deep_merge(top_layer, bindings)
+
+        self._update_context_var()
+
+    def _deep_merge(self, target: dict[str, Any], source: dict[str, Any]) -> None:
+        """Recursively merge source dict into target dict.
+
+        Args:
+            target: Dictionary to merge into (modified in place).
+            source: Dictionary to merge from.
+        """
+        for key, value in source.items():
+            if (
+                key in target
+                and isinstance(target[key], dict)
+                and isinstance(value, dict)
+            ):
+                # Both are dicts, recurse
+                self._deep_merge(target[key], value)
+            else:
+                # Simple assignment
+                target[key] = deepcopy(value) if isinstance(value, dict) else value
+
+    def _merge_contexts(self) -> dict[str, Any]:
+        """Merge all context layers into a single dictionary.
+
+        Returns:
+            dict[str, Any]: Merged context from all layers.
+        """
+        result: dict[str, Any] = {}
+        for layer in self._context_stack:
+            result.update(layer)
+        return result
+
+    def _update_context_var(self) -> None:
+        """Update the context var with the merged context."""
+        merged = self._merge_contexts()
+        _logger_context_var.set(merged if merged else None)
+
+    @property
+    def depth(self) -> int:
+        """Get the current context stack depth.
+
+        Returns:
+            int: Number of context layers.
+        """
+        return len(self._context_stack)
+
+
+# Global instance for convenient access
+_context_manager = LogContextManager()
