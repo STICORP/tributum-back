@@ -4,6 +4,7 @@ This module provides a centralized configuration management system using
 Pydantic Settings. It supports environment variables and .env files.
 """
 
+import os
 from functools import lru_cache
 from typing import Literal
 
@@ -28,6 +29,57 @@ class LogConfig(BaseModel):
     )
     timestamper_format: str = Field(
         default="iso", description="Timestamp format (iso or unix)"
+    )
+
+    # Sampling and async logging
+    sampling_rate: float = Field(
+        default=1.0, ge=0.0, le=1.0, description="Log sampling rate"
+    )
+    enable_async_logging: bool = Field(
+        default=False, description="Enable async logging"
+    )
+    async_queue_size: int = Field(default=10000, gt=0, description="Async queue size")
+
+    # Path exclusion and sensitive field redaction
+    excluded_paths: list[str] = Field(
+        default_factory=lambda: ["/health", "/metrics"],
+        description="Paths to exclude from logging",
+    )
+    sensitive_fields: list[str] = Field(
+        default_factory=lambda: [
+            "password",
+            "token",
+            "secret",
+            "api_key",
+            "authorization",
+        ],
+        description="Field names to redact",
+    )
+
+    # SQL logging configuration
+    enable_sql_logging: bool = Field(
+        default=False, description="Enable SQL query logging"
+    )
+    slow_query_threshold_ms: int = Field(
+        default=100, gt=0, description="Slow query threshold in milliseconds"
+    )
+
+    # Processor flags
+    enable_performance_processor: bool = Field(
+        default=False, description="Add performance metrics to logs"
+    )
+    enable_environment_processor: bool = Field(
+        default=True, description="Add environment info to logs"
+    )
+    enable_error_context_processor: bool = Field(
+        default=True, description="Add enhanced error context"
+    )
+
+    # Request/Response body logging (moved from RequestLoggingMiddleware)
+    log_request_body: bool = Field(default=False, description="Log request bodies")
+    log_response_body: bool = Field(default=False, description="Log response bodies")
+    max_body_log_size: int = Field(
+        default=10240, gt=0, description="Max body size to log in bytes"
     )
 
 
@@ -180,6 +232,13 @@ class Settings(BaseSettings):
         # Ensure render_json_logs matches log_format
         if self.log_config.log_format == "json":
             self.log_config.render_json_logs = True
+
+        # Enable async logging in production only if not explicitly configured
+        # Check if the user has explicitly set the value by looking for the env var
+        async_logging_env = os.getenv("LOG_CONFIG__ENABLE_ASYNC_LOGGING")
+        if self.environment == "production" and async_logging_env is None:
+            # Only set to True if user hasn't explicitly configured it
+            self.log_config.enable_async_logging = True
 
     @field_validator("docs_url", "redoc_url", "openapi_url", mode="before")
     @classmethod

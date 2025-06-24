@@ -41,6 +41,124 @@ class TestLogConfig:
         assert config.add_timestamp is False
         assert config.timestamper_format == "unix"
 
+    def test_new_default_values(self) -> None:
+        """Test default values for new LogConfig fields."""
+        config = LogConfig()
+
+        # Sampling and async logging
+        assert config.sampling_rate == 1.0
+        assert config.enable_async_logging is False
+        assert config.async_queue_size == 10000
+
+        # Path exclusion and sensitive fields
+        assert config.excluded_paths == ["/health", "/metrics"]
+        assert config.sensitive_fields == [
+            "password",
+            "token",
+            "secret",
+            "api_key",
+            "authorization",
+        ]
+
+        # SQL logging
+        assert config.enable_sql_logging is False
+        assert config.slow_query_threshold_ms == 100
+
+        # Processor flags
+        assert config.enable_performance_processor is False
+        assert config.enable_environment_processor is True
+        assert config.enable_error_context_processor is True
+
+        # Request/Response body logging
+        assert config.log_request_body is False
+        assert config.log_response_body is False
+        assert config.max_body_log_size == 10240
+
+    def test_sampling_rate_validation(self) -> None:
+        """Test sampling_rate field validation."""
+        # Valid rates
+        LogConfig(sampling_rate=0.0)
+        LogConfig(sampling_rate=0.5)
+        LogConfig(sampling_rate=1.0)
+
+        # Invalid rates
+        with pytest.raises(ValidationError, match="greater than or equal to 0"):
+            LogConfig(sampling_rate=-0.1)
+
+        with pytest.raises(ValidationError, match="less than or equal to 1"):
+            LogConfig(sampling_rate=1.1)
+
+    def test_async_queue_size_validation(self) -> None:
+        """Test async_queue_size field validation."""
+        # Valid sizes
+        LogConfig(async_queue_size=1)
+        LogConfig(async_queue_size=50000)
+
+        # Invalid size
+        with pytest.raises(ValidationError, match="greater than 0"):
+            LogConfig(async_queue_size=0)
+
+    def test_slow_query_threshold_validation(self) -> None:
+        """Test slow_query_threshold_ms field validation."""
+        # Valid thresholds
+        LogConfig(slow_query_threshold_ms=1)
+        LogConfig(slow_query_threshold_ms=5000)
+
+        # Invalid threshold
+        with pytest.raises(ValidationError, match="greater than 0"):
+            LogConfig(slow_query_threshold_ms=0)
+
+    def test_max_body_log_size_validation(self) -> None:
+        """Test max_body_log_size field validation."""
+        # Valid sizes
+        LogConfig(max_body_log_size=1)
+        LogConfig(max_body_log_size=1048576)  # 1MB
+
+        # Invalid size
+        with pytest.raises(ValidationError, match="greater than 0"):
+            LogConfig(max_body_log_size=0)
+
+    def test_custom_list_fields(self) -> None:
+        """Test custom values for list fields."""
+        config = LogConfig(
+            excluded_paths=["/api/v1/health", "/api/v1/ready"],
+            sensitive_fields=["password", "creditcard", "ssn"],
+        )
+        assert config.excluded_paths == ["/api/v1/health", "/api/v1/ready"]
+        assert config.sensitive_fields == ["password", "creditcard", "ssn"]
+
+    def test_all_new_fields_custom_values(self) -> None:
+        """Test all new fields with custom values."""
+        config = LogConfig(
+            sampling_rate=0.75,
+            enable_async_logging=True,
+            async_queue_size=20000,
+            excluded_paths=["/status"],
+            sensitive_fields=["key", "credential"],
+            enable_sql_logging=True,
+            slow_query_threshold_ms=200,
+            enable_performance_processor=True,
+            enable_environment_processor=False,
+            enable_error_context_processor=False,
+            log_request_body=True,
+            log_response_body=True,
+            max_body_log_size=20480,
+        )
+
+        assert config.sampling_rate == 0.75
+        assert config.enable_async_logging is True
+        assert config.async_queue_size == 20000
+        assert config.excluded_paths == ["/status"]
+        assert config.sensitive_fields == ["key", "credential"]
+        assert config.enable_sql_logging is True
+        assert config.slow_query_threshold_ms == 200
+        assert config.enable_performance_processor is True
+        assert config.enable_environment_processor is False
+        assert config.enable_error_context_processor is False
+        assert config.log_request_body is True
+        assert config.log_response_body is True
+        assert config.max_body_log_size == 20480
+
 
 @pytest.mark.unit
 class TestObservabilityConfig:
@@ -364,6 +482,53 @@ class TestSettings:
         with pytest_check.check:
             assert settings.log_config.render_json_logs is True
 
+    def test_new_log_config_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test new log configuration environment variable overrides."""
+        monkeypatch.setenv("LOG_CONFIG__SAMPLING_RATE", "0.8")
+        monkeypatch.setenv("LOG_CONFIG__ENABLE_ASYNC_LOGGING", "true")
+        monkeypatch.setenv("LOG_CONFIG__ASYNC_QUEUE_SIZE", "5000")
+        monkeypatch.setenv(
+            "LOG_CONFIG__EXCLUDED_PATHS", '["/api/health", "/api/metrics"]'
+        )
+        monkeypatch.setenv("LOG_CONFIG__SENSITIVE_FIELDS", '["api_key", "token"]')
+        monkeypatch.setenv("LOG_CONFIG__ENABLE_SQL_LOGGING", "true")
+        monkeypatch.setenv("LOG_CONFIG__SLOW_QUERY_THRESHOLD_MS", "250")
+        monkeypatch.setenv("LOG_CONFIG__ENABLE_PERFORMANCE_PROCESSOR", "true")
+        monkeypatch.setenv("LOG_CONFIG__ENABLE_ENVIRONMENT_PROCESSOR", "false")
+        monkeypatch.setenv("LOG_CONFIG__ENABLE_ERROR_CONTEXT_PROCESSOR", "false")
+        monkeypatch.setenv("LOG_CONFIG__LOG_REQUEST_BODY", "true")
+        monkeypatch.setenv("LOG_CONFIG__LOG_RESPONSE_BODY", "true")
+        monkeypatch.setenv("LOG_CONFIG__MAX_BODY_LOG_SIZE", "20480")
+
+        settings = Settings()
+
+        with pytest_check.check:
+            assert settings.log_config.sampling_rate == 0.8
+        with pytest_check.check:
+            assert settings.log_config.enable_async_logging is True
+        with pytest_check.check:
+            assert settings.log_config.async_queue_size == 5000
+        with pytest_check.check:
+            assert settings.log_config.excluded_paths == ["/api/health", "/api/metrics"]
+        with pytest_check.check:
+            assert settings.log_config.sensitive_fields == ["api_key", "token"]
+        with pytest_check.check:
+            assert settings.log_config.enable_sql_logging is True
+        with pytest_check.check:
+            assert settings.log_config.slow_query_threshold_ms == 250
+        with pytest_check.check:
+            assert settings.log_config.enable_performance_processor is True
+        with pytest_check.check:
+            assert settings.log_config.enable_environment_processor is False
+        with pytest_check.check:
+            assert settings.log_config.enable_error_context_processor is False
+        with pytest_check.check:
+            assert settings.log_config.log_request_body is True
+        with pytest_check.check:
+            assert settings.log_config.log_response_body is True
+        with pytest_check.check:
+            assert settings.log_config.max_body_log_size == 20480
+
     def test_observability_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test observability configuration environment variable overrides."""
         monkeypatch.setenv("OBSERVABILITY_CONFIG__ENABLE_TRACING", "true")
@@ -455,7 +620,7 @@ class TestSettings:
         assert settings.openapi_url is None
 
     def test_production_environment_json_logs(self, production_env: None) -> None:
-        """Test that production environment automatically sets JSON logs.
+        """Test that production environment sets JSON logs and async logging.
 
         Uses the production_env fixture to set up production environment.
         """
@@ -464,6 +629,8 @@ class TestSettings:
         assert settings.environment == "production"
         assert settings.log_config.log_format == "json"
         assert settings.log_config.render_json_logs is True
+        # Production should also enable async logging automatically
+        assert settings.log_config.enable_async_logging is True
 
     def test_development_environment_console_logs(self, development_env: None) -> None:
         """Test that development environment keeps console logs.
@@ -475,6 +642,21 @@ class TestSettings:
         assert settings.environment == "development"
         assert settings.log_config.log_format == "console"
         assert settings.log_config.render_json_logs is False
+        # Development should not enable async logging by default
+        assert settings.log_config.enable_async_logging is False
+
+    def test_production_async_logging_explicit_override(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that explicitly disabling async logging in production is respected."""
+        # Set production environment and explicitly disable async logging
+        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("LOG_CONFIG__ENABLE_ASYNC_LOGGING", "false")
+
+        settings = Settings()
+        assert settings.environment == "production"
+        # Should NOT enable async logging when explicitly set to false
+        assert settings.log_config.enable_async_logging is False
 
     def test_invalid_trace_sample_rate(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that invalid trace sample rate raises validation errors."""
