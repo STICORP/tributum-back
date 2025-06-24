@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamic filtering methods (filter_by and find_one_by) for flexible database queries
 - Testing philosophy documentation outlining current and future testing strategies
 - FastAPI best practices validation guide for ensuring code quality and consistency
+- CLAUDE.md documentation for AI-assisted development guidance
 
 ### Changed
 - Enhanced check-implementation command with clearer validation scope and improved section structure
