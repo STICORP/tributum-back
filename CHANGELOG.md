@@ -55,9 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md documentation enhanced with Docker workflow, configuration patterns, and Cloud Run deployment guidance
 - Test suite standardized to use pytest-mock fixtures instead of unittest.mock for better test isolation
 - Project documentation reorganized into .specs directory for better structure
+- Claude command templates introduced for standardized task management
 
 ### Removed
 - do command from Claude command list as redundant with existing development workflow
+- Obsolete plan.md file superseded by modular specification approach
 
 ### Fixed
 - Database credentials standardized across documentation to match Docker setup (tributum/tributum_pass)
