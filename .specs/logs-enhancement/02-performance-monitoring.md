@@ -80,7 +80,7 @@ The project already has performance monitoring infrastructure:
 - Memory tracking should be optional (tracemalloc has overhead)
 
 **Testing Approach**:
-- Enhance existing test `test_request_logging.py`
+- Enhance tests in `tests/unit/api/middleware/request_logging/` directory
 - Mock `time.time()` and `tracemalloc` calls
 - Test threshold severity escalation
 - Verify backward compatibility of logs

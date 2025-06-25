@@ -44,7 +44,9 @@ The project has a sophisticated logging system built on structlog with the follo
 **Status**: completed
 **Files modified**:
 - `src/core/config.py`
-- `tests/unit/core/test_config.py`
+- `tests/unit/core/config/test_log_config.py`
+- `tests/unit/core/config/test_settings.py`
+- `tests/unit/core/config/test_settings_env_overrides.py`
 
 **Functional Requirements**:
 1. Extend the `LogConfig` class to include:
@@ -101,7 +103,9 @@ The project has a sophisticated logging system built on structlog with the follo
 **Status**: completed
 **Files modified**:
 - `src/core/logging.py`
-- `tests/unit/core/test_logging.py`
+- `tests/unit/core/logging/test_context_binding.py`
+- `tests/unit/core/logging/test_context_managers.py`
+- `tests/unit/core/logging/test_enhanced_context.py`
 
 **Current State**:
 The codebase already has context management using contextvars:
@@ -308,9 +312,9 @@ Current processors: `add_log_level_upper`, `inject_correlation_id`, `inject_logg
 
 ### Testing Strategy
 1. **Unit Tests** for each component:
-   - Config validation in `tests/unit/core/test_config.py`
-   - New processors in `tests/unit/core/test_logging.py`
-   - Context enhancements in existing test file
+   - Config validation in `tests/unit/core/config/` directory (modular test files)
+   - New processors in `tests/unit/core/logging/test_processors.py`
+   - Context enhancements in `tests/unit/core/logging/` test modules
 
 2. **Integration Tests**:
    - Full logging pipeline in `tests/integration/api/test_middleware_integration.py`
