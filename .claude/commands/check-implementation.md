@@ -88,9 +88,14 @@ Execute these analyses in parallel:
 - Check if you did not ignore any quality checks by using "# type: ignore", "# noqa" or anything of the sort.
 - Make sure you did not added rules to the ignore section in pyproject.toml.
 - If you did, remove them and properly fix quality checks and add proper types.
+- Make sure you pute constants in the appropriate constants.py file instead of the source code of the feature.
 
 ## **FINAL INSTRUCTIONS**
 
 - Before finishing, run pre-commit and fix any issues without trying to ignore the errors or bypass tests in any way.
 - This command will only be finished when all pre-commit passes perfectly
 - This command will only be successful when we achieve 100% test coverage
+
+Make sure you extensively performed **ALL** verifications and tasks outlined in this command.
+Check if you neglected to perform any of the instructions outlined in this command and **DO EVERY SINGLE ONE** you neglected.
+**DO NOT** finish this command without making sure **ABSOLUTELY ALL** tasks above were completed successfully.
