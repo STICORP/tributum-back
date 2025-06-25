@@ -4,22 +4,37 @@ This module provides structured logging using structlog with support for
 both development (console) and production (JSON) output formats.
 """
 
+import asyncio
+import hashlib
 import logging
+import os
+import socket
 import sys
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from copy import deepcopy
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 import orjson
+import psutil
 import structlog
 from structlog.typing import EventDict, Processor
 
 from src.core.config import get_settings
-from src.core.constants import MAX_CONTEXT_DEPTH, MAX_CONTEXT_SIZE, MAX_VALUE_SIZE
+from src.core.constants import (
+    EXCEPTION_TUPLE_MIN_LENGTH,
+    MAX_CONTEXT_DEPTH,
+    MAX_CONTEXT_SIZE,
+    MAX_VALUE_SIZE,
+    MIN_CONTAINER_ID_LENGTH,
+    TRACEBACK_FRAMES_TO_INCLUDE,
+)
 from src.core.context import RequestContext
+from src.core.error_context import sanitize_context
 from src.core.exceptions import TributumError
 
 
@@ -208,6 +223,198 @@ def inject_logger_context(
                 # Add truncation indicator and stop
                 event_dict["context_truncated"] = True
                 break
+    return event_dict
+
+
+# Cache for environment processor values
+_environment_cache: dict[str, Any] = {}
+
+
+def _get_container_id() -> str | None:
+    """Extract container ID from cgroup file.
+
+    Returns:
+        str | None: Container ID (first 12 chars) or None if not in container.
+    """
+    try:
+        cgroup_path = Path("/proc/self/cgroup")
+        with cgroup_path.open(encoding="utf-8") as f:
+            for line in f:
+                # Look for Docker or containerd patterns
+                if "/docker/" in line or "/containerd/" in line:
+                    # Extract container ID (last part after last /)
+                    parts = line.strip().split("/")
+                    if len(parts) > 1:
+                        # Container ID is typically 64 chars
+                        potential_id = parts[-1]
+                        if len(potential_id) >= MIN_CONTAINER_ID_LENGTH:
+                            # Use first 12 chars
+                            return potential_id[:MIN_CONTAINER_ID_LENGTH]
+    except OSError:
+        pass
+    return None
+
+
+def performance_processor(
+    logger: logging.Logger, method_name: str, event_dict: EventDict
+) -> EventDict:
+    """Add performance metrics to log entries.
+
+    This processor adds system performance information including process ID,
+    thread ID, memory usage, and active asyncio tasks.
+
+    Args:
+        logger: The logger instance.
+        method_name: The logging method name.
+        event_dict: The event dictionary.
+
+    Returns:
+        EventDict: The event dictionary with performance metrics added.
+    """
+    _ = logger, method_name  # Required by structlog processor interface
+
+    # Add process and thread information
+    event_dict["process_id"] = os.getpid()
+    event_dict["thread_id"] = str(threading.get_ident())
+
+    # Try to get memory usage with psutil if available
+    try:
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        event_dict["memory_mb"] = round(memory_info.rss / (1024 * 1024), 2)
+    except (ImportError, AttributeError, OSError):
+        # psutil not available or error getting memory info
+        pass
+
+    # Count active asyncio tasks if in async context
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_running_loop()
+        tasks = asyncio.all_tasks(loop)
+        event_dict["active_tasks"] = len(tasks)
+    except RuntimeError:
+        # Not in async context or no running loop
+        pass
+
+    return event_dict
+
+
+def environment_processor(
+    logger: logging.Logger, method_name: str, event_dict: EventDict
+) -> EventDict:
+    """Add environment information to log entries.
+
+    This processor adds hostname, container ID, and Kubernetes pod information
+    when available. Values are cached as they don't change during runtime.
+
+    Args:
+        logger: The logger instance.
+        method_name: The logging method name.
+        event_dict: The event dictionary.
+
+    Returns:
+        EventDict: The event dictionary with environment information added.
+    """
+    _ = logger, method_name  # Required by structlog processor interface
+
+    # Check if we've already cached the values
+    if not _environment_cache:
+        # Get hostname
+        try:
+            _environment_cache["hostname"] = socket.gethostname()
+        except (OSError, AttributeError):
+            _environment_cache["hostname"] = "unknown"
+
+        # Try to get container ID from cgroup
+        _environment_cache["container_id"] = _get_container_id()
+
+        # Get Kubernetes information from environment
+        _environment_cache["k8s_pod"] = os.environ.get("K8S_POD_NAME")
+        _environment_cache["k8s_namespace"] = os.environ.get("K8S_NAMESPACE")
+
+    # Add cached values to event dict
+    event_dict["hostname"] = _environment_cache["hostname"]
+    if _environment_cache["container_id"]:
+        event_dict["container_id"] = _environment_cache["container_id"]
+    if _environment_cache["k8s_pod"]:
+        event_dict["k8s_pod"] = _environment_cache["k8s_pod"]
+    if _environment_cache["k8s_namespace"]:
+        event_dict["k8s_namespace"] = _environment_cache["k8s_namespace"]
+
+    return event_dict
+
+
+def error_context_processor(
+    logger: logging.Logger, method_name: str, event_dict: EventDict
+) -> EventDict:
+    """Enhance exception logging with additional context.
+
+    This processor adds exception fingerprint and module information when
+    exc_info is present. It integrates with the existing error context
+    sanitization.
+
+    Args:
+        logger: The logger instance.
+        method_name: The logging method name.
+        event_dict: The event dictionary.
+
+    Returns:
+        EventDict: The event dictionary with enhanced exception context.
+    """
+    _ = logger, method_name  # Required by structlog processor interface
+
+    # Only process if there's exception info
+    exc_info = event_dict.get("exc_info")
+    if not exc_info:
+        return event_dict
+
+    # Extract exception details
+    if isinstance(exc_info, tuple) and len(exc_info) >= EXCEPTION_TUPLE_MIN_LENGTH:
+        exc_type, exc_value, exc_traceback = exc_info
+    elif isinstance(exc_info, bool) and exc_info:
+        # exc_info=True means get current exception
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+    elif isinstance(exc_info, BaseException):
+        # Direct exception object
+        exc_type = type(exc_info)
+        exc_value = exc_info
+        exc_traceback = exc_info.__traceback__
+    else:
+        return event_dict
+
+    if exc_type and exc_value:
+        # Add exception module
+        event_dict["exception_module"] = exc_type.__module__
+
+        # Generate exception fingerprint
+        # Use exception type name and key parts of the traceback
+        fingerprint_parts = [exc_type.__name__]
+
+        # Add key stack frame information
+        if exc_traceback:
+            tb_frame = exc_traceback
+            frame_count = 0
+            while tb_frame and frame_count < TRACEBACK_FRAMES_TO_INCLUDE:
+                frame = tb_frame.tb_frame
+                code = frame.f_code
+                # Include filename (without path) and function name
+                filename = Path(code.co_filename).name
+                fingerprint_parts.extend(
+                    [filename, code.co_name, str(tb_frame.tb_lineno)]
+                )
+                tb_frame = tb_frame.tb_next
+                frame_count += 1
+
+        # Create hash of the fingerprint parts
+        fingerprint_str = "|".join(fingerprint_parts)
+        # Use SHA256 and truncate for security
+        fingerprint_hash = hashlib.sha256(fingerprint_str.encode()).hexdigest()[:8]
+        event_dict["exception_fingerprint"] = fingerprint_hash
+
+        # If there's error context, sanitize it
+        if "error_context" in event_dict:
+            event_dict["error_context"] = sanitize_context(event_dict["error_context"])
+
     return event_dict
 
 
