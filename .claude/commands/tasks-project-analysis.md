@@ -7,10 +7,10 @@ Execute these analyses in parallel:
 - Fully Read .pre-commit-config.yaml to understand the expected coding standards that will be validated
 - Fully read Makefile
 - Fully read main.py
-- Fully read all files and Understand existing functionality and patterns in src/core/
+- Understand existing functionality and patterns in src/core/
 - Understand existing functionality and patterns in src/api/
 - Understand existing functionality and patterns in src/infrastructure/
-- Understand testing patterns from tests/
+- Understand project settings framework
 - Understand project configuration framework
 - Understand project error handling framework
 - Understand project logging framework
