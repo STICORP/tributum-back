@@ -299,6 +299,7 @@ sequenceDiagram
 10. **Database IDs**: Sequential BigInteger IDs for performance and PostgreSQL optimization
 11. **Database Lifecycle**: Managed in FastAPI lifespan with proper error handling
 12. **Cloud Run Compatibility**: Respects PORT environment variable for container deployment
+13. **Constants Architecture**: Layer-specific constants modules following clean architecture principles
 
 ## 🔧 Internal Frameworks Explained
 
@@ -348,6 +349,33 @@ with log_context(user_id=123, action="payment"):
 - Integration with OpenTelemetry spans
 - Configurable exc_info formatting to avoid test warnings
 
+### Enhanced Logging Configuration
+
+The logging system now supports advanced configuration options:
+
+```python
+class LogConfig:
+    # Path exclusion for high-traffic endpoints
+    excluded_paths: list[str] = ["/health", "/metrics"]
+
+    # Sensitive field redaction
+    sensitive_fields: list[str] = ["password", "token", "secret", "api_key"]
+
+    # SQL query logging
+    enable_sql_logging: bool = False
+    slow_query_threshold_ms: int = 100
+
+    # Performance and error context processors
+    enable_performance_processor: bool = False
+    enable_environment_processor: bool = True
+    enable_error_context_processor: bool = True
+
+    # Request/Response body logging
+    log_request_body: bool = False
+    log_response_body: bool = False
+    max_body_log_size: int = 10240
+```
+
 ### Request Context Management
 
 ```python
@@ -362,6 +390,7 @@ correlation_id = RequestContext.get_correlation_id()
 - X-Correlation-ID header support
 - UUID4 generation with validation
 - Span attribute enrichment
+- Enhanced context binding and unbinding for complex scenarios
 
 ### Database Infrastructure
 
@@ -462,6 +491,30 @@ with tracer.start_as_current_span("payment_processing") as span:
 - Error severity mapping to span status
 - Configurable sampling rates
 - GCP Cloud Trace integration
+
+### Constants Architecture
+
+The project now uses layer-specific constants modules:
+
+```python
+# API Layer (src/api/constants.py)
+- HTTP status codes
+- API configuration defaults
+- Request handling limits
+- Content types
+- Security headers
+
+# Core Layer (src/core/constants.py)
+- Logging configuration
+- Time units
+- Security patterns for redaction
+
+# Infrastructure Layer (src/infrastructure/constants.py)
+- Database-specific settings
+- Connection pool configuration
+```
+
+This separation ensures each layer only contains constants relevant to its responsibilities, preventing cross-layer dependencies.
 
 ## 📊 Observability & Monitoring
 
@@ -571,7 +624,7 @@ make security              # Run all security checks
 ├── bandit                # AST-based code analysis
 ├── safety                # Known vulnerabilities
 ├── pip-audit            # Package audit
-└── semgrep              # Custom security rules
+└── semgrep              # Static analysis
 ```
 
 ## 🧪 Testing Philosophy
@@ -582,6 +635,10 @@ make security              # Run all security checks
 tests/
 ├── unit/           # Fast, isolated tests
 ├── integration/    # Component interaction tests
+│   ├── api/       # API endpoint integration tests
+│   │   └── error_handling/  # Comprehensive error handling tests
+│   ├── test_fixture_isolation.py  # Database fixture isolation tests
+│   └── test_full_stack.py         # End-to-end stack tests
 ├── fixtures/       # Environment-specific test fixtures
 │   ├── test_database_fixtures.py  # Database test utilities
 │   └── test_docker_fixtures.py    # Docker container management
@@ -617,7 +674,7 @@ make test-fast
 ```
 
 #### Database Test Fixtures
-New database fixtures provide isolated test environments:
+Enhanced database fixtures provide isolated test environments:
 
 ```python
 # Use async database fixture for integration tests
@@ -626,6 +683,28 @@ async def test_database_operation(async_db_session):
     # Automatically rolled back after test
     result = await create_payment(async_db_session, amount=100)
     assert result.status == "pending"
+
+# Transactional fixtures for complete isolation
+async def test_with_transactional_db(transactional_db_session):
+    # Changes are visible within the transaction
+    # But rolled back after the test
+    await create_user(transactional_db_session, name="Test")
+```
+
+#### End-to-End Integration Tests
+Comprehensive integration tests verify the full application stack:
+
+```python
+# Test complete request flow through all middleware
+async def test_full_stack_request(client_with_db):
+    response = await client_with_db.get("/health")
+
+    # Verifies:
+    # - Security headers applied
+    # - Correlation ID generated
+    # - Request/response logged
+    # - OpenTelemetry span created
+    # - Database connectivity checked
 ```
 
 #### Docker Integration Testing
@@ -668,6 +747,42 @@ def test_api_response():
         assert "correlation_id" in response.json()
     with pytest_check.check:
         assert response.json()["status"] == "success"
+```
+
+### Test Organization
+
+Tests are now organized into focused modules for better maintainability:
+
+#### Unit Test Organization
+```
+tests/unit/
+├── api/
+│   └── middleware/
+│       └── request_logging/     # Modular request logging tests
+│           ├── test_basic_logging.py
+│           ├── test_middleware_configuration.py
+│           ├── test_request_body_logging.py
+│           └── test_response_body_logging.py
+└── core/
+    └── config/                  # Modular configuration tests
+        ├── test_database_config.py
+        ├── test_get_settings.py
+        ├── test_log_config.py
+        ├── test_observability_config.py
+        └── test_settings.py
+```
+
+#### Integration Test Organization
+```
+tests/integration/
+└── api/
+    └── error_handling/          # Comprehensive error handling tests
+        ├── test_error_handler_type_errors.py
+        ├── test_error_response_format.py
+        ├── test_generic_exceptions.py
+        ├── test_http_exceptions.py
+        ├── test_tributum_errors.py
+        └── test_validation_errors.py
 ```
 
 ### Test Environment Configuration
@@ -747,16 +862,16 @@ graph LR
 
 Located in `.claude/commands/`:
 
-- **`/analyze-project`**: Comprehensive project analysis and recommendations
-- **`/commit`**: Intelligent commit with changelog updates and AI attribution prevention
-- **`/release`**: Automated version bumping and release creation
-- **`/readme`**: Smart README generation with incremental updates
-- **`/curate-makefile`**: Makefile optimization and standardization
-- **`/enforce-quality`**: Strict quality enforcement without bypasses
-- **`/do`**: Execute complex tasks with expert-level guidance and pattern enforcement
-- **`/investigate-deps`**: Expert dependency investigation and integration planning
+- **`/check-git`**: Reads and understands all uncommitted changes in the git repository
 - **`/check-implementation`**: Enhanced validation with test coverage, pattern adherence, and parallel test support
+- **`/create-commit`**: Analyzes project changes and creates logical commits using conventional commit messaging
+- **`/create-readme`**: Generate or update a comprehensive, developer-focused README with intelligent diff-based updates
+- **`/create-release`**: Manages semantic versioning and changelog updates for releases
+- **`/investigate-deps`**: Expert dependency investigation and integration planning
 - **`/start`**: Quick project overview and context initialization
+- **`/tasks-breakdown`**: Creates a series of sequential tasks with granular sub-tasks to implement features
+- **`/tasks-project-analysis`**: Executes parallel analyses of project configuration and code structure
+- **`/tasks-review`**: Reviews task plans to ensure they're specific to the project's technical architecture
 
 ### Isolated Development Tools
 
@@ -1231,10 +1346,20 @@ DOCS_URL=/docs
 REDOC_URL=/redoc
 OPENAPI_URL=/openapi.json
 
-# Logging
+# Logging - Enhanced Configuration
 LOG_CONFIG__LOG_LEVEL=INFO
 LOG_CONFIG__LOG_FORMAT=console  # console|json
 LOG_CONFIG__RENDER_JSON_LOGS=false  # auto-true in staging/production
+LOG_CONFIG__EXCLUDED_PATHS=["/health", "/metrics"]
+LOG_CONFIG__SENSITIVE_FIELDS=["password", "token", "secret", "api_key"]
+LOG_CONFIG__ENABLE_SQL_LOGGING=false
+LOG_CONFIG__SLOW_QUERY_THRESHOLD_MS=100
+LOG_CONFIG__ENABLE_PERFORMANCE_PROCESSOR=false
+LOG_CONFIG__ENABLE_ENVIRONMENT_PROCESSOR=true
+LOG_CONFIG__ENABLE_ERROR_CONTEXT_PROCESSOR=true
+LOG_CONFIG__LOG_REQUEST_BODY=false
+LOG_CONFIG__LOG_RESPONSE_BODY=false
+LOG_CONFIG__MAX_BODY_LOG_SIZE=10240
 
 # Observability
 OBSERVABILITY_CONFIG__ENABLE_TRACING=false
@@ -1277,6 +1402,7 @@ The application uses standard environment variables without Docker-specific sett
 src/
 ├── api/                    # HTTP layer
 │   ├── main.py            # FastAPI app with lifespan management
+│   ├── constants.py       # API-specific constants (HTTP codes, limits)
 │   ├── middleware/        # ASGI middleware
 │   │   ├── error_handler.py      # Global exception handling
 │   │   ├── request_context.py    # Correlation ID management
@@ -1289,16 +1415,17 @@ src/
 │   └── utils/
 │       └── responses.py   # ORJSONResponse
 ├── core/                  # Shared utilities
-│   ├── config.py         # Pydantic Settings with ObservabilityConfig & DatabaseConfig
-│   ├── constants.py      # Shared constants
+│   ├── config.py         # Pydantic Settings with enhanced LogConfig
+│   ├── constants.py      # Core layer constants (logging, security)
 │   ├── context.py        # Request context
 │   ├── error_context.py  # Error enrichment
 │   ├── exceptions.py     # Exception hierarchy
-│   ├── logging.py        # Structured logging (with exc_info formatting)
+│   ├── logging.py        # Structured logging with context management
 │   ├── observability.py  # OpenTelemetry setup
 │   └── types.py          # Type definitions
 ├── domain/               # Business logic (DDD structure prepared)
 └── infrastructure/       # Data layer
+    ├── constants.py      # Infrastructure constants (DB settings)
     └── database/         # Database infrastructure
         ├── base.py       # Base model with timestamps
         ├── dependencies.py # FastAPI database dependencies
@@ -1312,9 +1439,18 @@ src/
 
 tests/
 ├── unit/                 # Isolated unit tests
+│   ├── api/
+│   │   └── middleware/
+│   │       └── request_logging/  # Modular request logging tests
+│   └── core/
+│       └── config/      # Modular configuration tests
 ├── integration/          # Integration tests with tracing
+│   ├── api/
+│   │   └── error_handling/       # Comprehensive error tests
 │   ├── test_database_example.py  # Database integration examples
-│   └── test_docker_compose.py    # Docker orchestration tests
+│   ├── test_docker_compose.py    # Docker orchestration tests
+│   ├── test_fixture_isolation.py # Database fixture isolation
+│   └── test_full_stack.py        # End-to-end stack tests
 ├── fixtures/             # Environment-specific test fixtures
 │   ├── test_database_fixtures.py # Database test utilities
 │   └── test_docker_fixtures.py   # Docker container management
@@ -1582,6 +1718,8 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **SQLAlchemy query instrumentation** (prepared for database operations)
 - **Configurable trace sampling**
 - **Error context enrichment in spans**
+- **Enhanced logging configuration** with path exclusion, SQL logging, and performance processors
+- **Advanced context management** with bind/unbind operations
 
 #### Middleware Stack
 - **SecurityHeadersMiddleware** for security headers
@@ -1610,6 +1748,9 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Integration test examples** for database operations
 - **100% test coverage** with pytest-mock standardization
 - **Enhanced test output** with pytest-rich
+- **Comprehensive end-to-end integration tests** for full stack validation
+- **Transactional database fixtures** for complete test isolation
+- **Modular test organization** for better maintainability
 
 #### Development Experience
 - Comprehensive pre-commit hooks with ALL Ruff rules enabled
@@ -1621,7 +1762,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - pytest-randomly for detecting test interdependencies
 - pytest-check for soft assertions in tests
 - pytest-rich with xdist compatibility
-- Claude Code automation commands including `/investigate-deps`, `/start`, and enhanced `/check-implementation`
+- Claude Code automation commands including `/investigate-deps`, `/start`, `/review-task`, `/task-analysis`, and enhanced `/check-implementation`
 - **Docker development workflow** with hot-reload
 - **Parallel test execution** for faster CI/CD
 - **Pyright type checking** for enhanced IDE support
@@ -1644,13 +1785,14 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Health check route**
 - Error response schemas
 - Utility functions
+- **Layer-specific constants** for HTTP codes, limits, and content types
 
 #### Core Layer (`src/core/`)
-- Configuration management with **ObservabilityConfig** and **DatabaseConfig**
+- Configuration management with **enhanced LogConfig**, **ObservabilityConfig**, and **DatabaseConfig**
 - Exception definitions with span integration
-- Logging setup with exc_info formatting
+- Logging setup with exc_info formatting and **advanced context management**
 - Context management
-- Shared constants
+- **Layer-specific constants** for logging and security patterns
 - Type definitions
 - **OpenTelemetry tracing utilities**
 
@@ -1665,6 +1807,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Session management** with connection pooling
 - **FastAPI dependencies** for database injection
 - **Alembic migrations** with async configuration
+- **Layer-specific constants** for database settings
 
 #### Test Suite (`tests/`)
 - Unit tests with 100% coverage achieved
@@ -1672,6 +1815,8 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Integration tests for distributed tracing**
 - **Database infrastructure tests**
 - **Docker container integration tests**
+- **Comprehensive end-to-end stack tests**
+- **Modular test organization** into focused modules
 - Environment-specific test fixtures
 - Shared fixtures with auto-clearing cache
 - Async test support
@@ -1684,30 +1829,30 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Docker test fixtures** for container management
 
 <!-- README-METADATA
-Last Updated: 2025-06-23T14:30:00Z
-Last Commit: 76a15ba
+Last Updated: 2025-06-25T18:45:00Z
+Last Commit: d501d56
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "updated-0563fb4", "manual": false},
   "tech-stack": {"hash": "updated-76a15ba", "manual": false},
   "quick-start": {"hash": "updated-76a15ba", "manual": false},
-  "architecture": {"hash": "updated-76a15ba", "manual": false},
-  "frameworks": {"hash": "updated-76a15ba", "manual": false},
+  "architecture": {"hash": "updated-d501d56", "manual": false},
+  "frameworks": {"hash": "updated-d501d56", "manual": false},
   "observability": {"hash": "updated-da0a58e", "manual": false},
   "security": {"hash": "updated-5479972", "manual": false},
-  "testing": {"hash": "updated-0563fb4", "manual": false},
+  "testing": {"hash": "updated-d501d56", "manual": false},
   "workflow": {"hash": "updated-0563fb4", "manual": false},
-  "tools": {"hash": "updated-0563fb4", "manual": false},
+  "tools": {"hash": "updated-d501d56", "manual": false},
   "cicd": {"hash": "updated-0563fb4", "manual": false},
   "commands": {"hash": "updated-76a15ba", "manual": false},
   "version": {"hash": "updated-da0a58e", "manual": false},
   "infrastructure": {"hash": "updated-76a15ba", "manual": false},
   "docker": {"hash": "updated-76a15ba", "manual": false},
   "database": {"hash": "updated-76a15ba", "manual": false},
-  "config": {"hash": "updated-76a15ba", "manual": false},
-  "structure": {"hash": "updated-76a15ba", "manual": false},
+  "config": {"hash": "updated-d501d56", "manual": false},
+  "structure": {"hash": "updated-d501d56", "manual": false},
   "troubleshooting": {"hash": "updated-76a15ba", "manual": false},
   "api-endpoints": {"hash": "new-76a15ba", "manual": false},
-  "status": {"hash": "updated-76a15ba", "manual": false}
+  "status": {"hash": "updated-d501d56", "manual": false}
 }
 -->
