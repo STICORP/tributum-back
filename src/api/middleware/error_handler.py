@@ -11,10 +11,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
 from starlette.exceptions import HTTPException
 
+from src.api.constants import HTTP_500_INTERNAL_SERVER_ERROR
 from src.api.schemas.errors import ErrorResponse, ServiceInfo
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
-from src.core.constants import HTTP_500_INTERNAL_SERVER_ERROR
 from src.core.context import RequestContext, generate_request_id
 from src.core.error_context import sanitize_context
 from src.core.exceptions import (

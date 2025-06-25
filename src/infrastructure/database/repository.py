@@ -11,7 +11,7 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import DEFAULT_PAGINATION_LIMIT
+from src.api.constants import DEFAULT_PAGINATION_LIMIT
 from src.core.logging import get_logger
 from src.infrastructure.database.base import BaseModel
 

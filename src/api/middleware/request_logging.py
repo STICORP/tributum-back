@@ -12,16 +12,15 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
 from starlette.types import ASGIApp
 
-from src.core.constants import (
+from src.api.constants import (
     FORM_CONTENT_TYPES,
     JSON_CONTENT_TYPES,
     MAX_BODY_SIZE,
-    MILLISECONDS_PER_SECOND,
     REQUEST_BODY_METHODS,
     SENSITIVE_HEADERS,
     TEXT_CONTENT_TYPES,
-    TRUNCATED_SUFFIX,
 )
+from src.core.constants import MILLISECONDS_PER_SECOND, TRUNCATED_SUFFIX
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_context
 from src.core.logging import get_logger

@@ -6,7 +6,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from src.core.constants import DEFAULT_HSTS_MAX_AGE
+from src.api.constants import DEFAULT_HSTS_MAX_AGE
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):

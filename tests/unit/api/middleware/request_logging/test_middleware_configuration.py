@@ -7,8 +7,9 @@ from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 from starlette.datastructures import Headers
 
+from src.api.constants import MAX_BODY_SIZE
 from src.api.middleware.request_logging import RequestLoggingMiddleware
-from src.core.constants import MAX_BODY_SIZE, TRUNCATED_SUFFIX
+from src.core.constants import TRUNCATED_SUFFIX
 
 from .conftest import create_test_app
 

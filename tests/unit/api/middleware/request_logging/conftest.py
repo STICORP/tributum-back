@@ -7,9 +7,9 @@ from fastapi import FastAPI, File, Form, HTTPException, Request
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
+from src.api.constants import MAX_BODY_SIZE
 from src.api.middleware.request_context import RequestContextMiddleware
 from src.api.middleware.request_logging import RequestLoggingMiddleware
-from src.core.constants import MAX_BODY_SIZE
 
 
 class UserModel(BaseModel):

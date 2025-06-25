@@ -15,8 +15,8 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.core.config import get_settings
-from src.core.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
 from src.core.logging import get_logger
+from src.infrastructure.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
 
 logger = get_logger(__name__)
 

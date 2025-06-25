@@ -8,7 +8,8 @@ import re
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 
-from src.core.constants import REDACTED, SENSITIVE_FIELD_PATTERNS, SENSITIVE_HEADERS
+from src.api.constants import SENSITIVE_HEADERS
+from src.core.constants import REDACTED, SENSITIVE_FIELD_PATTERNS
 from src.core.exceptions import TributumError
 
 if TYPE_CHECKING:  # pragma: no cover
