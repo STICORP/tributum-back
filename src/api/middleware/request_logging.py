@@ -343,19 +343,27 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             duration_ms: Request duration in milliseconds.
             response_log_data: Dictionary containing response log data.
         """
-        if duration_ms >= self.log_config.critical_request_threshold_ms:
-            self.logger.error(
-                "request_completed_critical_slowness",
-                **response_log_data,
-                threshold_ms=self.log_config.critical_request_threshold_ms,
-            )
-        elif duration_ms >= self.log_config.slow_request_threshold_ms:
-            self.logger.warning(
-                "request_completed_slow",
-                **response_log_data,
-                threshold_ms=self.log_config.slow_request_threshold_ms,
-            )
+        # Check thresholds only if performance metrics are enabled
+        if (
+            self.log_config.enable_performance_metrics
+            and self.log_config.track_request_duration
+        ):
+            if duration_ms >= self.log_config.critical_request_threshold_ms:
+                self.logger.error(
+                    "request_completed_critical_slowness",
+                    **response_log_data,
+                    threshold_ms=self.log_config.critical_request_threshold_ms,
+                )
+            elif duration_ms >= self.log_config.slow_request_threshold_ms:
+                self.logger.warning(
+                    "request_completed_slow",
+                    **response_log_data,
+                    threshold_ms=self.log_config.slow_request_threshold_ms,
+                )
+            else:
+                self.logger.info("request_completed", **response_log_data)
         else:
+            # Log without performance tracking
             self.logger.info("request_completed", **response_log_data)
 
     def _add_span_attributes(
@@ -379,30 +387,41 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         if not span or not span.is_recording():
             return
 
-        span.set_attribute("http.request.duration_ms", duration_ms)
-        span.set_attribute("http.request.size_bytes", request_size_bytes)
-        span.set_attribute("http.response.size_bytes", response_size_bytes)
+        # Only add performance attributes if enabled
+        if not self.log_config.enable_performance_metrics:
+            return
+
+        if self.log_config.track_request_duration:
+            span.set_attribute("http.request.duration_ms", duration_ms)
+
+        if self.log_config.track_request_sizes:
+            span.set_attribute("http.request.size_bytes", request_size_bytes)
+            span.set_attribute("http.response.size_bytes", response_size_bytes)
+
         if memory_delta_mb is not None:
             span.set_attribute("process.memory_delta_mb", memory_delta_mb)
-        span.set_attribute("process.active_tasks", active_tasks_end)
+
+        if self.log_config.track_active_tasks:
+            span.set_attribute("process.active_tasks", active_tasks_end)
 
         # Add span events for threshold violations
-        if duration_ms >= self.log_config.critical_request_threshold_ms:
-            span.add_event(
-                "critical_slowness_threshold_exceeded",
-                attributes={
-                    "threshold_ms": (self.log_config.critical_request_threshold_ms),
-                    "duration_ms": duration_ms,
-                },
-            )
-        elif duration_ms >= self.log_config.slow_request_threshold_ms:
-            span.add_event(
-                "slow_request_threshold_exceeded",
-                attributes={
-                    "threshold_ms": self.log_config.slow_request_threshold_ms,
-                    "duration_ms": duration_ms,
-                },
-            )
+        if self.log_config.track_request_duration:
+            if duration_ms >= self.log_config.critical_request_threshold_ms:
+                span.add_event(
+                    "critical_slowness_threshold_exceeded",
+                    attributes={
+                        "threshold_ms": (self.log_config.critical_request_threshold_ms),
+                        "duration_ms": duration_ms,
+                    },
+                )
+            elif duration_ms >= self.log_config.slow_request_threshold_ms:
+                span.add_event(
+                    "slow_request_threshold_exceeded",
+                    attributes={
+                        "threshold_ms": self.log_config.slow_request_threshold_ms,
+                        "duration_ms": duration_ms,
+                    },
+                )
 
     def _initialize_performance_tracking(
         self,
@@ -416,13 +435,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         """
         # Start memory tracking if enabled
         memory_start = None
-        if self.log_config.enable_memory_tracking:
+        if (
+            self.log_config.enable_performance_metrics
+            and self.log_config.enable_memory_tracking
+        ):
             if not tracemalloc.is_tracing():
                 tracemalloc.start()
             memory_start = tracemalloc.get_traced_memory()
 
         # Track active asyncio tasks
-        active_tasks_start = len(asyncio.all_tasks())
+        active_tasks_start = 0
+        if (
+            self.log_config.enable_performance_metrics
+            and self.log_config.track_active_tasks
+        ):
+            active_tasks_start = len(asyncio.all_tasks())
 
         return memory_start, active_tasks_start
 
@@ -448,15 +475,25 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # Calculate memory delta if tracking enabled
         memory_delta_mb = None
-        if self.log_config.enable_memory_tracking and memory_start:
+        if (
+            self.log_config.enable_performance_metrics
+            and self.log_config.enable_memory_tracking
+            and memory_start
+        ):
             memory_end = tracemalloc.get_traced_memory()
             memory_delta_mb = round(
                 (memory_end[0] - memory_start[0]) / (1024 * 1024), 2
             )
 
         # Track active asyncio tasks
-        active_tasks_end = len(asyncio.all_tasks())
-        active_tasks_delta = active_tasks_end - active_tasks_start
+        active_tasks_end = 0
+        active_tasks_delta = 0
+        if (
+            self.log_config.enable_performance_metrics
+            and self.log_config.track_active_tasks
+        ):
+            active_tasks_end = len(asyncio.all_tasks())
+            active_tasks_delta = active_tasks_end - active_tasks_start
 
         return duration_ms, memory_delta_mb, active_tasks_end, active_tasks_delta
 
@@ -520,7 +557,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         memory_start, active_tasks_start = self._initialize_performance_tracking()
 
         # Get correlation ID from context
-        correlation_id = RequestContext.get_correlation_id()
+        correlation_id = RequestContext.get_correlation_id() or ""
 
         # Extract request details
         method = request.method
@@ -551,62 +588,161 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Process the request
             response = await call_next(request)
 
-            # Calculate performance metrics
-            (
-                duration_ms,
-                memory_delta_mb,
-                active_tasks_end,
-                active_tasks_delta,
-            ) = self._calculate_performance_metrics(
-                start_time, memory_start, active_tasks_start
-            )
-
-            # Build response log data
-            response_log_data: dict[str, Any] = {
-                "method": method,
-                "path": path,
-                "status_code": response.status_code,
-                "duration_ms": round(duration_ms, 2),
-                "correlation_id": correlation_id,
-            }
-
-            # Add performance metrics
-            if self.log_config.log_request_body or self.log_config.log_response_body:
-                response_log_data["request_size_bytes"] = request_size_bytes
-            if memory_delta_mb is not None:
-                response_log_data["memory_delta_mb"] = memory_delta_mb
-            response_log_data["active_tasks"] = active_tasks_end
-            response_log_data["active_tasks_delta"] = active_tasks_delta
-
-            # Log response body if enabled
-            response_size_bytes = 0
-            if self.log_response_body:
-                response, response_size_bytes = await self._handle_response_logging(
-                    response, response_log_data
-                )
-                if (
-                    self.log_config.log_request_body
-                    or self.log_config.log_response_body
-                ):
-                    response_log_data["response_size_bytes"] = response_size_bytes
-
-            # Track performance metrics and log with appropriate severity
-            self._track_performance_metrics(duration_ms, response_log_data)
-
-            # Add performance attributes to current span if available
-            self._add_span_attributes(
-                duration_ms,
+            # Handle successful response
+            return await self._handle_successful_response(
+                response,
+                method,
+                path,
+                correlation_id,
+                start_time,
+                memory_start,
+                active_tasks_start,
                 request_size_bytes,
-                response_size_bytes,
-                memory_delta_mb,
-                active_tasks_end,
             )
 
         except Exception as exc:
             self._log_request_error(exc, method, path, start_time, correlation_id)
             raise
-        else:
-            return response
+
+    async def _handle_successful_response(
+        self,
+        response: Response,
+        method: str,
+        path: str,
+        correlation_id: str,
+        start_time: float,
+        memory_start: tuple[int, int] | None,
+        active_tasks_start: int,
+        request_size_bytes: int,
+    ) -> Response:
+        """Handle successful response processing and logging.
+
+        Args:
+            response: The response from the handler.
+            method: HTTP method.
+            path: Request path.
+            correlation_id: Request correlation ID.
+            start_time: Request start time.
+            memory_start: Initial memory snapshot.
+            active_tasks_start: Initial active tasks count.
+            request_size_bytes: Size of the request body.
+
+        Returns:
+            Response: The processed response.
+        """
+        # Calculate performance metrics
+        (
+            duration_ms,
+            memory_delta_mb,
+            active_tasks_end,
+            active_tasks_delta,
+        ) = self._calculate_performance_metrics(
+            start_time, memory_start, active_tasks_start
+        )
+
+        # Build response log data
+        response_log_data = self._build_response_log_data(
+            method,
+            path,
+            response.status_code,
+            correlation_id,
+            duration_ms,
+            memory_delta_mb,
+            active_tasks_end,
+            active_tasks_delta,
+            request_size_bytes,
+        )
+
+        # Log response body if enabled
+        response_size_bytes = 0
+        if self.log_response_body:
+            response, response_size_bytes = await self._handle_response_logging(
+                response, response_log_data
+            )
+            if (
+                self.log_config.enable_performance_metrics
+                and self.log_config.track_request_sizes
+                and (
+                    self.log_config.log_request_body
+                    or self.log_config.log_response_body
+                )
+            ):
+                response_log_data["response_size_bytes"] = response_size_bytes
+
+        # Track performance metrics and log with appropriate severity
+        self._track_performance_metrics(duration_ms, response_log_data)
+
+        # Add performance attributes to current span if available
+        self._add_span_attributes(
+            duration_ms,
+            request_size_bytes,
+            response_size_bytes,
+            memory_delta_mb,
+            active_tasks_end,
+        )
+
+        return response
+
+    def _build_response_log_data(
+        self,
+        method: str,
+        path: str,
+        status_code: int,
+        correlation_id: str,
+        duration_ms: float,
+        memory_delta_mb: float | None,
+        active_tasks_end: int,
+        active_tasks_delta: int,
+        request_size_bytes: int,
+    ) -> dict[str, Any]:
+        """Build response log data dictionary.
+
+        Args:
+            method: HTTP method.
+            path: Request path.
+            status_code: Response status code.
+            correlation_id: Request correlation ID.
+            duration_ms: Request duration in milliseconds.
+            memory_delta_mb: Memory usage delta in MB.
+            active_tasks_end: Number of active tasks at end.
+            active_tasks_delta: Change in active tasks.
+            request_size_bytes: Size of the request body.
+
+        Returns:
+            dict[str, Any]: Response log data.
+        """
+        response_log_data: dict[str, Any] = {
+            "method": method,
+            "path": path,
+            "status_code": status_code,
+            "correlation_id": correlation_id,
+        }
+
+        # Add duration if tracking is enabled
+        if (
+            self.log_config.enable_performance_metrics
+            and self.log_config.track_request_duration
+        ):
+            response_log_data["duration_ms"] = round(duration_ms, 2)
+
+        # Add performance metrics if enabled
+        if self.log_config.enable_performance_metrics:
+            # Add request/response sizes if tracking is enabled
+            if self.log_config.track_request_sizes and (
+                self.log_config.log_request_body or self.log_config.log_response_body
+            ):
+                response_log_data["request_size_bytes"] = request_size_bytes
+
+            # Add memory delta if available
+            if memory_delta_mb is not None:
+                response_log_data["memory_delta_mb"] = memory_delta_mb
+
+            # Add active tasks if tracking is enabled
+            if self.log_config.track_active_tasks:
+                response_log_data["active_tasks"] = active_tasks_end
+                response_log_data["active_tasks_delta"] = active_tasks_delta
+
+        return response_log_data
 
     async def _handle_response_logging(
         self, response: Response, response_log_data: dict[str, Any]

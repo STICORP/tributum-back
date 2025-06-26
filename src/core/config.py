@@ -82,15 +82,30 @@ class LogConfig(BaseModel):
         default=10240, gt=0, description="Max body size to log in bytes"
     )
 
+    # Performance metrics configuration
+    enable_performance_metrics: bool = Field(
+        default=True, description="Enable all performance metrics collection"
+    )
+    track_request_duration: bool = Field(
+        default=True, description="Track request duration in milliseconds"
+    )
+    track_active_tasks: bool = Field(
+        default=True, description="Track active asyncio tasks count"
+    )
+    track_request_sizes: bool = Field(
+        default=True,
+        description="Track request/response sizes when body logging enabled",
+    )
+    enable_memory_tracking: bool = Field(
+        default=False, description="Enable memory tracking (has overhead)"
+    )
+
     # Performance thresholds for request monitoring
     slow_request_threshold_ms: int = Field(
         default=1000, gt=0, description="Log warning if request slower than this (ms)"
     )
     critical_request_threshold_ms: int = Field(
         default=5000, gt=0, description="Log error if request slower than this (ms)"
-    )
-    enable_memory_tracking: bool = Field(
-        default=False, description="Enable memory tracking (has overhead)"
     )
 
 

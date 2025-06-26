@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Granular performance metrics configuration for request logging middleware
 - Performance monitoring for HTTP requests with configurable slow/critical thresholds
 - Automatic structlog configuration on first logger usage
 - Deterministic check-implementation command with checkbox tracking for validation consistency
