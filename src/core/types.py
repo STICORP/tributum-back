@@ -24,3 +24,7 @@ type ErrorContext = dict[str, Any]  # flexible error context
 # ASGI scope type for middleware implementations
 # Following ASGI spec: https://asgi.readthedocs.io/en/latest/specs/www.html
 type AsgiScope = dict[str, Any]  # ASGI spec defines various types
+
+# Performance thresholds configuration type
+# Used for request monitoring and alerting
+type PerformanceThresholds = dict[str, int | float]  # threshold values in ms

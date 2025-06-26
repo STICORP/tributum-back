@@ -82,6 +82,17 @@ class LogConfig(BaseModel):
         default=10240, gt=0, description="Max body size to log in bytes"
     )
 
+    # Performance thresholds for request monitoring
+    slow_request_threshold_ms: int = Field(
+        default=1000, gt=0, description="Log warning if request slower than this (ms)"
+    )
+    critical_request_threshold_ms: int = Field(
+        default=5000, gt=0, description="Log error if request slower than this (ms)"
+    )
+    enable_memory_tracking: bool = Field(
+        default=False, description="Enable memory tracking (has overhead)"
+    )
+
 
 class ObservabilityConfig(BaseModel):
     """Observability configuration settings for OpenTelemetry."""

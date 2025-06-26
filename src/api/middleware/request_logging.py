@@ -1,12 +1,15 @@
 """Request logging middleware for logging HTTP requests and responses."""
 
+import asyncio
 import json
 import time
+import tracemalloc
 from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import parse_qs
 
 from fastapi import Request, Response
+from opentelemetry import trace
 from starlette.datastructures import Headers
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response as StarletteResponse
@@ -24,6 +27,7 @@ from src.core.constants import MILLISECONDS_PER_SECOND, TRUNCATED_SUFFIX
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_context
 from src.core.logging import get_logger
+from src.core.observability import get_tracer
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -51,6 +55,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.logger = get_logger(__name__)
         self.log_config = log_config
+        self.tracer = get_tracer(__name__)
 
     @property
     def max_body_size(self) -> int:
@@ -329,6 +334,162 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         else:
             response_log_data["response_body"] = self._truncate_body(body_bytes)
 
+    def _track_performance_metrics(
+        self, duration_ms: float, response_log_data: dict[str, Any]
+    ) -> None:
+        """Track performance metrics and log with appropriate severity.
+
+        Args:
+            duration_ms: Request duration in milliseconds.
+            response_log_data: Dictionary containing response log data.
+        """
+        if duration_ms >= self.log_config.critical_request_threshold_ms:
+            self.logger.error(
+                "request_completed_critical_slowness",
+                **response_log_data,
+                threshold_ms=self.log_config.critical_request_threshold_ms,
+            )
+        elif duration_ms >= self.log_config.slow_request_threshold_ms:
+            self.logger.warning(
+                "request_completed_slow",
+                **response_log_data,
+                threshold_ms=self.log_config.slow_request_threshold_ms,
+            )
+        else:
+            self.logger.info("request_completed", **response_log_data)
+
+    def _add_span_attributes(
+        self,
+        duration_ms: float,
+        request_size_bytes: int,
+        response_size_bytes: int,
+        memory_delta_mb: float | None,
+        active_tasks_end: int,
+    ) -> None:
+        """Add performance attributes to current OpenTelemetry span.
+
+        Args:
+            duration_ms: Request duration in milliseconds.
+            request_size_bytes: Size of request body in bytes.
+            response_size_bytes: Size of response body in bytes.
+            memory_delta_mb: Memory change in MB, if tracked.
+            active_tasks_end: Number of active tasks at request end.
+        """
+        span = trace.get_current_span()
+        if not span or not span.is_recording():
+            return
+
+        span.set_attribute("http.request.duration_ms", duration_ms)
+        span.set_attribute("http.request.size_bytes", request_size_bytes)
+        span.set_attribute("http.response.size_bytes", response_size_bytes)
+        if memory_delta_mb is not None:
+            span.set_attribute("process.memory_delta_mb", memory_delta_mb)
+        span.set_attribute("process.active_tasks", active_tasks_end)
+
+        # Add span events for threshold violations
+        if duration_ms >= self.log_config.critical_request_threshold_ms:
+            span.add_event(
+                "critical_slowness_threshold_exceeded",
+                attributes={
+                    "threshold_ms": (self.log_config.critical_request_threshold_ms),
+                    "duration_ms": duration_ms,
+                },
+            )
+        elif duration_ms >= self.log_config.slow_request_threshold_ms:
+            span.add_event(
+                "slow_request_threshold_exceeded",
+                attributes={
+                    "threshold_ms": self.log_config.slow_request_threshold_ms,
+                    "duration_ms": duration_ms,
+                },
+            )
+
+    def _initialize_performance_tracking(
+        self,
+    ) -> tuple[tuple[int, int] | None, int]:
+        """Initialize performance tracking metrics.
+
+        Returns:
+            tuple[tuple[int, int] | None, int]: Tuple of (memory_start,
+                active_tasks_start). memory_start is None or (current, peak)
+                memory usage in bytes.
+        """
+        # Start memory tracking if enabled
+        memory_start = None
+        if self.log_config.enable_memory_tracking:
+            if not tracemalloc.is_tracing():
+                tracemalloc.start()
+            memory_start = tracemalloc.get_traced_memory()
+
+        # Track active asyncio tasks
+        active_tasks_start = len(asyncio.all_tasks())
+
+        return memory_start, active_tasks_start
+
+    def _calculate_performance_metrics(
+        self,
+        start_time: float,
+        memory_start: tuple[int, int] | None,
+        active_tasks_start: int,
+    ) -> tuple[float, float | None, int, int]:
+        """Calculate performance metrics at request end.
+
+        Args:
+            start_time: Request start time from time.time().
+            memory_start: Initial memory usage if tracking enabled.
+            active_tasks_start: Initial count of active asyncio tasks.
+
+        Returns:
+            tuple[float, float | None, int, int]: Tuple of (duration_ms,
+                memory_delta_mb, active_tasks_end, active_tasks_delta).
+        """
+        # Calculate duration
+        duration_ms = (time.time() - start_time) * MILLISECONDS_PER_SECOND
+
+        # Calculate memory delta if tracking enabled
+        memory_delta_mb = None
+        if self.log_config.enable_memory_tracking and memory_start:
+            memory_end = tracemalloc.get_traced_memory()
+            memory_delta_mb = round(
+                (memory_end[0] - memory_start[0]) / (1024 * 1024), 2
+            )
+
+        # Track active asyncio tasks
+        active_tasks_end = len(asyncio.all_tasks())
+        active_tasks_delta = active_tasks_end - active_tasks_start
+
+        return duration_ms, memory_delta_mb, active_tasks_end, active_tasks_delta
+
+    def _log_request_error(
+        self,
+        exc: Exception,
+        method: str,
+        path: str,
+        start_time: float,
+        correlation_id: str | None,
+    ) -> None:
+        """Log request errors.
+
+        Args:
+            exc: The exception that occurred.
+            method: HTTP method.
+            path: Request path.
+            start_time: Request start time.
+            correlation_id: Request correlation ID.
+        """
+        # Calculate duration even for errors
+        duration_ms = (time.time() - start_time) * MILLISECONDS_PER_SECOND
+
+        # Log the error
+        self.logger.exception(
+            "request_failed",
+            method=method,
+            path=path,
+            duration_ms=round(duration_ms, 2),
+            correlation_id=correlation_id,
+            error_type=type(exc).__name__,
+        )
+
     async def dispatch(
         self,
         request: Request,
@@ -355,6 +516,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Start timing the request
         start_time = time.time()
 
+        # Initialize performance tracking
+        memory_start, active_tasks_start = self._initialize_performance_tracking()
+
         # Get correlation ID from context
         correlation_id = RequestContext.get_correlation_id()
 
@@ -370,6 +534,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # Handle request body
         body_for_handler = await self._handle_request_body(request, log_data)
+        request_size_bytes = len(body_for_handler) if body_for_handler else 0
 
         # If we read the body, we need to set it back for the handler
         if body_for_handler is not None:
@@ -386,8 +551,15 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Process the request
             response = await call_next(request)
 
-            # Calculate duration
-            duration_ms = (time.time() - start_time) * MILLISECONDS_PER_SECOND
+            # Calculate performance metrics
+            (
+                duration_ms,
+                memory_delta_mb,
+                active_tasks_end,
+                active_tasks_delta,
+            ) = self._calculate_performance_metrics(
+                start_time, memory_start, active_tasks_start
+            )
 
             # Build response log data
             response_log_data: dict[str, Any] = {
@@ -398,37 +570,47 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 "correlation_id": correlation_id,
             }
 
+            # Add performance metrics
+            if self.log_config.log_request_body or self.log_config.log_response_body:
+                response_log_data["request_size_bytes"] = request_size_bytes
+            if memory_delta_mb is not None:
+                response_log_data["memory_delta_mb"] = memory_delta_mb
+            response_log_data["active_tasks"] = active_tasks_end
+            response_log_data["active_tasks_delta"] = active_tasks_delta
+
             # Log response body if enabled
+            response_size_bytes = 0
             if self.log_response_body:
-                response = await self._handle_response_logging(
+                response, response_size_bytes = await self._handle_response_logging(
                     response, response_log_data
                 )
+                if (
+                    self.log_config.log_request_body
+                    or self.log_config.log_response_body
+                ):
+                    response_log_data["response_size_bytes"] = response_size_bytes
 
-            # Log response
-            self.logger.info("request_completed", **response_log_data)
+            # Track performance metrics and log with appropriate severity
+            self._track_performance_metrics(duration_ms, response_log_data)
 
-        except Exception as exc:
-            # Calculate duration even for errors
-            duration_ms = (time.time() - start_time) * MILLISECONDS_PER_SECOND
-
-            # Log the error
-            self.logger.exception(
-                "request_failed",
-                method=method,
-                path=path,
-                duration_ms=round(duration_ms, 2),
-                correlation_id=correlation_id,
-                error_type=type(exc).__name__,
+            # Add performance attributes to current span if available
+            self._add_span_attributes(
+                duration_ms,
+                request_size_bytes,
+                response_size_bytes,
+                memory_delta_mb,
+                active_tasks_end,
             )
 
-            # Re-raise the exception to be handled by error handlers
+        except Exception as exc:
+            self._log_request_error(exc, method, path, start_time, correlation_id)
             raise
         else:
             return response
 
     async def _handle_response_logging(
         self, response: Response, response_log_data: dict[str, Any]
-    ) -> Response:
+    ) -> tuple[Response, int]:
         """Handle response body logging and create new response.
 
         Args:
@@ -436,8 +618,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             response_log_data: Dictionary to populate with response data.
 
         Returns:
-            Response: New Response object with the captured body content, preserving
-            original status code, headers, and media type.
+            tuple[Response, int]: Tuple of (new Response object with the captured body
+            content, response size in bytes).
         """
         # Add response headers
         response_log_data["response_headers"] = (
@@ -446,14 +628,18 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         # Capture response body
         body_bytes = await self._capture_response_body(response)
+        response_size_bytes = len(body_bytes)
 
         # Log the response body
         self._log_response_body(response_log_data, body_bytes, response.headers)
 
         # Create a new response with the same body
-        return StarletteResponse(
-            content=body_bytes,
-            status_code=response.status_code,
-            headers=dict(response.headers),
-            media_type=response.media_type,
+        return (
+            StarletteResponse(
+                content=body_bytes,
+                status_code=response.status_code,
+                headers=dict(response.headers),
+                media_type=response.media_type,
+            ),
+            response_size_bytes,
         )
