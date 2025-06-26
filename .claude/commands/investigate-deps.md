@@ -1,6 +1,5 @@
 # /investigate-deps
 
-- Read CLAUDE.md
 - Read pyproject.md
 - Read Makefile
 - Treat me as an expert.
