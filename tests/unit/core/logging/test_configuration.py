@@ -456,3 +456,33 @@ class TestConfigureStructlog:
 
         assert renderer is not None
         assert type(renderer).__name__ == "ORJSONRenderer"
+
+    def test_performance_processor_enabled(self, mocker: MockerFixture) -> None:
+        """Test that performance processor is included when enabled."""
+        # Configure with performance processor enabled
+        settings = Settings()
+        settings.log_config = LogConfig(
+            log_level="INFO",
+            log_format="json",
+            render_json_logs=True,
+            enable_performance_processor=True,
+        )
+        mocker.patch("src.core.logging.get_settings", return_value=settings)
+
+        # Configure structlog
+        configure_structlog()
+
+        # Get configuration and check for performance processor
+        config = structlog.get_config()
+        processors = config["processors"]
+
+        # Check that performance_processor is in the pipeline
+        processor_names = []
+        for p in processors:
+            if hasattr(p, "__name__"):
+                processor_names.append(p.__name__)
+            else:
+                processor_names.append(type(p).__name__)
+
+        # The performance_processor function should be in the pipeline
+        assert any("performance_processor" in str(p) for p in processors)
