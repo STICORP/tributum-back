@@ -68,3 +68,22 @@ class TestGetLogger:
         entry = cap.entries[0]
         assert entry["service"] == "api"
         assert entry["version"] == "1.0"
+
+    def test_get_logger_auto_configures(self) -> None:
+        """Test that get_logger automatically configures structlog if not configured."""
+        # Reset structlog to unconfigured state
+        structlog.reset_defaults()
+
+        # Verify structlog is not configured
+        assert not structlog.is_configured()
+
+        # Call get_logger which should auto-configure
+        logger = get_logger("test_auto_config")
+
+        # Verify structlog is now configured
+        assert structlog.is_configured()
+
+        # Verify the logger works
+        assert logger is not None
+        assert hasattr(logger, "bind")
+        assert hasattr(logger, "info")

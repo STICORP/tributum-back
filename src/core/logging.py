@@ -38,6 +38,13 @@ from src.core.error_context import sanitize_context
 from src.core.exceptions import TributumError
 
 
+def _auto_configure() -> None:
+    """Automatically configure structlog on first import."""
+    # Check if structlog has already been configured
+    if not structlog.is_configured():
+        configure_structlog()
+
+
 class MergeStrategy(Enum):
     """Strategy for merging context values."""
 
@@ -536,6 +543,9 @@ def get_logger(name: str | None = None, **initial_context: Any) -> Any:  # noqa:
     Returns:
         Any: A bound structlog logger instance with context from contextvars.
     """
+    # Ensure structlog is configured before creating loggers
+    _auto_configure()
+
     logger = structlog.get_logger(name)
     if initial_context:
         logger = logger.bind(**initial_context)
