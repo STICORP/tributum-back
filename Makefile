@@ -143,8 +143,20 @@ clean:  ## Clean up temporary files
 	find . -type d -name "*.egg-info" -exec rm -rf {} +
 	find . -type d -name "htmlcov" -exec rm -rf {} +
 	find . -type f -name ".coverage" -delete
+	find . -type f -name ".coverage.*" -delete
+	find . -type f -name "coverage.xml" -delete
 	find . -type f -name "interrogate_badge.svg" -delete
 	find . -type f -name "dead-code-report.txt" -delete
+	find . -type d -name ".hypothesis" -exec rm -rf {} +
+	find . -type d -name "dist" -exec rm -rf {} +
+	find . -type d -name "build" -exec rm -rf {} +
+	find . -type d -name ".benchmarks" -exec rm -rf {} +
+	find . -type d -name "prof" -exec rm -rf {} +
+	find . -type d -name ".tox" -exec rm -rf {} +
+	find . -type d -name "pip-wheel-metadata" -exec rm -rf {} +
+	find . -type f -name "*.orig" -delete
+	find . -type f -name "*~" -delete
+	find . -type f -name "*.bak" -delete
 
 dead-code:  ## Check for dead code using vulture
 	uv run vulture . --config=pyproject.toml
