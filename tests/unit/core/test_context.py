@@ -7,7 +7,6 @@ import uuid
 import pytest
 
 from src.core.context import (
-    CORRELATION_ID_HEADER,
     RequestContext,
     generate_correlation_id,
     generate_request_id,
@@ -59,21 +58,6 @@ class TestCorrelationIDGeneration:
         correlation_id = generate_correlation_id()
         # UUID string length is always 36 (32 hex chars + 4 hyphens)
         assert len(correlation_id) == 36
-
-
-@pytest.mark.unit
-class TestCorrelationIDHeader:
-    """Test correlation ID header constant."""
-
-    def test_correlation_id_header_value(self) -> None:
-        """Test that the correlation ID header has the expected value."""
-        assert CORRELATION_ID_HEADER == "X-Correlation-ID"
-
-    def test_correlation_id_header_is_immutable(self) -> None:
-        """Test that the correlation ID header cannot be modified."""
-        # This test verifies the use of Final typing
-        # The actual immutability is enforced by type checkers
-        assert isinstance(CORRELATION_ID_HEADER, str)
 
 
 @pytest.mark.unit

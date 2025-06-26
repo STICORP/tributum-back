@@ -5,8 +5,8 @@ from fastapi import Response
 from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 
+from src.api.constants import CORRELATION_ID_HEADER
 from src.core.config import LogConfig
-from src.core.context import CORRELATION_ID_HEADER
 
 from .conftest import create_test_app
 

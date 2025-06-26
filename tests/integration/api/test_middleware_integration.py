@@ -3,8 +3,8 @@
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from src.api.constants import CORRELATION_ID_HEADER
 from src.api.main import app
-from src.core.context import CORRELATION_ID_HEADER
 
 
 @pytest.mark.integration

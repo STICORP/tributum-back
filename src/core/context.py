@@ -2,10 +2,6 @@
 
 import uuid
 from contextvars import ContextVar
-from typing import Final
-
-# Standard header name for correlation ID across services
-CORRELATION_ID_HEADER: Final[str] = "X-Correlation-ID"
 
 # Context variable for storing correlation ID across async boundaries
 _correlation_id_var: ContextVar[str | None] = ContextVar("correlation_id", default=None)

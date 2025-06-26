@@ -21,7 +21,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.context import CORRELATION_ID_HEADER
+from src.api.constants import CORRELATION_ID_HEADER
 
 
 @pytest.mark.integration

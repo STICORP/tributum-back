@@ -12,9 +12,10 @@ from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from pytest_mock import MockerFixture
 
 import src.api.main
+from src.api.constants import CORRELATION_ID_HEADER
 from src.api.main import _add_correlation_id_to_span, create_app, lifespan
 from src.core.config import ObservabilityConfig, Settings
-from src.core.context import CORRELATION_ID_HEADER, RequestContext
+from src.core.context import RequestContext
 
 
 class InMemorySpanExporter(SpanExporter):

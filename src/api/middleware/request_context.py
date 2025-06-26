@@ -2,11 +2,8 @@
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from src.core.context import (
-    CORRELATION_ID_HEADER,
-    RequestContext,
-    generate_correlation_id,
-)
+from src.api.constants import CORRELATION_ID_HEADER
+from src.core.context import RequestContext, generate_correlation_id
 
 
 class RequestContextMiddleware:
