@@ -24,7 +24,7 @@ import psutil
 import structlog
 from structlog.typing import EventDict, Processor
 
-from src.core.config import get_settings
+from src.core.config import LogConfig, get_settings
 from src.core.constants import (
     EXCEPTION_TUPLE_MIN_LENGTH,
     MAX_CONTEXT_DEPTH,
@@ -425,19 +425,18 @@ def error_context_processor(
     return event_dict
 
 
-def configure_structlog() -> None:
-    """Configure structlog with appropriate processors for the environment.
+def _build_base_processors(
+    log_config: LogConfig, include_timestamp: bool = True
+) -> list[Processor]:
+    """Build the base processor chain for structlog.
 
-    Sets up different processor pipelines for development (console) and
-    production (JSON) environments. Integrates with stdlib logging for
-    third-party libraries.
+    Args:
+        log_config: The logging configuration.
+        include_timestamp: Whether to include timestamp processor.
+
+    Returns:
+        list[Processor]: List of base processors.
     """
-    settings = get_settings()
-    log_config = settings.log_config
-
-    # Convert log level string to logging level
-    log_level = getattr(logging, log_config.log_level.upper())
-
     # Base processors that are always included
     base_processors: list[Processor] = [
         structlog.stdlib.add_logger_name,
@@ -465,12 +464,31 @@ def configure_structlog() -> None:
         )
     )
 
-    # Add timestamp if configured
-    if log_config.add_timestamp:
+    # Add timestamp if configured and requested
+    if include_timestamp and log_config.add_timestamp:
         if log_config.timestamper_format == "iso":
             base_processors.append(structlog.processors.TimeStamper(fmt="iso"))
         else:
             base_processors.append(structlog.processors.TimeStamper(fmt=None))
+
+    return base_processors
+
+
+def configure_structlog() -> None:
+    """Configure structlog with appropriate processors for the environment.
+
+    Sets up different processor pipelines for development (console) and
+    production (JSON) environments. Integrates with stdlib logging for
+    third-party libraries.
+    """
+    settings = get_settings()
+    log_config = settings.log_config
+
+    # Convert log level string to logging level
+    log_level = getattr(logging, log_config.log_level.upper())
+
+    # Build base processors with timestamp
+    base_processors = _build_base_processors(log_config, include_timestamp=True)
 
     # Development processors (human-readable console output)
     dev_processors: list[Processor] = [
@@ -508,26 +526,21 @@ def configure_structlog() -> None:
     )
 
     # Configure stdlib logging for integration with third-party libraries
-    logging.basicConfig(
-        format="%(message)s",
-        stream=sys.stdout,
-        level=log_level,
-    )
+    # Set up minimal stdlib logging configuration
+    # Structlog will use this but we prevent double processing
 
-    # Add structlog processor to stdlib logging
-    stdlib_processor: Processor
-    if not log_config.render_json_logs:
-        stdlib_processor = structlog.dev.ConsoleRenderer(colors=True)
-    else:
-        # Use same JSON renderer as prod_processors
-        stdlib_processor = ORJSONRenderer()
+    # Clear any existing handlers first
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
 
-    logging.getLogger().handlers[0].setFormatter(
-        structlog.stdlib.ProcessorFormatter(
-            processor=stdlib_processor,
-            foreign_pre_chain=base_processors,
-        )
-    )
+    # Add a simple stream handler for output
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(log_level)
+    # Use a minimal formatter - structlog has already formatted the message
+    handler.setFormatter(logging.Formatter("%(message)s"))
+
+    root_logger.addHandler(handler)
+    root_logger.setLevel(log_level)
 
 
 def get_logger(name: str | None = None, **initial_context: Any) -> Any:  # noqa: ANN401 - structlog.BoundLogger lacks stable typing

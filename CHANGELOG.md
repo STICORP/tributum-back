@@ -85,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Structlog warning about format_exc_info in development logging
 - Test fixture timeouts in CI environments by configuring pytest to apply timeouts only to test functions
 - Intermittent Docker container startup failures in CI caused by network creation conflicts
+- Duplicate timestamp issue in log output caused by double processing in structlog configuration
 
 ## [0.3.0] - 2025-06-20
 
