@@ -5,6 +5,7 @@ Execute these analyses in parallel:
 ```
 - Fully Read pyproject.toml to understand the project configuration
 - Fully Read .pre-commit-config.yaml to understand the expected coding standards that will be validated
+- Fully read .env.example
 - Fully read Makefile
 - Fully read main.py
 - Understand existing functionality and patterns in src/core/

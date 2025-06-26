@@ -31,6 +31,7 @@ REPORT: [Confirm understanding and list which files will be validated]
 - Fully read pyproject.toml
 - Fully read Makefile
 - Fully read .pre-commit-config.yaml
+- Fully read .env.example
 - Fully read main.py
 - Fully read /src/core/config.py
 - Fully read /src/api/main.py
@@ -62,6 +63,9 @@ REPORT: [Confirm pattern adherence with specific examples]
 
 [ ] **Check that, if you added, removed or changed and configuration, you did EVERYWHERE it is required and maintained configuration consistency**
 REPORT: [List all places checked and confirm consistency, or state "No configuration changes to verify"]
+
+[ ] **Especially check the .env.example file and if it is complete (With all variables that should be there and no variables that shouldn't be there)**
+REPORT: [List all variables checked and confirm consistency, or state "No variable changes to verify"]
 
 ---
 

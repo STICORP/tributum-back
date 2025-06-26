@@ -11,6 +11,7 @@ Execute these analyses in parallel:
 - Fully read pyproject.toml
 - Fully read Makefile
 - Fully read .pre-commit-config.yaml
+- Fully read .env.example
 - Fully read main.py
 - Fully read /src/core/config.py
 - Fully read /src/api/main.py
@@ -27,6 +28,7 @@ Execute these analyses in parallel:
 - Check if you were consistent and are using configuration the way that the project expects you to.
 - Check if the configuration follows the established project patterns and you properly used the project configuration framework.
 - Check that, if you added, removed or changed and configuration, you did **EVERYWHERE** it is required and maintained configuration consistency
+- Especially check the .env.example file and if it is complete (With all variables that should be there and no variables that shouldn't be there)
 
 ## Error handling
 
