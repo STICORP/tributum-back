@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced context management for logging with size limits, nested contexts, and selective unbinding
 
 ### Changed
+- Enhanced .env.example with comprehensive documentation, clear sections, and environment-specific examples
 - Refactored constants into layer-specific modules following clean architecture principles
 - Split large configuration test file (727 lines) into focused modules for improved maintainability
 - Reorganized test files into modular structure for better maintainability and scalability
