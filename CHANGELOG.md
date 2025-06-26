@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing philosophy documentation outlining current and future testing strategies
 - FastAPI best practices validation guide for ensuring code quality and consistency
 - CLAUDE.md documentation for AI-assisted development guidance
+- Comprehensive CLAUDE.md with architecture overview, development workflows, and coding conventions
 - Task analysis and review commands for improved planning
 - Enhanced logging configuration with advanced features for sampling, async logging, and request filtering
 - Advanced context management for logging with size limits, nested contexts, and selective unbinding
