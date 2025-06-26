@@ -39,7 +39,7 @@ The project already has performance monitoring infrastructure:
 ## Tasks
 
 ### Task 2.1: Enhanced Request Performance Metrics
-**Status**: pending
+**Status**: ✅ completed
 **Files to modify**:
 - `src/api/middleware/request_logging.py`
 - `src/core/config.py` (add performance thresholds)
@@ -90,6 +90,38 @@ The project already has performance monitoring infrastructure:
 - New metrics added only when enabled
 - Threshold warnings work correctly
 - Integration with OpenTelemetry spans
+
+**Implementation Summary**:
+Task 2.1 has been successfully implemented with the following enhancements:
+
+1. **Performance Metrics Added**:
+   - Request/response size tracking when body logging is enabled
+   - Memory delta tracking (optional, disabled by default due to tracemalloc overhead)
+   - Active asyncio tasks monitoring for leak detection
+   - Configurable slow request threshold (default 1000ms) triggers warnings
+   - Critical slowness threshold (default 5000ms) triggers error logs
+
+2. **Configuration Updates**:
+   - Added `slow_request_threshold_ms` and `critical_request_threshold_ms` to `LogConfig`
+   - Added `enable_memory_tracking` flag for opt-in memory monitoring
+   - Updated `.env.example` with performance monitoring environment variables
+
+3. **Logging Enhancements**:
+   - `request_completed` logs now include performance metrics
+   - Severity escalation based on duration thresholds (info → warning → error)
+   - Backward compatible - existing log structure preserved
+
+4. **OpenTelemetry Integration**:
+   - Performance attributes added to spans (duration, sizes, memory delta, active tasks)
+   - Span events added for threshold violations
+   - Proper checking for recording spans to avoid overhead
+
+5. **Testing**:
+   - Comprehensive test suite in `test_performance_metrics.py`
+   - Tests for threshold violations, memory tracking, OpenTelemetry integration
+   - Mocking of time.time() and tracemalloc for deterministic tests
+
+The implementation follows all architectural patterns, maintains backward compatibility, and provides valuable performance insights without significant overhead.
 
 ---
 
