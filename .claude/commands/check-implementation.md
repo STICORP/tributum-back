@@ -28,6 +28,7 @@ Execute these analyses in parallel:
 - Check if you were consistent and are using configuration the way that the project expects you to.
 - Check if the configuration follows the established project patterns and you properly used the project configuration framework.
 - Check that, if you added, removed or changed and configuration, you did **EVERYWHERE** it is required and maintained configuration consistency
+- Check if we added a setting/value/feature that should be configurable but instead, uses only a default value everywhere or is always enabled/disabled or anything of the sort. The project should be configurable.
 - Especially check the .env.example file and if it is complete (With all variables that should be there and no variables that shouldn't be there)
 
 ## Error handling

@@ -64,6 +64,9 @@ REPORT: [Confirm pattern adherence with specific examples]
 [ ] **Check that, if you added, removed or changed and configuration, you did EVERYWHERE it is required and maintained configuration consistency**
 REPORT: [List all places checked and confirm consistency, or state "No configuration changes to verify"]
 
+[ ] **Check if we added a setting/value/feature that should be configurable but instead, uses only a default value everywhere or is always enabled/disabled or anything of the sort. The project should be configurable.**
+REPORT: [List all setting/value/feature that should be configurable, or state "No configurable setting/value/feature changes to verify"]
+
 [ ] **Especially check the .env.example file and if it is complete (With all variables that should be there and no variables that shouldn't be there)**
 REPORT: [List all variables checked and confirm consistency, or state "No variable changes to verify"]
 
