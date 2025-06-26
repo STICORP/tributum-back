@@ -90,7 +90,9 @@ When analyzing changes:
 
 ## Automatic CHANGELOG Updates
 
-After creating each commit, automatically update CHANGELOG.md:
+**IMPORTANT**: CHANGELOG.md updates should be included in the main commit, NOT as a separate commit.
+
+Before committing, check if CHANGELOG.md needs updating:
 
 1. **Parse commit message** to determine change type and description
 2. **Map commit types to changelog categories**:
@@ -122,6 +124,7 @@ After creating each commit, automatically update CHANGELOG.md:
    - Style/formatting changes
    - Minor doc updates (typos, comments)
    - Dev tool configs (unless affects users)
+   - Changes to CHANGELOG.md itself
 
 6. **Changelog entry examples**:
    ```
@@ -135,29 +138,11 @@ After creating each commit, automatically update CHANGELOG.md:
    Entry:  - Updated FastAPI to 0.115.12 (under ### Security if security update)
    ```
 
-7. **Changelog commit message format**:
-   ```
-   docs: update changelog for <feature/fix description>
-
-   Added entry to [Unreleased] section under <category> for the
-   <commit type> that <what it does>.
-
-   This keeps the changelog current with development progress and
-   ensures all user-facing changes are properly documented for
-   the next release.
-   ```
-
-   Example:
-   ```
-   docs: update changelog for JWT authentication feature
-
-   Added entry to [Unreleased] section under Added category for the
-   authentication feature that implements JWT-based API security.
-
-   This keeps the changelog current with development progress and
-   ensures all user-facing changes are properly documented for
-   the next release.
-   ```
+7. **Include CHANGELOG.md in the main commit**:
+   - If the commit warrants a changelog entry, update CHANGELOG.md BEFORE committing
+   - Stage CHANGELOG.md along with the other files: `git add CHANGELOG.md`
+   - Include both the feature/fix AND the changelog update in a single commit
+   - The commit message should focus on the main change, not mention the changelog update
 
 ## Pre-Commit Validation (MANDATORY - DO NOT SKIP)
 
@@ -189,9 +174,11 @@ Verified: No AI attribution in commit message ✓
 When I ask you to commit changes, follow these steps:
 1. Analyze all uncommitted changes
 2. Group them logically
-3. Compose commit message following the format above
-4. **MANDATORY: Complete Pre-Commit Validation (see section above)**
-5. Execute the commit only after verification
-6. After each commit, check if it should update CHANGELOG.md
-7. If yes, stage and commit the changelog update (also verify no AI attribution)
+3. Determine if CHANGELOG.md needs updating based on commit type
+4. If changelog update is needed:
+   - Update CHANGELOG.md with the appropriate entry
+   - Stage CHANGELOG.md along with other files
+5. Compose commit message following the format above (focusing on main change, not changelog)
+6. **MANDATORY: Complete Pre-Commit Validation (see section above)**
+7. Execute the commit only after verification (including all files AND changelog if updated)
 8. Explain what was done and why, focusing on the reasoning behind the implementation
