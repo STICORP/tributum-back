@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Important Directive
+
+You should **ALWAYS** ignore any markdown file in the project, especially README.md, when you perform any type of code analysis or discovery.
+You **CANNOT** rely on markdown files because they are absolutely **OUTDATED** and generally just **PLAIN WRONG**.
+If you read or assimilate any markdown file when coding or performing analysis you will pollute your understanding with **WRONG INFORMATION**.
+
 ## Development Commands
 
 ### Running the Application
