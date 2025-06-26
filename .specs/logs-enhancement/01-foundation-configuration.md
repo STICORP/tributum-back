@@ -254,11 +254,14 @@ Current processors: `add_log_level_upper`, `inject_correlation_id`, `inject_logg
 ---
 
 ### Task 1.4: Configuration-based Processor Selection and Middleware Integration
-**Status**: pending
-**Files to modify**:
+**Status**: completed
+**Files modified**:
 - `src/core/logging.py`
-- `src/api/middleware/request_logging.py`
 - `src/api/main.py`
+- `src/api/middleware/request_logging.py`
+- `tests/unit/api/middleware/request_logging/conftest.py`
+- `tests/unit/api/middleware/request_logging/test_basic_logging.py`
+- `tests/unit/api/middleware/request_logging/test_response_body_logging.py`
 
 **Current State**:
 - `configure_structlog()` already conditionally selects processors based on log format
@@ -312,6 +315,14 @@ Current processors: `add_log_level_upper`, `inject_correlation_id`, `inject_logg
 - Path exclusion works as expected
 - No breaking changes to existing logs
 - Clean integration with existing code
+
+**Completion Summary**:
+- ✅ `configure_structlog()` in `src/core/logging.py` now conditionally adds `performance_processor`, `environment_processor`, and `error_context_processor` based on `LogConfig` flags.
+- ✅ `RequestLoggingMiddleware` instantiation in `src/api/main.py` correctly passes the `log_config` object.
+- ✅ `RequestLoggingMiddleware` in `src/api/middleware/request_logging.py` correctly uses the `log_config` for path exclusion and body logging settings.
+- ✅ Fixed `NameError` and `TypeError` issues in the test suite to ensure all tests pass.
+- ✅ All pre-commit checks pass, and test coverage is maintained at >99%.
+- ✅ The integration is complete and all acceptance criteria are met.
 
 ---
 
