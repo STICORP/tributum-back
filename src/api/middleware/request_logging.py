@@ -15,11 +15,11 @@ from starlette.types import ASGIApp
 from src.api.constants import (
     FORM_CONTENT_TYPES,
     JSON_CONTENT_TYPES,
-    MAX_BODY_SIZE,
     REQUEST_BODY_METHODS,
     SENSITIVE_HEADERS,
     TEXT_CONTENT_TYPES,
 )
+from src.core.config import LogConfig
 from src.core.constants import MILLISECONDS_PER_SECOND, TRUNCATED_SUFFIX
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_context
@@ -35,26 +35,37 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     - Response status code and duration
     - Errors that occur during request processing
 
+    It uses the application's LogConfig for its settings.
+
     Args:
         app: The ASGI application to wrap.
-        log_request_body: Whether to log request body (default: False).
-        log_response_body: Whether to log response body (default: False).
-        max_body_size: Maximum size of body to log (in bytes).
+        log_config: Logging configuration object.
     """
 
     def __init__(
         self,
         app: ASGIApp,
         *,
-        log_request_body: bool = False,
-        log_response_body: bool = False,
-        max_body_size: int = MAX_BODY_SIZE,
+        log_config: LogConfig,
     ) -> None:
         super().__init__(app)
         self.logger = get_logger(__name__)
-        self.log_request_body = log_request_body
-        self.log_response_body = log_response_body
-        self.max_body_size = max_body_size
+        self.log_config = log_config
+
+    @property
+    def max_body_size(self) -> int:
+        """Return max body size from config."""
+        return self.log_config.max_body_log_size
+
+    @property
+    def log_request_body(self) -> bool:
+        """Return whether to log request body from config."""
+        return self.log_config.log_request_body
+
+    @property
+    def log_response_body(self) -> bool:
+        """Return whether to log response body from config."""
+        return self.log_config.log_response_body
 
     @staticmethod
     def _sanitize_headers(headers: Headers) -> dict[str, str]:
@@ -335,6 +346,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         Raises:
             Exception: Re-raises any exception that occurs during request processing.
         """
+        # Check if path is excluded from logging
+        path = request.url.path
+        if path in self.log_config.excluded_paths:
+            # Still need to process the request
+            return await call_next(request)
+
         # Start timing the request
         start_time = time.time()
 

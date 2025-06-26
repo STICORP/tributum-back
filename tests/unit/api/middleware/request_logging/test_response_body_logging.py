@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 
 from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.core.config import LogConfig
 
 from .conftest import create_test_app
 
@@ -28,7 +29,7 @@ class TestResponseBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_response_body=True)
+        app = create_test_app(log_config=LogConfig(log_response_body=True))
         client = TestClient(app)
 
         # Make request that returns JSON
@@ -60,7 +61,9 @@ class TestResponseBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_response_body=False)  # Response body logging disabled
+        app = create_test_app(
+            log_config=LogConfig(log_response_body=False)
+        )  # Response body logging disabled
         client = TestClient(app)
 
         # Make request
@@ -87,7 +90,7 @@ class TestResponseBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_response_body=True)
+        app = create_test_app(log_config=LogConfig(log_response_body=True))
 
         # Add custom endpoint that sets sensitive headers
         @app.get("/sensitive-headers")
@@ -126,7 +129,7 @@ class TestResponseBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_response_body=True)
+        app = create_test_app(log_config=LogConfig(log_response_body=True))
 
         # Add endpoint that returns plain text
         @app.get("/text-response")
@@ -156,7 +159,7 @@ class TestResponseBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_response_body=True)
+        app = create_test_app(log_config=LogConfig(log_response_body=True))
 
         # Add endpoint that returns invalid JSON
         @app.get("/bad-json")
@@ -189,7 +192,8 @@ class TestResponseBodyLogging:
     ) -> None:
         """Test that middleware handles response with string chunks."""
         # Test middleware directly to control the response body iterator
-        middleware = RequestLoggingMiddleware(mocker.Mock(), log_response_body=True)
+        log_config = LogConfig(log_response_body=True)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_config=log_config)
 
         # Create a mock request
         mock_request = mocker.Mock(spec=Request)
@@ -231,7 +235,9 @@ class TestResponseBodyLogging:
         )
 
         # Create app with small max body size
-        app = create_test_app(log_response_body=True, max_body_size=20)
+        app = create_test_app(
+            log_config=LogConfig(log_response_body=True, max_body_log_size=20)
+        )
 
         # Add endpoint that returns large response
         @app.get("/large-response")
@@ -262,7 +268,7 @@ class TestResponseBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_response_body=True)
+        app = create_test_app(log_config=LogConfig(log_response_body=True))
 
         # Add endpoint that simulates an error during body iteration
         @app.get("/error-response")

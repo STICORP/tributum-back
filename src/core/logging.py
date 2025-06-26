@@ -437,14 +437,26 @@ def configure_structlog() -> None:
         add_log_level_upper,
         inject_correlation_id,  # Add correlation ID from context
         inject_logger_context,  # Add additional context from contextvars
+    ]
+
+    # Conditionally add new processors based on config
+    if log_config.enable_performance_processor:
+        base_processors.append(performance_processor)
+    if log_config.enable_environment_processor:
+        base_processors.append(environment_processor)
+    if log_config.enable_error_context_processor:
+        base_processors.append(error_context_processor)
+
+    # Add callsite info after other processors
+    base_processors.append(
         structlog.processors.CallsiteParameterAdder(
             parameters=[
                 structlog.processors.CallsiteParameter.FILENAME,
                 structlog.processors.CallsiteParameter.LINENO,
                 structlog.processors.CallsiteParameter.FUNC_NAME,
             ]
-        ),
-    ]
+        )
+    )
 
     # Add timestamp if configured
     if log_config.add_timestamp:

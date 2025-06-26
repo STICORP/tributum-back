@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 
 from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.core.config import LogConfig
 from src.core.constants import TRUNCATED_SUFFIX
 
 from .conftest import create_test_app
@@ -25,7 +26,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send JSON body
@@ -61,7 +62,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send form data
@@ -90,7 +91,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send plain text
@@ -119,7 +120,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send binary data
@@ -150,7 +151,8 @@ class TestRequestBodyLogging:
         )
 
         # Create app with small max body size
-        app = create_test_app(log_request_body=True, max_body_size=50)
+        log_config = LogConfig(log_request_body=True, max_body_log_size=50)
+        app = create_test_app(log_config=log_config)
         client = TestClient(app)
 
         # Send large text body
@@ -183,7 +185,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send request with sensitive headers
@@ -218,7 +220,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send invalid JSON
@@ -250,7 +252,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send JSON body
@@ -269,7 +271,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
 
         # Add endpoint that reads body multiple times
         @app.post("/double-read")
@@ -299,7 +301,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send form data with invalid UTF-8 bytes
@@ -328,7 +330,8 @@ class TestRequestBodyLogging:
     async def test_receive_function_coverage(self, mocker: MockerFixture) -> None:
         """Test the receive function implementation to cover line 362."""
         # Create middleware
-        middleware = RequestLoggingMiddleware(mocker.Mock(), log_request_body=True)
+        log_config = LogConfig(log_request_body=True)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_config=log_config)
 
         # Create a mock request
         mock_request = mocker.Mock(spec=Request)
@@ -369,7 +372,9 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=False)  # Body logging disabled
+        app = create_test_app(
+            log_config=LogConfig(log_request_body=False)
+        )  # Body logging disabled
         client = TestClient(app)
 
         # Send JSON body
@@ -396,7 +401,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # GET request should not log body even if enabled
@@ -423,7 +428,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
 
         # Mock request that fails to read body
         async def failing_body() -> bytes:
@@ -438,7 +443,9 @@ class TestRequestBodyLogging:
         mock_request.body = failing_body
 
         # Test the middleware directly
-        middleware = RequestLoggingMiddleware(app, log_request_body=True)
+        middleware = RequestLoggingMiddleware(
+            app, log_config=LogConfig(log_request_body=True)
+        )
 
         # This should log a warning but not crash
         parsed, raw = asyncio.run(middleware._parse_request_body(mock_request))
@@ -458,7 +465,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send POST with empty body
@@ -484,7 +491,7 @@ class TestRequestBodyLogging:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        app = create_test_app(log_config=LogConfig(log_request_body=True))
         client = TestClient(app)
 
         # Send malformed form data

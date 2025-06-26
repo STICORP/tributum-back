@@ -115,7 +115,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # So the last middleware added is the first to process requests
 
     # 3. Request logging middleware (logs requests/responses with correlation ID)
-    application.add_middleware(RequestLoggingMiddleware)
+    application.add_middleware(RequestLoggingMiddleware, log_config=settings.log_config)
 
     # 2. Request context middleware (creates correlation ID)
     application.add_middleware(RequestContextMiddleware)

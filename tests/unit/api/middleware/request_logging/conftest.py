@@ -7,9 +7,9 @@ from fastapi import FastAPI, File, Form, HTTPException, Request
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
-from src.api.constants import MAX_BODY_SIZE
 from src.api.middleware.request_context import RequestContextMiddleware
 from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.core.config import LogConfig
 
 
 class UserModel(BaseModel):
@@ -98,21 +98,16 @@ def _add_body_endpoints(app: FastAPI) -> None:
 
 def create_test_app(
     add_logging_middleware: bool = True,
-    log_request_body: bool = False,
-    log_response_body: bool = False,
-    max_body_size: int = MAX_BODY_SIZE,
+    log_config: LogConfig | None = None,
 ) -> FastAPI:
     """Create a test FastAPI app."""
     test_app = FastAPI()
     # Note: Middleware is executed in reverse order in FastAPI/Starlette
     # So we add RequestLoggingMiddleware first, then RequestContextMiddleware
     if add_logging_middleware:
-        test_app.add_middleware(
-            RequestLoggingMiddleware,
-            log_request_body=log_request_body,
-            log_response_body=log_response_body,
-            max_body_size=max_body_size,
-        )
+        if log_config is None:
+            log_config = LogConfig()
+        test_app.add_middleware(RequestLoggingMiddleware, log_config=log_config)
     test_app.add_middleware(RequestContextMiddleware)
 
     # Add all test endpoints

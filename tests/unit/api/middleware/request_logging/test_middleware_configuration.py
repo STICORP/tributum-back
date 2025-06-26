@@ -7,8 +7,8 @@ from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 from starlette.datastructures import Headers
 
-from src.api.constants import MAX_BODY_SIZE
 from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.core.config import LogConfig
 from src.core.constants import TRUNCATED_SUFFIX
 
 from .conftest import create_test_app
@@ -20,21 +20,21 @@ class TestMiddlewareConfiguration:
 
     def test_custom_max_body_size(self, mocker: MockerFixture) -> None:
         """Test that custom max body size is respected."""
-        middleware = RequestLoggingMiddleware(
-            mocker.Mock(), log_request_body=True, max_body_size=100
-        )
+        log_config = LogConfig(max_body_log_size=100)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_config=log_config)
         assert middleware.max_body_size == 100
 
     def test_default_configuration(self, mocker: MockerFixture) -> None:
         """Test default middleware configuration."""
-        middleware = RequestLoggingMiddleware(mocker.Mock())
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_config=LogConfig())
         assert middleware.log_request_body is False
         assert middleware.log_response_body is False
-        assert middleware.max_body_size == MAX_BODY_SIZE
+        assert middleware.max_body_size == 10240  # Default from LogConfig
 
     def test_truncate_body_method(self, mocker: MockerFixture) -> None:
         """Test the truncate body method."""
-        middleware = RequestLoggingMiddleware(mocker.Mock(), max_body_size=10)
+        log_config = LogConfig(max_body_log_size=10)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_config=log_config)
 
         # Test string truncation
         result = middleware._truncate_body("Hello World!")
@@ -64,7 +64,8 @@ class TestMiddlewareConfiguration:
 
     def test_truncate_body_decode_exception(self, mocker: MockerFixture) -> None:
         """Test _truncate_body handles decode exceptions (lines 123-124, 130-131)."""
-        middleware = RequestLoggingMiddleware(mocker.Mock(), max_body_size=50)
+        log_config = LogConfig(max_body_log_size=50)
+        middleware = RequestLoggingMiddleware(mocker.Mock(), log_config=log_config)
 
         # Create a custom bytes class that raises exception on decode
         class BadBytes(bytes):
@@ -95,7 +96,8 @@ class TestMiddlewareConfiguration:
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger
         )
 
-        app = create_test_app(log_request_body=True)
+        log_config = LogConfig(log_request_body=True)
+        app = create_test_app(log_config=log_config)
         client = TestClient(app)
 
         # Send request without content-type header

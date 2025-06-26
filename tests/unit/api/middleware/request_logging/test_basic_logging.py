@@ -5,6 +5,7 @@ from fastapi import Response
 from fastapi.testclient import TestClient
 from pytest_mock import MockerFixture
 
+from src.core.config import LogConfig
 from src.core.context import CORRELATION_ID_HEADER
 
 from .conftest import create_test_app
@@ -196,7 +197,7 @@ class TestRequestLoggingMiddleware:
         )
 
         # Create app with response body logging enabled
-        app = create_test_app(log_response_body=True)
+        app = create_test_app(log_config=LogConfig(log_response_body=True))
 
         # Add endpoint that returns empty body
         @app.get("/empty-body")
