@@ -26,7 +26,7 @@ from src.core.config import LogConfig
 from src.core.constants import MILLISECONDS_PER_SECOND, TRUNCATED_SUFFIX
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_context
-from src.core.logging import get_logger
+from src.core.logging import clear_logger_context, get_logger, get_logger_context
 from src.core.observability import get_tracer
 
 
@@ -366,6 +366,23 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             # Log without performance tracking
             self.logger.info("request_completed", **response_log_data)
 
+    def _add_database_metrics_to_span(self, span: trace.Span) -> None:
+        """Add database query metrics to the span.
+
+        Args:
+            span: The OpenTelemetry span to add attributes to.
+        """
+        logger_context = get_logger_context()
+        db_query_count = logger_context.get("db_query_count", 0)
+        db_query_duration = logger_context.get("db_query_duration_ms", 0.0)
+
+        if db_query_count > 0:
+            span.set_attribute("db.query_count", db_query_count)
+            span.set_attribute("db.query_duration_ms", db_query_duration)
+            span.set_attribute(
+                "db.query_avg_ms", round(db_query_duration / db_query_count, 2)
+            )
+
     def _add_span_attributes(
         self,
         duration_ms: float,
@@ -403,6 +420,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         if self.log_config.track_active_tasks:
             span.set_attribute("process.active_tasks", active_tasks_end)
+
+        # Add database query metrics
+        self._add_database_metrics_to_span(span)
 
         # Add span events for threshold violations
         if self.log_config.track_request_duration:
@@ -603,6 +623,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as exc:
             self._log_request_error(exc, method, path, start_time, correlation_id)
             raise
+        finally:
+            # Clear logger context to prevent data leaking between requests
+            clear_logger_context()
 
     async def _handle_successful_response(
         self,
@@ -741,6 +764,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             if self.log_config.track_active_tasks:
                 response_log_data["active_tasks"] = active_tasks_end
                 response_log_data["active_tasks_delta"] = active_tasks_delta
+
+        # Add database query metrics from logger context if available
+        logger_context = get_logger_context()
+        db_query_count = logger_context.get("db_query_count", 0)
+        db_query_duration = logger_context.get("db_query_duration_ms", 0.0)
+
+        if db_query_count > 0:
+            response_log_data["db_query_count"] = db_query_count
+            response_log_data["db_query_duration_ms"] = round(db_query_duration, 2)
+            # Calculate average query time
+            response_log_data["db_query_avg_ms"] = round(
+                db_query_duration / db_query_count, 2
+            )
 
         return response_log_data
 

@@ -1,13 +1,18 @@
 """Unit tests for database session management."""
 
+import time
+
 import pytest
 import pytest_check
 from pytest_mock import MockerFixture
-from sqlalchemy.exc import DatabaseError
+from sqlalchemy.exc import DatabaseError, InvalidRequestError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 import src.infrastructure.database.session
 from src.infrastructure.database.session import (
+    _after_cursor_execute,
+    _before_cursor_execute,
+    _query_start_times,
     close_database,
     create_database_engine,
     get_async_session,
@@ -30,6 +35,7 @@ class TestCreateDatabaseEngine:
         mock_settings.database_config.pool_timeout = 30.0
         mock_settings.database_config.pool_pre_ping = True
         mock_settings.database_config.echo = False
+        mock_settings.log_config.enable_sql_logging = False  # Disable SQL logging
 
         mocker.patch(
             "src.infrastructure.database.session.get_settings",
@@ -73,6 +79,7 @@ class TestCreateDatabaseEngine:
         mock_settings.database_config.pool_timeout = 30.0
         mock_settings.database_config.pool_pre_ping = True
         mock_settings.database_config.echo = False
+        mock_settings.log_config.enable_sql_logging = False  # Disable SQL logging
 
         mocker.patch(
             "src.infrastructure.database.session.get_settings",
@@ -107,6 +114,9 @@ class TestCreateDatabaseEngine:
         mock_settings.database_config.pool_timeout = 30.0
         mock_settings.database_config.pool_pre_ping = True
         mock_settings.database_config.echo = True  # Echo enabled
+        mock_settings.log_config.enable_sql_logging = (
+            False  # Disable SQL logging to avoid event listener setup
+        )
 
         mocker.patch(
             "src.infrastructure.database.session.get_settings",
@@ -126,6 +136,188 @@ class TestCreateDatabaseEngine:
         # Verify echo parameter was passed
         call_kwargs = mock_create_engine.call_args[1]
         assert call_kwargs["echo"] is True
+
+    def test_create_engine_with_sql_logging_enabled(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test creating engine with SQL logging and instrumentation enabled."""
+        # Mock settings with SQL logging enabled
+        mock_settings = mocker.MagicMock()
+        mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
+        mock_settings.database_config.pool_size = 10
+        mock_settings.database_config.max_overflow = 5
+        mock_settings.database_config.pool_timeout = 30.0
+        mock_settings.database_config.pool_pre_ping = True
+        mock_settings.database_config.echo = False
+        mock_settings.log_config.enable_sql_logging = True  # Enable SQL logging
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+
+        # Mock create_async_engine
+        mock_sync_engine = mocker.MagicMock()
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
+        mock_engine.sync_engine = mock_sync_engine
+        mocker.patch(
+            "src.infrastructure.database.session.create_async_engine",
+            return_value=mock_engine,
+        )
+
+        # Mock SQLAlchemyInstrumentor
+        mock_instrumentor = mocker.MagicMock()
+        mocker.patch(
+            "src.infrastructure.database.session.SQLAlchemyInstrumentor",
+            return_value=mock_instrumentor,
+        )
+
+        # Mock event.listen to avoid errors
+        mock_event_listen = mocker.patch(
+            "src.infrastructure.database.session.event.listen"
+        )
+
+        # Create engine
+        create_database_engine()
+
+        # Verify OpenTelemetry instrumentation was called
+        mock_instrumentor.instrument.assert_called_once_with(
+            engine=mock_sync_engine,
+            enable_commenter=True,
+            commenter_options={"opentelemetry_values": True},
+        )
+
+        # Verify event listeners were registered
+        assert mock_event_listen.call_count == 2  # before and after listeners
+        mock_event_listen.assert_any_call(
+            mock_sync_engine, "before_cursor_execute", mocker.ANY
+        )
+        mock_event_listen.assert_any_call(
+            mock_sync_engine, "after_cursor_execute", mocker.ANY
+        )
+
+    def test_create_engine_with_instrumentation_failure(
+        self, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test creating engine when OpenTelemetry instrumentation fails."""
+        # Mock settings with SQL logging enabled
+        mock_settings = mocker.MagicMock()
+        mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
+        mock_settings.database_config.pool_size = 10
+        mock_settings.database_config.max_overflow = 5
+        mock_settings.database_config.pool_timeout = 30.0
+        mock_settings.database_config.pool_pre_ping = True
+        mock_settings.database_config.echo = False
+        mock_settings.log_config.enable_sql_logging = True
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+
+        # Mock create_async_engine
+        mock_sync_engine = mocker.MagicMock()
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
+        mock_engine.sync_engine = mock_sync_engine
+        mocker.patch(
+            "src.infrastructure.database.session.create_async_engine",
+            return_value=mock_engine,
+        )
+
+        # Mock SQLAlchemyInstrumentor to raise exception
+        mock_instrumentor = mocker.MagicMock()
+        mock_instrumentor.instrument.side_effect = RuntimeError(
+            "Instrumentation failed"
+        )
+        mocker.patch(
+            "src.infrastructure.database.session.SQLAlchemyInstrumentor",
+            return_value=mock_instrumentor,
+        )
+
+        # Mock event.listen
+        mocker.patch("src.infrastructure.database.session.event.listen")
+
+        # Create engine - should not raise exception
+        engine = create_database_engine()
+        assert engine is mock_engine
+
+        # Verify warning was logged
+        warning_found = False
+        for record in caplog.records:
+            if record.levelname == "WARNING":
+                message = str(record.getMessage())
+                if "Failed to enable OpenTelemetry" in message:
+                    warning_found = True
+                    assert "RuntimeError" in message
+                    break
+
+        assert warning_found, (
+            "No warning logs found. Records: "
+            f"{[(r.levelname, r.getMessage()) for r in caplog.records]}"
+        )
+
+    def test_create_engine_with_event_listener_failure(
+        self, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test creating engine when event listener registration fails."""
+        # Mock settings with SQL logging enabled
+        mock_settings = mocker.MagicMock()
+        mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
+        mock_settings.database_config.pool_size = 10
+        mock_settings.database_config.max_overflow = 5
+        mock_settings.database_config.pool_timeout = 30.0
+        mock_settings.database_config.pool_pre_ping = True
+        mock_settings.database_config.echo = False
+        mock_settings.log_config.enable_sql_logging = True
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+
+        # Mock create_async_engine
+        mock_sync_engine = mocker.MagicMock()
+        mock_engine = mocker.MagicMock(spec=AsyncEngine)
+        mock_engine.sync_engine = mock_sync_engine
+        mocker.patch(
+            "src.infrastructure.database.session.create_async_engine",
+            return_value=mock_engine,
+        )
+
+        # Mock SQLAlchemyInstrumentor to succeed
+        mock_instrumentor = mocker.MagicMock()
+        mocker.patch(
+            "src.infrastructure.database.session.SQLAlchemyInstrumentor",
+            return_value=mock_instrumentor,
+        )
+
+        # Mock event.listen to raise InvalidRequestError
+        mock_event_listen = mocker.patch(
+            "src.infrastructure.database.session.event.listen",
+            side_effect=InvalidRequestError("No such event 'before_cursor_execute'"),
+        )
+
+        # Create engine - should not raise exception
+        engine = create_database_engine()
+        assert engine is mock_engine
+
+        # Verify event.listen was called
+        assert mock_event_listen.call_count >= 1
+
+        # Verify warning was logged
+        warning_found = False
+        for record in caplog.records:
+            if record.levelname == "WARNING":
+                message = str(record.getMessage())
+                if "Failed to register query performance event listeners" in message:
+                    warning_found = True
+                    assert "InvalidRequestError" in message
+                    break
+
+        assert warning_found, (
+            "No warning logs found. Records: "
+            f"{[(r.levelname, r.getMessage()) for r in caplog.records]}"
+        )
 
 
 @pytest.mark.unit
@@ -451,6 +643,7 @@ class TestIntegrationScenarios:
         mock_settings.database_config.pool_timeout = 60.0
         mock_settings.database_config.pool_pre_ping = False
         mock_settings.database_config.echo = False
+        mock_settings.log_config.enable_sql_logging = False  # Disable SQL logging
 
         mocker.patch(
             "src.infrastructure.database.session.get_settings",
@@ -496,6 +689,7 @@ class TestIntegrationScenarios:
         mock_settings.database_config.pool_timeout = 30.0
         mock_settings.database_config.pool_pre_ping = True
         mock_settings.database_config.echo = False
+        mock_settings.log_config.enable_sql_logging = False  # Disable SQL logging
 
         mocker.patch(
             "src.infrastructure.database.session.get_settings",
@@ -580,3 +774,135 @@ class TestDatabaseManager:
         assert engine2 is not engine1
         assert factory2 is not factory1
         assert mock_create.call_count == 2
+
+
+@pytest.mark.unit
+class TestQueryEventListeners:
+    """Test cases for query event listener functions."""
+
+    def test_before_cursor_execute_sets_start_time(self, mocker: MockerFixture) -> None:
+        """Test that before_cursor_execute sets query start time."""
+        # Create mock context
+        mock_context = mocker.MagicMock()
+
+        # Call before_cursor_execute
+        _before_cursor_execute(
+            _conn=mocker.MagicMock(),
+            _cursor=mocker.MagicMock(),
+            _statement="SELECT 1",
+            _parameters=None,
+            context=mock_context,
+            _executemany=False,
+        )
+
+        # Verify start time was set in the weak dictionary
+        assert mock_context in _query_start_times
+        assert isinstance(_query_start_times[mock_context], float)
+        assert _query_start_times[mock_context] > 0
+
+    def test_after_cursor_execute_tracks_metrics(self, mocker: MockerFixture) -> None:
+        """Test that after_cursor_execute tracks query metrics."""
+        # Mock dependencies
+        mock_settings = mocker.MagicMock()
+        mock_settings.log_config.enable_sql_logging = True
+        mock_settings.log_config.slow_query_threshold_ms = 100
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+
+        # Mock logger context functions
+        mocker.patch(
+            "src.infrastructure.database.session.get_logger_context",
+            return_value={"db_query_count": 2, "db_query_duration_ms": 50.0},
+        )
+        mock_bind_context = mocker.patch(
+            "src.infrastructure.database.session.bind_logger_context"
+        )
+
+        # Mock RequestContext
+        mocker.patch(
+            "src.infrastructure.database.session.RequestContext.get_correlation_id",
+            return_value="test-correlation-123",
+        )
+
+        # Create mock context and set start time
+        mock_context = mocker.MagicMock()
+        _query_start_times[mock_context] = time.time() - 0.05  # 50ms ago
+
+        # Call after_cursor_execute
+        _after_cursor_execute(
+            _conn=mocker.MagicMock(),
+            _cursor=mocker.MagicMock(),
+            statement="SELECT * FROM users",
+            parameters={"id": 123},
+            context=mock_context,
+            executemany=False,
+        )
+
+        # Verify bind_logger_context was called with aggregated metrics
+        mock_bind_context.assert_called_once()
+        call_kwargs = mock_bind_context.call_args[1]
+        assert call_kwargs["db_query_count"] == 3  # 2 + 1
+        assert call_kwargs["db_query_duration_ms"] >= 100.0  # Previous 50 + new 50+
+
+    def test_after_cursor_execute_logs_slow_queries(
+        self, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that slow queries are logged."""
+        # Mock dependencies
+        mock_settings = mocker.MagicMock()
+        mock_settings.log_config.enable_sql_logging = True
+        mock_settings.log_config.slow_query_threshold_ms = 10  # Low threshold
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+
+        # Mock logger context
+        mocker.patch(
+            "src.core.logging.get_logger_context",
+            return_value={},
+        )
+        mocker.patch("src.infrastructure.database.session.bind_logger_context")
+
+        # Mock RequestContext
+        mocker.patch(
+            "src.infrastructure.database.session.RequestContext.get_correlation_id",
+            return_value="test-correlation-123",
+        )
+
+        # Create mock context and set start time 50ms ago
+        mock_context = mocker.MagicMock()
+        _query_start_times[mock_context] = time.time() - 0.05  # 50ms ago
+
+        # Call after_cursor_execute
+        _after_cursor_execute(
+            _conn=mocker.MagicMock(),
+            _cursor=mocker.MagicMock(),
+            statement="SELECT * FROM large_table WHERE status = :status",
+            parameters={"status": "active"},
+            context=mock_context,
+            executemany=False,
+        )
+
+        # Check that slow query was logged
+        caplog.set_level("WARNING")
+
+        # Look through all records for the slow query
+        slow_query_found = False
+        for record in caplog.records:
+            message = str(record.getMessage())
+            if "slow_query_detected" in message:
+                slow_query_found = True
+                # Verify key information is in the log message
+                assert "SELECT * FROM large_table" in message
+                assert "test-correlation-123" in message
+                assert "duration_ms" in message
+                assert "threshold_ms" in message
+                break
+
+        assert slow_query_found, (
+            "No slow query logs found. Records: "
+            f"{[r.getMessage() for r in caplog.records]}"
+        )

@@ -4,9 +4,17 @@ This module provides the async engine and session factory configuration
 for the Tributum application, with proper connection pooling and cleanup.
 """
 
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from typing import Any
+from weakref import WeakKeyDictionary
 
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+from sqlalchemy import event
+from sqlalchemy.engine import Connection
+from sqlalchemy.engine.interfaces import DBAPICursor, ExecutionContext
+from sqlalchemy.exc import ArgumentError, InvalidRequestError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -15,10 +23,102 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from src.core.config import get_settings
-from src.core.logging import get_logger
+from src.core.context import RequestContext
+from src.core.error_context import sanitize_context
+from src.core.logging import bind_logger_context, get_logger, get_logger_context
 from src.infrastructure.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
 
 logger = get_logger(__name__)
+
+# Store query start times for execution contexts
+_query_start_times: WeakKeyDictionary[ExecutionContext, float] = WeakKeyDictionary()
+
+
+def _before_cursor_execute(
+    _conn: Connection,
+    _cursor: DBAPICursor,
+    _statement: str,
+    _parameters: dict[str, Any] | list[Any] | tuple[Any, ...] | None,
+    context: ExecutionContext,
+    _executemany: bool,
+) -> None:
+    """Track query start time for performance monitoring.
+
+    Args:
+        _conn: Database connection (unused).
+        _cursor: Database cursor (unused).
+        _statement: SQL statement being executed (unused).
+        _parameters: Query parameters (unused).
+        context: SQLAlchemy execution context.
+        _executemany: Whether this is an executemany operation (unused).
+    """
+    # Store start time in the weak dictionary
+    _query_start_times[context] = time.time()
+
+
+def _after_cursor_execute(
+    _conn: Connection,
+    _cursor: DBAPICursor,
+    statement: str,
+    parameters: dict[str, Any] | list[Any] | tuple[Any, ...] | None,
+    context: ExecutionContext,
+    executemany: bool,
+) -> None:
+    """Log slow queries and track query metrics.
+
+    Args:
+        _conn: Database connection (unused).
+        _cursor: Database cursor (unused).
+        statement: SQL statement that was executed.
+        parameters: Query parameters.
+        context: SQLAlchemy execution context.
+        executemany: Whether this was an executemany operation.
+    """
+    settings = get_settings()
+
+    # Calculate query duration
+    duration_ms = 0.0
+    start_time = _query_start_times.get(context)
+    if start_time is not None:
+        duration_ms = (time.time() - start_time) * 1000
+        # Clean up the entry
+        _query_start_times.pop(context, None)
+
+    # Get current correlation ID for request tracking
+    correlation_id = RequestContext.get_correlation_id()
+
+    # Update query metrics in logger context - aggregate values
+    current_context = get_logger_context()
+    current_count = current_context.get("db_query_count", 0)
+    current_duration = current_context.get("db_query_duration_ms", 0.0)
+
+    bind_logger_context(
+        db_query_count=current_count + 1,
+        db_query_duration_ms=current_duration + duration_ms,
+    )
+
+    # Log slow queries
+    if (
+        settings.log_config.enable_sql_logging
+        and duration_ms >= settings.log_config.slow_query_threshold_ms
+    ):
+        # Sanitize parameters for logging
+        sanitized_params = None
+        if parameters:
+            sanitized_params = sanitize_context({"params": parameters}).get("params")
+
+        # Clean up the SQL statement for logging
+        clean_statement = " ".join(statement.split())[:500]  # Limit length
+
+        logger.warning(
+            "slow_query_detected",
+            query=clean_statement,
+            duration_ms=round(duration_ms, 2),
+            parameters=sanitized_params,
+            correlation_id=correlation_id,
+            executemany=executemany,
+            threshold_ms=settings.log_config.slow_query_threshold_ms,
+        )
 
 
 def create_database_engine(database_url: str | None = None) -> AsyncEngine:
@@ -55,12 +155,55 @@ def create_database_engine(database_url: str | None = None) -> AsyncEngine:
         },
     )
 
+    # Enable OpenTelemetry instrumentation if SQL logging is enabled
+    if settings.log_config.enable_sql_logging:
+        try:
+            # Instrument the sync engine for compatibility with SQLAlchemy events
+            SQLAlchemyInstrumentor().instrument(
+                engine=engine.sync_engine,
+                enable_commenter=True,
+                commenter_options={"opentelemetry_values": True},
+            )
+            logger.info("Enabled OpenTelemetry SQLAlchemy instrumentation")
+        except (RuntimeError, AttributeError, TypeError) as e:
+            # RuntimeError: General instrumentation failures (e.g.,
+            # AlreadyInstrumentedError)
+            # AttributeError: Engine missing expected attributes
+            # TypeError: Invalid arguments to instrument method
+            logger.warning(
+                "Failed to enable OpenTelemetry SQLAlchemy instrumentation",
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
+
+        try:
+            # Add custom event listeners for detailed query logging
+            # Use the sync_engine for event listeners as they work with sync events
+            event.listen(
+                engine.sync_engine, "before_cursor_execute", _before_cursor_execute
+            )
+            event.listen(
+                engine.sync_engine, "after_cursor_execute", _after_cursor_execute
+            )
+            logger.info("Registered custom query performance event listeners")
+        except (InvalidRequestError, ArgumentError, AttributeError, TypeError) as e:
+            # InvalidRequestError: Invalid event name or target type mismatch
+            # ArgumentError: Invalid function arguments or listener signature
+            # AttributeError: Target doesn't support event listening
+            # TypeError: Invalid arguments to event.listen
+            logger.warning(
+                "Failed to register query performance event listeners",
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
+
     logger.info(
         "Created database engine",
         pool_size=db_config.pool_size,
         max_overflow=db_config.max_overflow,
         pool_timeout=db_config.pool_timeout,
         pool_pre_ping=db_config.pool_pre_ping,
+        sql_logging_enabled=settings.log_config.enable_sql_logging,
     )
 
     return engine

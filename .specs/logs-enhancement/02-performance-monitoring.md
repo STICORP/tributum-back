@@ -126,7 +126,7 @@ The implementation follows all architectural patterns, maintains backward compat
 ---
 
 ### Task 2.2: Async Database Query Performance Tracking
-**Status**: pending
+**Status**: ✅ completed
 **Files to modify**:
 - `src/infrastructure/database/session.py`
 - `src/infrastructure/database/dependencies.py`
@@ -186,6 +186,37 @@ The implementation follows all architectural patterns, maintains backward compat
 - Slow queries logged with full context
 - Query statistics in request logs
 - No performance regression in query execution
+
+**Implementation Summary**:
+Task 2.2 has been successfully implemented with the following enhancements:
+
+1. **OpenTelemetry SQLAlchemy Instrumentation**:
+   - Added automatic instrumentation in `create_database_engine()` when SQL logging is enabled
+   - Includes commenter support for better trace correlation
+   - Graceful handling if instrumentation fails
+
+2. **Custom Event Listeners**:
+   - `_before_cursor_execute`: Captures query start time
+   - `_after_cursor_execute`: Calculates duration, logs slow queries, updates metrics
+   - Slow query logging includes sanitized parameters and correlation IDs
+   - Configurable threshold via `slow_query_threshold_ms`
+
+3. **Query Metrics Tracking**:
+   - Metrics aggregated in logger context: `db_query_count`, `db_query_duration_ms`
+   - `get_db()` dependency tracks session-specific metrics
+   - Metrics automatically cleared after each request
+
+4. **Integration with Request Logging**:
+   - RequestLoggingMiddleware reads database metrics from logger context
+   - Adds metrics to both logs and OpenTelemetry spans
+   - Calculates average query time for better insights
+
+5. **Testing**:
+   - Comprehensive unit tests for event listeners and instrumentation
+   - Integration tests verify end-to-end functionality
+   - Tests confirm no performance regression
+
+The implementation seamlessly integrates with the existing logging and observability infrastructure, providing valuable database performance insights without adding significant overhead.
 
 ---
 

@@ -1,7 +1,6 @@
 """Tests for performance metrics in RequestLoggingMiddleware."""
 
 import asyncio
-from unittest.mock import MagicMock
 
 import pytest
 from fastapi import Response
@@ -229,6 +228,83 @@ class TestPerformanceMetrics:
         call_kwargs = completed_calls[0][1]
         assert "memory_delta_mb" not in call_kwargs
 
+    def test_database_query_metrics_in_span(self, mocker: MockerFixture) -> None:
+        """Test that database query metrics are added to OpenTelemetry spans."""
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
+
+        # Mock OpenTelemetry span
+        mock_span = mocker.MagicMock()
+        mock_span.is_recording.return_value = True
+        mocker.patch(
+            "src.api.middleware.request_logging.trace.get_current_span",
+            return_value=mock_span,
+        )
+
+        # Mock get_logger_context to return database metrics
+        mock_get_logger_context = mocker.patch(
+            "src.api.middleware.request_logging.get_logger_context"
+        )
+        mock_get_logger_context.return_value = {
+            "db_query_count": 5,
+            "db_query_duration_ms": 123.45,
+        }
+
+        # Mock clear_logger_context
+        mocker.patch("src.api.middleware.request_logging.clear_logger_context")
+
+        # Create app
+        app = create_test_app()
+        client = TestClient(app)
+        response = client.get("/test")
+        assert response.status_code == 200
+
+        # Verify database metrics were added to span
+        mock_span.set_attribute.assert_any_call("db.query_count", 5)
+        mock_span.set_attribute.assert_any_call("db.query_duration_ms", 123.45)
+        mock_span.set_attribute.assert_any_call("db.query_avg_ms", 24.69)
+
+    def test_database_query_metrics_in_logs(self, mocker: MockerFixture) -> None:
+        """Test that database query metrics appear in request logs."""
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
+
+        # Mock get_logger_context to return database metrics
+        mock_get_logger_context = mocker.patch(
+            "src.api.middleware.request_logging.get_logger_context"
+        )
+        mock_get_logger_context.return_value = {
+            "db_query_count": 3,
+            "db_query_duration_ms": 45.67,
+        }
+
+        # Mock clear_logger_context
+        mocker.patch("src.api.middleware.request_logging.clear_logger_context")
+
+        # Create app
+        app = create_test_app()
+        client = TestClient(app)
+        response = client.get("/test")
+        assert response.status_code == 200
+
+        # Find the request_completed call
+        completed_calls = [
+            call
+            for call in mock_logger.info.call_args_list
+            if call[0][0] == "request_completed"
+        ]
+        assert len(completed_calls) == 1
+
+        # Verify database metrics are included
+        call_kwargs = completed_calls[0][1]
+        assert call_kwargs["db_query_count"] == 3
+        assert call_kwargs["db_query_duration_ms"] == 45.67
+        assert call_kwargs["db_query_avg_ms"] == 15.22
+
     def test_opentelemetry_span_attributes(self, mocker: MockerFixture) -> None:
         """Test that OpenTelemetry span attributes are added."""
         mock_logger = mocker.Mock()
@@ -237,12 +313,18 @@ class TestPerformanceMetrics:
         )
 
         # Mock OpenTelemetry span
-        mock_span = MagicMock()
+        mock_span = mocker.MagicMock()
         mock_span.is_recording.return_value = True
         mocker.patch(
             "src.api.middleware.request_logging.trace.get_current_span",
             return_value=mock_span,
         )
+
+        # Mock get_logger_context to return empty dict (no db queries)
+        mocker.patch(
+            "src.api.middleware.request_logging.get_logger_context", return_value={}
+        )
+        mocker.patch("src.api.middleware.request_logging.clear_logger_context")
 
         # Create app with body logging for size tracking
         app = create_test_app(
@@ -279,7 +361,7 @@ class TestPerformanceMetrics:
         )
 
         # Mock OpenTelemetry span
-        mock_span = MagicMock()
+        mock_span = mocker.MagicMock()
         mock_span.is_recording.return_value = True
         mocker.patch(
             "src.api.middleware.request_logging.trace.get_current_span",
@@ -313,7 +395,7 @@ class TestPerformanceMetrics:
         )
 
         # Mock OpenTelemetry span
-        mock_span = MagicMock()
+        mock_span = mocker.MagicMock()
         mock_span.is_recording.return_value = True
         mocker.patch(
             "src.api.middleware.request_logging.trace.get_current_span",
@@ -353,7 +435,7 @@ class TestPerformanceMetrics:
         )
 
         # Mock OpenTelemetry span
-        mock_span = MagicMock()
+        mock_span = mocker.MagicMock()
         mock_span.is_recording.return_value = True
         mocker.patch(
             "src.api.middleware.request_logging.trace.get_current_span",
@@ -393,7 +475,7 @@ class TestPerformanceMetrics:
         )
 
         # Mock non-recording span
-        mock_span = MagicMock()
+        mock_span = mocker.MagicMock()
         mock_span.is_recording.return_value = False
         mocker.patch(
             "src.api.middleware.request_logging.trace.get_current_span",

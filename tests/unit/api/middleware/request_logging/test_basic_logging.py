@@ -189,6 +189,39 @@ class TestRequestLoggingMiddleware:
         assert call_kwargs["query_params"]["username"] == "john"
         assert call_kwargs["query_params"]["password"] == "[REDACTED]"
 
+    def test_excludes_specified_paths(self, mocker: MockerFixture) -> None:
+        """Test that excluded paths bypass logging completely."""
+        mock_logger = mocker.Mock()
+        _mock_get_logger = mocker.patch(
+            "src.api.middleware.request_logging.get_logger", return_value=mock_logger
+        )
+
+        # Mock clear_logger_context to ensure it's not called for excluded paths
+        mock_clear = mocker.patch(
+            "src.api.middleware.request_logging.clear_logger_context"
+        )
+
+        # Create app with health path excluded
+        app = create_test_app(
+            log_config=LogConfig(excluded_paths=["/health", "/metrics"])
+        )
+
+        @app.get("/health")
+        async def health_check() -> Response:
+            return Response(content="healthy")
+
+        client = TestClient(app)
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.text == "healthy"
+
+        # No logs should be generated for excluded paths
+        mock_logger.info.assert_not_called()
+        mock_logger.debug.assert_not_called()
+
+        # Logger context should not be cleared (path was excluded early)
+        mock_clear.assert_not_called()
+
     def test_empty_response_body(self, mocker: MockerFixture) -> None:
         """Test handling of empty response body."""
         mock_logger = mocker.Mock()

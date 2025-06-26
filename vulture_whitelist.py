@@ -59,3 +59,26 @@ class _VultureWhitelist:
 
     def exc_tb(self) -> None:
         """Exception traceback parameter in __aexit__ methods."""
+
+    # SQLAlchemy event listener parameters
+    def cursor(self) -> None:
+        """Database cursor parameter in SQLAlchemy event listeners."""
+
+    def conn(self) -> None:
+        """Database connection parameter in SQLAlchemy event listeners."""
+
+    def statement(self) -> None:
+        """SQL statement parameter in SQLAlchemy event listeners."""
+
+    def parameters(self) -> None:
+        """Query parameters in SQLAlchemy event listeners."""
+
+    def executemany(self) -> None:
+        """Executemany flag in SQLAlchemy event listeners."""
+
+    # SQLAlchemy event listener functions
+    def _before_cursor_execute(self) -> None:
+        """SQLAlchemy before_cursor_execute event handler."""
+
+    def _after_cursor_execute(self) -> None:
+        """SQLAlchemy after_cursor_execute event handler."""

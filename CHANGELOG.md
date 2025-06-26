@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Database query performance tracking with OpenTelemetry instrumentation and slow query detection
 - Granular performance metrics configuration for request logging middleware
 - Performance monitoring for HTTP requests with configurable slow/critical thresholds
 - Automatic structlog configuration on first logger usage
