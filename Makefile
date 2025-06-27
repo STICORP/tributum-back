@@ -17,10 +17,10 @@ dev:  ## Run FastAPI in development mode with auto-reload
 lint:  ## Run linting checks
 	uv run ruff check .
 
-lint-fix:  ## Fix linting issues
+lint-fix:  ## Fix linting issues (includes imports, whitespace, line length)
 	uv run ruff check --fix .
 
-format:  ## Format code
+format:  ## Format code (includes whitespace cleanup, newlines)
 	uv run ruff format .
 
 format-check:  ## Check code formatting

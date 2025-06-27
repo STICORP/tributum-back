@@ -104,6 +104,9 @@ dev = [
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+# Auto-fix common formatting issues
+fix = true
+unsafe-fixes = false
 
 [tool.ruff.lint]
 # Enable ALL rules by default - aligns with our strict quality standards
@@ -138,6 +141,17 @@ ignore = [
 
     # Type stub specific (not relevant for main code)
     "PYI",     # Type stub files rules
+]
+
+# Explicitly enable auto-fixing for the issues you mentioned
+fixable = [
+    "E501",    # Line too long (will wrap long lines)
+    "F401",    # Unused imports
+    "F811",    # Redefinition of unused imports
+    "I",       # Import order and missing imports
+    "W291",    # Trailing whitespace
+    "W292",    # No newline at end of file
+    "W293",    # Blank line contains whitespace
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -182,6 +196,9 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+# Ensure files end with newline and remove trailing whitespace
+docstring-code-format = true
+docstring-code-line-length = 88
 
 # --- MyPy Configuration ---
 [tool.mypy]
