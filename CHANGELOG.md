@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Advanced OpenTelemetry trace sampling with composite sampling strategies based on endpoint priority and request characteristics
+- Intelligent span enrichment with endpoint classification, user context, and comprehensive request metadata
+- Span milestone events for tracking key checkpoints in request processing with structured attributes
 - OpenTelemetry metrics integration with GCP Cloud Monitoring for comprehensive observability
 - System metrics collection (CPU, memory, asyncio tasks, garbage collection) with configurable intervals
 - HTTP request and error metrics with detailed attributes for monitoring and alerting

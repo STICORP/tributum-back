@@ -95,7 +95,10 @@ class TestCorrelationIdToSpan:
         mock_span.set_attribute.assert_any_call(
             "tributum.correlation_id", test_correlation_id
         )
-        assert mock_span.set_attribute.call_count == 2
+        # Also verify user and tenant attributes were set
+        mock_span.set_attribute.assert_any_call("tributum.user.id", "anonymous")
+        mock_span.set_attribute.assert_any_call("tributum.tenant.id", "default")
+        assert mock_span.set_attribute.call_count == 4
 
         # Clean up
         RequestContext.clear()
@@ -111,8 +114,10 @@ class TestCorrelationIdToSpan:
         # Call the function
         add_correlation_id_to_span(mock_span, {})
 
-        # Verify no attributes were set
-        mock_span.set_attribute.assert_not_called()
+        # Verify only user and tenant attributes were set (no correlation ID)
+        mock_span.set_attribute.assert_any_call("tributum.user.id", "anonymous")
+        mock_span.set_attribute.assert_any_call("tributum.tenant.id", "default")
+        assert mock_span.set_attribute.call_count == 2
 
     def test_add_correlation_id_to_span_with_path(self, mocker: MockerFixture) -> None:
         """Test that request path is added to span when available."""
@@ -125,6 +130,13 @@ class TestCorrelationIdToSpan:
 
         # Verify path attribute was set
         mock_span.set_attribute.assert_any_call("http.target", "/api/v1/test")
+        # Verify endpoint classification attributes
+        mock_span.set_attribute.assert_any_call("tributum.endpoint.type", "api")
+        mock_span.set_attribute.assert_any_call("tributum.endpoint.version", "v1")
+        mock_span.set_attribute.assert_any_call("tributum.request.priority", "high")
+        # Verify user and tenant attributes
+        mock_span.set_attribute.assert_any_call("tributum.user.id", "anonymous")
+        mock_span.set_attribute.assert_any_call("tributum.tenant.id", "default")
 
 
 @pytest.mark.integration
@@ -276,13 +288,15 @@ class TestTracingIntegration:
 
         mock_provider_class = mocker.patch("src.core.observability.TracerProvider")
         mock_trace = mocker.patch("src.core.observability.trace")
-        mock_sampler = mocker.patch("src.core.observability.TraceIdRatioBased")
+        mock_create_sampler = mocker.patch(
+            "src.core.observability._create_composite_sampler"
+        )
 
         # Create mock instances
         mock_provider = mocker.Mock()
         mock_provider_class.return_value = mock_provider
         mock_sampler_instance = mocker.Mock()
-        mock_sampler.return_value = mock_sampler_instance
+        mock_create_sampler.return_value = mock_sampler_instance
 
         app = create_app(settings)
 
@@ -295,8 +309,8 @@ class TestTracingIntegration:
             assert resource_attrs["service.version"] == settings.app_version
             assert resource_attrs["deployment.environment"] == settings.environment
 
-            # Verify sampler configuration
-            mock_sampler.assert_called_once_with(0.5)
+            # Verify composite sampler configuration
+            mock_create_sampler.assert_called_once_with(0.5)
 
             # Verify tracer provider was created with correct arguments
             mock_provider_class.assert_called_once_with(

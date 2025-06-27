@@ -8,10 +8,13 @@ import asyncio
 import gc
 import os
 import resource
+import time
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 import psutil
 from opentelemetry import metrics, trace
+from opentelemetry.context import Context
 from opentelemetry.exporter.cloud_monitoring import (
     CloudMonitoringMetricsExporter,
 )
@@ -28,8 +31,15 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-from opentelemetry.trace import Span, Status, StatusCode, Tracer
+from opentelemetry.sdk.trace.sampling import (
+    ALWAYS_ON,
+    ParentBased,
+    Sampler,
+    SamplingResult,
+    TraceIdRatioBased,
+)
+from opentelemetry.trace import Link, Span, SpanKind, Status, StatusCode, Tracer
+from opentelemetry.trace.span import TraceState
 from sqlalchemy.pool import Pool
 
 from src.core.config import get_settings
@@ -48,6 +58,118 @@ request_duration_histogram: Histogram | None = None
 error_counter: Counter | None = None
 db_query_counter: Counter | None = None
 db_query_duration_histogram: Histogram | None = None
+
+
+class CompositeSampler(Sampler):
+    """Composite sampler with different strategies based on request attributes.
+
+    This sampler:
+    - Always samples errors and slow requests
+    - Applies different sampling rates based on endpoint priority
+    - Respects upstream sampling decisions
+
+    Args:
+        base_sample_rate: Default sampling rate (0.0 to 1.0)
+    """
+
+    def __init__(self, base_sample_rate: float) -> None:
+        self.base_sample_rate = base_sample_rate
+        # Create samplers for different scenarios
+        self.always_on = ALWAYS_ON
+        self.base_sampler = TraceIdRatioBased(base_sample_rate)
+        # Different rates for different priorities
+        self.high_priority_sampler = TraceIdRatioBased(min(base_sample_rate * 2, 1.0))
+        self.low_priority_sampler = TraceIdRatioBased(base_sample_rate * 0.1)
+
+    def should_sample(
+        self,
+        parent_context: Context | None,
+        trace_id: int,
+        name: str,
+        kind: SpanKind | None = None,
+        attributes: Mapping[str, Any] | None = None,
+        links: Sequence[Link] | None = None,
+        trace_state: TraceState | None = None,
+    ) -> SamplingResult:
+        """Determine if a span should be sampled based on attributes.
+
+        Args:
+            parent_context: Parent span context
+            trace_id: Unique trace identifier
+            name: Span name
+            kind: Span kind (SERVER, CLIENT, etc.)
+            attributes: Span attributes including our custom ones
+            links: Span links
+            trace_state: Trace state from parent context
+
+        Returns:
+            SamplingResult: Sampling decision
+        """
+        if attributes is None:
+            attributes = {}
+
+        # Fix kind default
+        if kind is None:
+            kind = SpanKind.INTERNAL
+
+        # Always sample if there's an error status
+        status_code = attributes.get("http.status_code", "")
+        if isinstance(status_code, str) and status_code.startswith(("4", "5")):
+            return self.always_on.should_sample(
+                parent_context, trace_id, name, kind, attributes, links, trace_state
+            )
+
+        # Always sample slow requests (will be set by middleware)
+        if attributes.get("tributum.slow_request", False):
+            return self.always_on.should_sample(
+                parent_context, trace_id, name, kind, attributes, links, trace_state
+            )
+
+        # Apply different sampling rates based on priority
+        priority = attributes.get("tributum.request.priority", "medium")
+        if priority == "high":
+            return self.high_priority_sampler.should_sample(
+                parent_context, trace_id, name, kind, attributes, links, trace_state
+            )
+        if priority == "low":
+            return self.low_priority_sampler.should_sample(
+                parent_context, trace_id, name, kind, attributes, links, trace_state
+            )
+
+        # Default sampling
+        return self.base_sampler.should_sample(
+            parent_context, trace_id, name, kind, attributes, links, trace_state
+        )
+
+    def get_description(self) -> str:
+        """Get sampler description.
+
+        Returns:
+            str: Description of the sampling strategy
+        """
+        return (
+            f"CompositeSampler(base_rate={self.base_sample_rate}, "
+            f"high_priority_rate={min(self.base_sample_rate * 2, 1.0)}, "
+            f"low_priority_rate={self.base_sample_rate * 0.1}, "
+            f"always_sample_errors=True)"
+        )
+
+
+def _create_composite_sampler(base_sample_rate: float) -> ParentBased:
+    """Create a composite sampler with parent-based wrapper.
+
+    The parent-based wrapper ensures we respect upstream sampling decisions
+    while applying our custom logic for root spans.
+
+    Args:
+        base_sample_rate: Base sampling rate for normal requests
+
+    Returns:
+        ParentBased: Composite sampler wrapped in parent-based logic
+    """
+    composite = CompositeSampler(base_sample_rate)
+    # Wrap in ParentBased to respect upstream decisions
+    return ParentBased(root=composite)
 
 
 class ErrorTrackingSpanProcessor(BatchSpanProcessor):
@@ -105,8 +227,8 @@ def setup_observability() -> None:
             sample_rate=obs_config.trace_sample_rate,
         )
 
-        # Create tracer provider with sampling
-        sampler = TraceIdRatioBased(obs_config.trace_sample_rate)
+        # Create composite sampler with advanced rules
+        sampler = _create_composite_sampler(obs_config.trace_sample_rate)
         provider = TracerProvider(resource=service_resource, sampler=sampler)
 
         # Add GCP Cloud Trace exporter if project ID is configured
@@ -447,21 +569,137 @@ def record_tributum_error_in_span(span: Span, error: TributumError) -> None:
 
 
 def add_correlation_id_to_span(span: Span, request_scope: dict[str, Any]) -> None:
-    """Add correlation ID to the current span if available.
+    """Add correlation ID and enhanced metadata to the current span.
 
     This function is called by the FastAPI instrumentor for each request
-    to enrich spans with correlation IDs.
+    to enrich spans with correlation IDs and additional context for better
+    observability and analysis in Cloud Trace.
 
     Args:
         span: The current OpenTelemetry span
         request_scope: The ASGI request scope
     """
-    # Add request path as span attribute
-    if "path" in request_scope:
-        span.set_attribute("http.target", request_scope["path"])
+    # Add basic request attributes
+    _add_basic_request_attributes(span, request_scope)
 
     # Add correlation ID if available
     correlation_id = RequestContext.get_correlation_id()
     if correlation_id:
         span.set_attribute("correlation_id", correlation_id)
         span.set_attribute("tributum.correlation_id", correlation_id)
+
+    # Add header-based attributes
+    _add_header_attributes(span, request_scope)
+
+    # Add user and tenant context (placeholders for now)
+    # TODO: Extract from JWT/session when auth is implemented
+    span.set_attribute("tributum.user.id", "anonymous")
+    # TODO: Extract from request context when multi-tenancy is implemented
+    span.set_attribute("tributum.tenant.id", "default")
+
+
+def _add_basic_request_attributes(span: Span, request_scope: dict[str, Any]) -> None:
+    """Add basic request attributes to span.
+
+    Args:
+        span: The OpenTelemetry span
+        request_scope: The ASGI request scope
+    """
+    # Add request path and classify endpoint
+    if "path" in request_scope:
+        path = request_scope["path"]
+        span.set_attribute("http.target", path)
+
+        # Add endpoint classification based on path patterns
+        if path.startswith("/api/v"):
+            span.set_attribute("tributum.endpoint.type", "api")
+            span.set_attribute("tributum.endpoint.version", path.split("/")[2])
+        elif path == "/health":
+            span.set_attribute("tributum.endpoint.type", "health_check")
+        elif path in ("/docs", "/redoc", "/openapi.json"):
+            span.set_attribute("tributum.endpoint.type", "documentation")
+        elif path == "/":
+            span.set_attribute("tributum.endpoint.type", "root")
+        else:
+            span.set_attribute("tributum.endpoint.type", "other")
+
+        # Add request priority for sampling decisions
+        if path == "/health":
+            span.set_attribute("tributum.request.priority", "low")
+        elif path.startswith("/api/"):
+            span.set_attribute("tributum.request.priority", "high")
+        else:
+            span.set_attribute("tributum.request.priority", "medium")
+
+    # Add request method
+    if "method" in request_scope:
+        span.set_attribute("http.method", request_scope["method"])
+
+
+def add_span_milestone(
+    event_name: str,
+    attributes: dict[str, Any] | None = None,
+    span: Span | None = None,
+) -> None:
+    """Add a milestone event to the current or provided span.
+
+    This function adds structured events to spans for tracking key milestones
+    in request processing, such as database connections, external API calls,
+    or business logic checkpoints.
+
+    Args:
+        event_name: Name of the milestone event
+        attributes: Optional attributes to attach to the event
+        span: Optional span to add the event to (uses current span if None)
+    """
+    if span is None:
+        span = trace.get_current_span()
+
+    if not span or not span.is_recording():
+        return
+
+    # Add timestamp to attributes
+    event_attributes = {"timestamp": time.time()}
+    if attributes:
+        event_attributes.update(attributes)
+
+    # Add the event to the span
+    span.add_event(event_name, attributes=event_attributes)
+
+
+def _add_header_attributes(span: Span, request_scope: dict[str, Any]) -> None:
+    """Add header-based attributes to span.
+
+    Args:
+        span: The OpenTelemetry span
+        request_scope: The ASGI request scope
+    """
+    # Extract headers for additional context
+    headers = dict(request_scope.get("headers", []))
+
+    # Add user agent for client identification
+    user_agent = headers.get(b"user-agent", b"").decode("utf-8", errors="ignore")
+    if user_agent:
+        span.set_attribute("http.user_agent", user_agent)
+
+    # Add content type for request classification
+    content_type = headers.get(b"content-type", b"").decode("utf-8", errors="ignore")
+    if content_type:
+        span.set_attribute("http.request.content_type", content_type.split(";")[0])
+
+    # Add request size if available
+    content_length = headers.get(b"content-length", b"").decode(
+        "utf-8", errors="ignore"
+    )
+    if content_length and content_length.isdigit():
+        span.set_attribute("http.request.size_bytes", int(content_length))
+
+    # Add client IP for geographic analysis (if behind proxy)
+    x_forwarded_for = headers.get(b"x-forwarded-for", b"").decode(
+        "utf-8", errors="ignore"
+    )
+    if x_forwarded_for:
+        client_ip = x_forwarded_for.split(",")[0].strip()
+        span.set_attribute("http.client_ip", client_ip)
+    elif client := request_scope.get("client"):
+        span.set_attribute("http.client_ip", client[0])

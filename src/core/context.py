@@ -72,7 +72,7 @@ def generate_request_id() -> str:
 
     Examples:
         >>> request_id = generate_request_id()
-        >>> request_id.startswith('req-')
+        >>> request_id.startswith("req-")
         True
         >>> len(request_id)
         40

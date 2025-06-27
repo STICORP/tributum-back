@@ -5,18 +5,24 @@ import pytest
 import pytest_check
 from opentelemetry.sdk.trace import Span
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.trace import Status, StatusCode
+from opentelemetry.sdk.trace.sampling import Decision
+from opentelemetry.trace import SpanKind, Status, StatusCode
 from pytest_mock import MockerFixture
 
 import src.core.observability
 from src.core.config import Settings
+from src.core.context import RequestContext
 from src.core.exceptions import ErrorCode, Severity, TributumError
 from src.core.observability import (
+    CompositeSampler,
     ErrorTrackingSpanProcessor,
+    _create_composite_sampler,
     _get_active_tasks_count,
     _get_cpu_percentage,
     _get_gc_collections,
     _get_memory_usage,
+    add_correlation_id_to_span,
+    add_span_milestone,
     get_database_pool_metrics,
     get_meter,
     get_tracer,
@@ -67,7 +73,9 @@ class TestSetupObservability:
         # Mock dependencies
         mock_logger = mocker.patch("src.core.observability.logger")
         mock_resource = mocker.patch("src.core.observability.Resource")
-        mock_sampler = mocker.patch("src.core.observability.TraceIdRatioBased")
+        mock_create_sampler = mocker.patch(
+            "src.core.observability._create_composite_sampler"
+        )
         mock_provider_class = mocker.patch("src.core.observability.TracerProvider")
         mock_trace = mocker.patch("src.core.observability.trace")
 
@@ -75,7 +83,7 @@ class TestSetupObservability:
         mock_resource_instance = mocker.Mock()
         mock_resource.create.return_value = mock_resource_instance
         mock_sampler_instance = mocker.Mock()
-        mock_sampler.return_value = mock_sampler_instance
+        mock_create_sampler.return_value = mock_sampler_instance
         mock_provider = mocker.Mock()
         mock_provider_class.return_value = mock_provider
 
@@ -92,7 +100,7 @@ class TestSetupObservability:
         )
 
         # Verify sampler was created with correct rate
-        mock_sampler.assert_called_once_with(0.5)
+        mock_create_sampler.assert_called_once_with(0.5)
 
         # Verify provider was created
         mock_provider_class.assert_called_once_with(
@@ -125,7 +133,9 @@ class TestSetupObservability:
         # Mock dependencies
         mock_logger = mocker.patch("src.core.observability.logger")
         mock_resource = mocker.patch("src.core.observability.Resource")
-        mock_sampler = mocker.patch("src.core.observability.TraceIdRatioBased")
+        mock_create_sampler = mocker.patch(
+            "src.core.observability._create_composite_sampler"
+        )
         mock_provider_class = mocker.patch("src.core.observability.TracerProvider")
         mocker.patch("src.core.observability.trace")
         mock_exporter_class = mocker.patch(
@@ -139,7 +149,7 @@ class TestSetupObservability:
         mock_resource_instance = mocker.Mock()
         mock_resource.create.return_value = mock_resource_instance
         mock_sampler_instance = mocker.Mock()
-        mock_sampler.return_value = mock_sampler_instance
+        mock_create_sampler.return_value = mock_sampler_instance
         mock_provider = mocker.Mock()
         mock_provider_class.return_value = mock_provider
         mock_exporter = mocker.Mock()
@@ -181,7 +191,7 @@ class TestSetupObservability:
         # Mock dependencies
         mock_logger = mocker.patch("src.core.observability.logger")
         mocker.patch("src.core.observability.Resource")
-        mocker.patch("src.core.observability.TraceIdRatioBased")
+        mocker.patch("src.core.observability._create_composite_sampler")
         mock_provider_class = mocker.patch("src.core.observability.TracerProvider")
         mock_trace = mocker.patch("src.core.observability.trace")
 
@@ -828,3 +838,291 @@ class TestSystemMetrics:
         assert result[1].attributes == {"generation": "1"}
         assert result[2].value == 10
         assert result[2].attributes == {"generation": "2"}
+
+
+@pytest.mark.unit
+class TestCompositeSampler:
+    """Test cases for the CompositeSampler implementation."""
+
+    def test_composite_sampler_creation(self) -> None:
+        """Test that CompositeSampler is created correctly."""
+        sampler = CompositeSampler(0.5)
+
+        assert sampler.base_sample_rate == 0.5
+        assert sampler.always_on is not None
+        assert sampler.base_sampler is not None
+        assert sampler.high_priority_sampler is not None
+        assert sampler.low_priority_sampler is not None
+
+    def test_composite_sampler_always_samples_errors(self) -> None:
+        """Test that errors are always sampled."""
+        sampler = CompositeSampler(0.0)  # 0% base rate
+
+        # Test 4xx error
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            SpanKind.SERVER,
+            {"http.status_code": "404"},
+            None,
+            None,
+        )
+        assert result.decision == Decision.RECORD_AND_SAMPLE
+
+        # Test 5xx error
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            SpanKind.SERVER,
+            {"http.status_code": "500"},
+            None,
+            None,
+        )
+        assert result.decision == Decision.RECORD_AND_SAMPLE
+
+    def test_composite_sampler_always_samples_slow_requests(self) -> None:
+        """Test that slow requests are always sampled."""
+        sampler = CompositeSampler(0.0)  # 0% base rate
+
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            SpanKind.SERVER,
+            {"tributum.slow_request": True},
+            None,
+            None,
+        )
+        assert result.decision == Decision.RECORD_AND_SAMPLE
+
+    def test_composite_sampler_priority_based_sampling(self) -> None:
+        """Test priority-based sampling rates."""
+        sampler = CompositeSampler(0.5)
+
+        # High priority should have higher chance of sampling
+        # We can't test exact rates due to randomness, but we can verify
+        # the sampler is called with correct priority
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            SpanKind.SERVER,
+            {"tributum.request.priority": "high"},
+            None,
+            None,
+        )
+        # Just verify it returns a valid result
+        assert result.decision is not None
+
+        # Low priority
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            SpanKind.SERVER,
+            {"tributum.request.priority": "low"},
+            None,
+            None,
+        )
+        assert result.decision is not None
+
+    def test_composite_sampler_description(self) -> None:
+        """Test sampler description."""
+        sampler = CompositeSampler(0.5)
+        description = sampler.get_description()
+
+        assert "CompositeSampler" in description
+        assert "base_rate=0.5" in description
+        assert "high_priority_rate=1.0" in description
+        assert "low_priority_rate=0.05" in description
+        assert "always_sample_errors=True" in description
+
+    def test_composite_sampler_none_attributes(self) -> None:
+        """Test CompositeSampler with None attributes."""
+        sampler = CompositeSampler(0.5)
+
+        # Call with None attributes - should use empty dict internally
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            SpanKind.SERVER,
+            None,  # None attributes
+            None,
+            None,
+        )
+        assert result.decision is not None
+
+    def test_composite_sampler_none_kind(self) -> None:
+        """Test CompositeSampler with None kind."""
+        sampler = CompositeSampler(0.5)
+
+        # Call with None kind - should default to INTERNAL
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            None,  # None kind
+            {"http.status_code": "200"},
+            None,
+            None,
+        )
+        assert result.decision is not None
+
+    def test_composite_sampler_default_sampling(self) -> None:
+        """Test CompositeSampler falls back to base sampler for non-special cases."""
+        sampler = CompositeSampler(0.0)  # 0% sample rate
+
+        # Regular request (not error, not slow, not priority)
+        attributes = {
+            "http.status_code": "200",
+            "http.request.path": "/api/v1/regular",
+        }
+        result = sampler.should_sample(
+            None,
+            12345,
+            "test",
+            SpanKind.SERVER,
+            attributes,
+            None,
+            None,
+        )
+        # With 0% sample rate, should not sample
+        assert result.decision == Decision.DROP
+
+    def test_create_composite_sampler_function(self) -> None:
+        """Test the _create_composite_sampler helper function."""
+        sampler = _create_composite_sampler(0.5)
+        # Should return a ParentBased sampler
+        assert sampler.__class__.__name__ == "ParentBased"
+
+
+@pytest.mark.unit
+class TestSpanEnhancement:
+    """Test cases for span enhancement functions."""
+
+    def test_add_correlation_id_to_span_with_full_context(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test adding correlation ID and metadata to span."""
+        # Set correlation ID
+        correlation_id = "test-correlation-123"
+        RequestContext.set_correlation_id(correlation_id)
+
+        # Mock span
+        mock_span = mocker.Mock()
+
+        # Create request scope with full context
+        request_scope = {
+            "path": "/api/v1/users",
+            "method": "GET",
+            "headers": [
+                (b"user-agent", b"TestClient/1.0"),
+                (b"content-type", b"application/json"),
+                (b"content-length", b"100"),
+                (b"x-forwarded-for", b"192.168.1.1, 10.0.0.1"),
+            ],
+            "client": ("127.0.0.1", 8080),
+        }
+
+        # Call the function
+        add_correlation_id_to_span(mock_span, request_scope)
+
+        # Verify all attributes were set
+        expected_calls = [
+            mocker.call("http.target", "/api/v1/users"),
+            mocker.call("tributum.endpoint.type", "api"),
+            mocker.call("tributum.endpoint.version", "v1"),
+            mocker.call("tributum.request.priority", "high"),
+            mocker.call("http.method", "GET"),
+            mocker.call("correlation_id", correlation_id),
+            mocker.call("tributum.correlation_id", correlation_id),
+            mocker.call("http.user_agent", "TestClient/1.0"),
+            mocker.call("http.request.content_type", "application/json"),
+            mocker.call("http.request.size_bytes", 100),
+            mocker.call("http.client_ip", "192.168.1.1"),
+            mocker.call("tributum.user.id", "anonymous"),
+            mocker.call("tributum.tenant.id", "default"),
+        ]
+
+        for call in expected_calls:
+            assert call in mock_span.set_attribute.call_args_list
+
+        # Clean up
+        RequestContext.clear()
+
+    def test_add_span_milestone(self, mocker: MockerFixture) -> None:
+        """Test adding milestone events to spans."""
+        # Mock current span
+        mock_span = mocker.Mock()
+        mock_span.is_recording.return_value = True
+        mocker.patch(
+            "src.core.observability.trace.get_current_span", return_value=mock_span
+        )
+
+        # Mock time
+        mocker.patch("src.core.observability.time.time", return_value=1234567890.123)
+
+        # Add milestone
+        add_span_milestone("test_event", {"key": "value"})
+
+        # Verify event was added
+        mock_span.add_event.assert_called_once()
+        call_args = mock_span.add_event.call_args
+        assert call_args[0][0] == "test_event"
+        assert call_args[1]["attributes"]["key"] == "value"
+        assert call_args[1]["attributes"]["timestamp"] == 1234567890.123
+
+    def test_add_span_milestone_with_non_recording_span(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test that milestone is not added to non-recording span."""
+        # Mock non-recording span
+        mock_span = mocker.Mock()
+        mock_span.is_recording.return_value = False
+        mocker.patch(
+            "src.core.observability.trace.get_current_span", return_value=mock_span
+        )
+
+        # Try to add milestone
+        add_span_milestone("test_event", {"key": "value"})
+
+        # Verify event was NOT added
+        mock_span.add_event.assert_not_called()
+
+    def test_endpoint_classification(self, mocker: MockerFixture) -> None:
+        """Test endpoint type classification."""
+        test_cases = [
+            ("/api/v1/users", "api", "v1", "high"),
+            ("/api/v2/items", "api", "v2", "high"),
+            ("/health", "health_check", None, "low"),
+            ("/docs", "documentation", None, "medium"),
+            ("/redoc", "documentation", None, "medium"),
+            ("/openapi.json", "documentation", None, "medium"),
+            ("/", "root", None, "medium"),
+            ("/other", "other", None, "medium"),
+        ]
+
+        for path, expected_type, expected_version, expected_priority in test_cases:
+            mock_span = mocker.Mock()
+            request_scope = {"path": path}
+
+            add_correlation_id_to_span(mock_span, request_scope)
+
+            # Verify endpoint type
+            mock_span.set_attribute.assert_any_call(
+                "tributum.endpoint.type", expected_type
+            )
+
+            # Verify version if applicable
+            if expected_version:
+                mock_span.set_attribute.assert_any_call(
+                    "tributum.endpoint.version", expected_version
+                )
+
+            # Verify priority
+            mock_span.set_attribute.assert_any_call(
+                "tributum.request.priority", expected_priority
+            )
