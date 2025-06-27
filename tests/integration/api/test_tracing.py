@@ -13,9 +13,10 @@ from pytest_mock import MockerFixture
 
 import src.api.main
 from src.api.constants import CORRELATION_ID_HEADER
-from src.api.main import _add_correlation_id_to_span, create_app, lifespan
+from src.api.main import create_app, lifespan
 from src.core.config import ObservabilityConfig, Settings
 from src.core.context import RequestContext
+from src.core.observability import add_correlation_id_to_span
 
 
 class InMemorySpanExporter(SpanExporter):
@@ -75,7 +76,7 @@ class TestTracingConfiguration:
 
 @pytest.mark.integration
 class TestCorrelationIdToSpan:
-    """Test cases for _add_correlation_id_to_span function."""
+    """Test cases for add_correlation_id_to_span function."""
 
     def test_add_correlation_id_to_span_with_id(self, mocker: MockerFixture) -> None:
         """Test that correlation ID is added to span when available."""
@@ -87,7 +88,7 @@ class TestCorrelationIdToSpan:
         RequestContext.set_correlation_id(test_correlation_id)
 
         # Call the function
-        _add_correlation_id_to_span(mock_span, {})
+        add_correlation_id_to_span(mock_span, {})
 
         # Verify attributes were set
         mock_span.set_attribute.assert_any_call("correlation_id", test_correlation_id)
@@ -108,7 +109,7 @@ class TestCorrelationIdToSpan:
         mock_span = mocker.Mock()
 
         # Call the function
-        _add_correlation_id_to_span(mock_span, {})
+        add_correlation_id_to_span(mock_span, {})
 
         # Verify no attributes were set
         mock_span.set_attribute.assert_not_called()
@@ -120,7 +121,7 @@ class TestCorrelationIdToSpan:
 
         # Call the function with request scope containing path
         request_scope = {"path": "/api/v1/test"}
-        _add_correlation_id_to_span(mock_span, request_scope)
+        add_correlation_id_to_span(mock_span, request_scope)
 
         # Verify path attribute was set
         mock_span.set_attribute.assert_any_call("http.target", "/api/v1/test")
@@ -141,19 +142,10 @@ class TestTracingIntegration:
         # Mock setup_tracing
         mock_setup_tracing = mocker.patch("src.api.main.setup_tracing")
 
-        # Mock database operations
-        mock_engine = mocker.Mock()
-        mock_connect = mocker.Mock()
-        mock_engine.connect.return_value = mock_connect
-        mock_connect.__aenter__ = mocker.AsyncMock(return_value=mock_connect)
-        mock_connect.__aexit__ = mocker.AsyncMock()
-        mock_connect.execute = mocker.AsyncMock()
-        mock_result = mocker.Mock()
-        mock_result.scalar = mocker.Mock(return_value=1)
-        mock_connect.execute.return_value = mock_result
-        mock_engine.pool.size.return_value = 10
-
-        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
+        # Mock database connection check to return success
+        mocker.patch(
+            "src.api.main.check_database_connection", return_value=(True, None)
+        )
         mocker.patch("src.api.main.close_database", new=mocker.AsyncMock())
 
         # Create app with tracing enabled
@@ -254,24 +246,15 @@ class TestTracingIntegration:
         # Verify server_request_hook is set
         assert "server_request_hook" in call_kwargs
         assert (
-            call_kwargs["server_request_hook"].__name__ == "_add_correlation_id_to_span"
+            call_kwargs["server_request_hook"].__name__ == "add_correlation_id_to_span"
         )
 
     async def test_observability_configuration(self, mocker: MockerFixture) -> None:
         """Test that observability configuration is properly passed to setup."""
-        # Mock database operations
-        mock_engine = mocker.Mock()
-        mock_connect = mocker.Mock()
-        mock_engine.connect.return_value = mock_connect
-        mock_connect.__aenter__ = mocker.AsyncMock(return_value=mock_connect)
-        mock_connect.__aexit__ = mocker.AsyncMock()
-        mock_connect.execute = mocker.AsyncMock()
-        mock_result = mocker.Mock()
-        mock_result.scalar = mocker.Mock(return_value=1)
-        mock_connect.execute.return_value = mock_result
-        mock_engine.pool.size.return_value = 10
-
-        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
+        # Mock database connection check to return success
+        mocker.patch(
+            "src.api.main.check_database_connection", return_value=(True, None)
+        )
         mocker.patch("src.api.main.close_database", new=mocker.AsyncMock())
 
         # Create app with specific observability config

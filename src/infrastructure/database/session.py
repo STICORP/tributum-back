@@ -11,10 +11,10 @@ from typing import Any
 from weakref import WeakKeyDictionary
 
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from sqlalchemy import event
+from sqlalchemy import event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import DBAPICursor, ExecutionContext
-from sqlalchemy.exc import ArgumentError, InvalidRequestError
+from sqlalchemy.exc import ArgumentError, InvalidRequestError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -331,3 +331,29 @@ async def close_database() -> None:
     all database connections are properly closed.
     """
     await _db_manager.close()
+
+
+async def check_database_connection() -> tuple[bool, str | None]:
+    """Check if database connection is available.
+
+    This function is used for health checks and startup validation.
+
+    Returns:
+        tuple[bool, str | None]: A tuple containing:
+            - bool: True if connection successful, False otherwise
+            - str | None: Error message if connection failed, None if successful
+
+    Example:
+        is_healthy, error = await check_database_connection()
+        if not is_healthy:
+            logger.error(f"Database unhealthy: {error}")
+    """
+    try:
+        engine = get_engine()
+        async with engine.connect() as conn:
+            result = await conn.execute(text("SELECT 1"))
+            _ = result.scalar()
+    except SQLAlchemyError as e:
+        return False, str(e)
+    else:
+        return True, None

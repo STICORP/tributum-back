@@ -4,6 +4,8 @@ This module configures OpenTelemetry with GCP Cloud Trace integration
 and provides utilities for distributed tracing.
 """
 
+from typing import Any
+
 from opentelemetry import trace
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -13,6 +15,7 @@ from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
 from opentelemetry.trace import Span, Status, StatusCode, Tracer
 
 from src.core.config import get_settings
+from src.core.context import RequestContext
 from src.core.exceptions import Severity, TributumError
 from src.core.logging import get_logger
 
@@ -163,3 +166,24 @@ def record_tributum_error_in_span(span: Span, error: TributumError) -> None:
             "tributum.fingerprint": error.fingerprint,
         },
     )
+
+
+def add_correlation_id_to_span(span: Span, request_scope: dict[str, Any]) -> None:
+    """Add correlation ID to the current span if available.
+
+    This function is called by the FastAPI instrumentor for each request
+    to enrich spans with correlation IDs.
+
+    Args:
+        span: The current OpenTelemetry span
+        request_scope: The ASGI request scope
+    """
+    # Add request path as span attribute
+    if "path" in request_scope:
+        span.set_attribute("http.target", request_scope["path"])
+
+    # Add correlation ID if available
+    correlation_id = RequestContext.get_correlation_id()
+    if correlation_id:
+        span.set_attribute("correlation_id", correlation_id)
+        span.set_attribute("tributum.correlation_id", correlation_id)

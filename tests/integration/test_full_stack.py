@@ -18,7 +18,6 @@ import pytest
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.constants import CORRELATION_ID_HEADER
@@ -227,17 +226,10 @@ class TestFullStackIntegration:
         self, client_with_db: AsyncClient, mocker: MockerFixture
     ) -> None:
         """Test health check reports degraded state when database is unavailable."""
-        # Mock database connection failure
-        mock_connect = mocker.AsyncMock()
-        mock_connect.__aenter__.side_effect = OperationalError(
-            "Database connection failed", None, Exception("Connection refused")
-        )
-        mock_connect.__aexit__.return_value = None
-
-        # Patch the engine connect method
+        # Mock database connection check to return failure
         mocker.patch(
-            "src.api.main.get_engine",
-            return_value=mocker.Mock(connect=mocker.Mock(return_value=mock_connect)),
+            "src.api.main.check_database_connection",
+            return_value=(False, "Database connection failed"),
         )
 
         response = await client_with_db.get("/health")

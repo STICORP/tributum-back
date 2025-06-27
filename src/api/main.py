@@ -7,8 +7,6 @@ from typing import Annotated, Any
 from fastapi import Depends, FastAPI
 from opentelemetry import trace
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.middleware.error_handler import register_exception_handlers
 from src.api.middleware.request_context import RequestContextMiddleware
@@ -16,10 +14,12 @@ from src.api.middleware.request_logging import RequestLoggingMiddleware
 from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
-from src.core.context import RequestContext
 from src.core.logging import get_logger
-from src.core.observability import get_tracer, setup_tracing
-from src.infrastructure.database.session import close_database, get_engine
+from src.core.observability import add_correlation_id_to_span, get_tracer, setup_tracing
+from src.infrastructure.database.session import (
+    check_database_connection,
+    close_database,
+)
 
 
 @asynccontextmanager
@@ -33,7 +33,7 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
         None: Nothing is yielded, this is just a lifespan context.
 
     Raises:
-        Exception: If database connection fails during startup.
+        RuntimeError: If database connection fails during startup.
     """
     logger = get_logger(__name__)
     tracer = get_tracer(__name__)
@@ -43,31 +43,26 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
 
     # Startup: Check database connection
     with tracer.start_as_current_span("startup_database_check") as span:
-        try:
-            engine = get_engine()
-            async with engine.connect() as conn:
-                result = await conn.execute(text("SELECT 1"))
-                _ = result.scalar()
+        is_healthy, error_msg = await check_database_connection()
 
-            pool_size = engine.pool.size() if hasattr(engine.pool, "size") else "N/A"
-            span.set_attribute("database.pool_size", str(pool_size))
+        if is_healthy:
             span.set_attribute("database.connection_check", "success")
-
-            logger.info(
-                "Database connection successful",
-                pool_size=pool_size,
-            )
-        except Exception as e:
+            logger.info("Database connection successful")
+        else:
             span.set_attribute("database.connection_check", "failed")
-            span.set_attribute("error.type", type(e).__name__)
-            span.record_exception(e)
-            span.set_status(trace.Status(trace.StatusCode.ERROR, str(e)))
-
-            logger.exception(
-                "Database connection failed during startup",
-                error_type=type(e).__name__,
+            span.set_attribute("error.message", error_msg or "Unknown error")
+            span.set_status(
+                trace.Status(
+                    trace.StatusCode.ERROR, error_msg or "Database connection failed"
+                )
             )
-            raise
+
+            logger.error(
+                "Database connection failed during startup",
+                error_message=error_msg,
+            )
+            msg = f"Database connection failed: {error_msg}"
+            raise RuntimeError(msg)
 
     # Log startup with app info
     logger.info(
@@ -151,23 +146,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         # Check database connectivity
         with tracer.start_as_current_span("health_check_database") as span:
-            try:
-                engine = get_engine()
-                async with engine.connect() as conn:
-                    result = await conn.execute(text("SELECT 1"))
-                    _ = result.scalar()
-                health_status["database"] = True
-                span.set_attribute("database.available", "true")
-            except SQLAlchemyError as e:
+            is_healthy, error_msg = await check_database_connection()
+
+            health_status["database"] = is_healthy
+            span.set_attribute("database.available", str(is_healthy).lower())
+
+            if not is_healthy:
                 # Log error but don't fail the health check entirely
                 # This allows the service to report as "degraded" rather than "down"
                 logger = get_logger(__name__)
-                logger.warning("Database health check failed")
+                logger.warning(
+                    "Database health check failed",
+                    error_message=error_msg,
+                )
                 health_status["status"] = "degraded"
 
-                span.set_attribute("database.available", "false")
-                span.set_attribute("error.type", type(e).__name__)
-                span.record_exception(e)
+                span.set_attribute("error.message", error_msg or "Unknown error")
                 # Don't set ERROR status - degraded state is expected behavior
                 span.set_status(
                     trace.Status(
@@ -203,35 +197,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return application
 
 
-def _add_correlation_id_to_span(
-    span: trace.Span, request_scope: dict[str, Any]
-) -> None:
-    """Add correlation ID to the current span if available.
-
-    This function is called by the FastAPI instrumentor for each request
-    to enrich spans with correlation IDs.
-
-    Args:
-        span: The current OpenTelemetry span
-        request_scope: The ASGI request scope
-    """
-    # Add request path as span attribute
-    if "path" in request_scope:
-        span.set_attribute("http.target", request_scope["path"])
-
-    # Add correlation ID if available
-    correlation_id = RequestContext.get_correlation_id()
-    if correlation_id:
-        span.set_attribute("correlation_id", correlation_id)
-        span.set_attribute("tributum.correlation_id", correlation_id)
-
-
 app = create_app()
 
 # Instrument FastAPI after app creation to ensure proper tracing
 # The instrumentor adds automatic span creation for all HTTP requests
 FastAPIInstrumentor.instrument_app(
     app,
-    server_request_hook=_add_correlation_id_to_span,
+    server_request_hook=add_correlation_id_to_span,
     excluded_urls="/docs,/redoc,/openapi.json",
 )

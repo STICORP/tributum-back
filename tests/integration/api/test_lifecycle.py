@@ -11,7 +11,6 @@ import pytest
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
 from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from src.api.main import create_app, lifespan
@@ -50,24 +49,16 @@ class TestApplicationLifecycle:
         # Reset the database manager
         _db_manager.reset()
 
-        # Mock the engine to fail on connect
-        mock_engine = mocker.Mock()
-        mock_connect = mocker.Mock()
-        mock_engine.connect.return_value = mock_connect
-        mock_connect.__aenter__ = mocker.AsyncMock(
-            side_effect=OperationalError(
-                "Connection failed", None, Exception("Connection failed")
-            )
+        # Mock database connection check to return failure
+        mocker.patch(
+            "src.api.main.check_database_connection",
+            return_value=(False, "Connection failed"),
         )
-        mock_connect.__aexit__ = mocker.AsyncMock()
-
-        # Patch get_engine to return our mock
-        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
 
         app = create_app()
 
         # Startup should raise an exception
-        with pytest.raises(OperationalError):
+        with pytest.raises(RuntimeError, match="Database connection failed"):
             async with lifespan(app):
                 pass
 
@@ -124,19 +115,11 @@ class TestApplicationLifecycle:
         self, client: AsyncClient, mocker: MockerFixture
     ) -> None:
         """Test health endpoint handles database failures gracefully."""
-        # Mock the engine connection to fail
-        mock_engine = mocker.Mock()
-        mock_connect = mocker.Mock()
-        mock_engine.connect.return_value = mock_connect
-        mock_connect.__aenter__ = mocker.AsyncMock(
-            side_effect=OperationalError(
-                "Database connection lost", None, Exception("Database connection lost")
-            )
+        # Mock database connection check to return failure
+        mocker.patch(
+            "src.api.main.check_database_connection",
+            return_value=(False, "Database connection lost"),
         )
-        mock_connect.__aexit__ = mocker.AsyncMock()
-
-        # Patch get_engine to return our mock
-        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
 
         response = await client.get("/health")
         assert response.status_code == 200

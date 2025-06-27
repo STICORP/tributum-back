@@ -5,7 +5,7 @@ import time
 import pytest
 import pytest_check
 from pytest_mock import MockerFixture
-from sqlalchemy.exc import DatabaseError, InvalidRequestError
+from sqlalchemy.exc import DatabaseError, InvalidRequestError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 import src.infrastructure.database.session
@@ -13,6 +13,7 @@ from src.infrastructure.database.session import (
     _after_cursor_execute,
     _before_cursor_execute,
     _query_start_times,
+    check_database_connection,
     close_database,
     create_database_engine,
     get_async_session,
@@ -906,3 +907,60 @@ class TestQueryEventListeners:
             "No slow query logs found. Records: "
             f"{[r.getMessage() for r in caplog.records]}"
         )
+
+
+@pytest.mark.unit
+class TestCheckDatabaseConnection:
+    """Test cases for check_database_connection function."""
+
+    async def test_check_database_connection_success(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test successful database connection check."""
+        # Mock engine and connection
+        mock_result = mocker.Mock()
+        mock_result.scalar.return_value = 1
+
+        mock_conn = mocker.Mock()
+        mock_conn.execute = mocker.AsyncMock(return_value=mock_result)
+        mock_conn.__aenter__ = mocker.AsyncMock(return_value=mock_conn)
+        mock_conn.__aexit__ = mocker.AsyncMock()
+
+        mock_engine = mocker.Mock()
+        mock_engine.connect.return_value = mock_conn
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_engine", return_value=mock_engine
+        )
+
+        # Call the function
+        is_healthy, error_msg = await check_database_connection()
+
+        # Assert success
+        assert is_healthy is True
+        assert error_msg is None
+        mock_result.scalar.assert_called_once()
+
+    async def test_check_database_connection_failure(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test database connection check when SQLAlchemyError is raised."""
+        # Mock engine to raise SQLAlchemyError on connect
+        mock_engine = mocker.Mock()
+        mock_conn = mocker.Mock()
+        mock_conn.__aenter__ = mocker.AsyncMock(
+            side_effect=SQLAlchemyError("Connection refused")
+        )
+        mock_conn.__aexit__ = mocker.AsyncMock()
+        mock_engine.connect.return_value = mock_conn
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_engine", return_value=mock_engine
+        )
+
+        # Call the function
+        is_healthy, error_msg = await check_database_connection()
+
+        # Assert failure
+        assert is_healthy is False
+        assert error_msg == "Connection refused"
