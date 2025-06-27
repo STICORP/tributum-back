@@ -198,9 +198,12 @@ class TestCreateDatabaseEngine:
         )
 
     def test_create_engine_with_instrumentation_failure(
-        self, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+        self, mocker: MockerFixture
     ) -> None:
         """Test creating engine when OpenTelemetry instrumentation fails."""
+        # Mock logger to verify warning was called
+        mock_logger = mocker.patch("src.infrastructure.database.session.logger")
+
         # Mock settings with SQL logging enabled
         mock_settings = mocker.MagicMock()
         mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
@@ -242,25 +245,23 @@ class TestCreateDatabaseEngine:
         engine = create_database_engine()
         assert engine is mock_engine
 
-        # Verify warning was logged
-        warning_found = False
-        for record in caplog.records:
-            if record.levelname == "WARNING":
-                message = str(record.getMessage())
-                if "Failed to enable OpenTelemetry" in message:
-                    warning_found = True
-                    assert "RuntimeError" in message
-                    break
-
-        assert warning_found, (
-            "No warning logs found. Records: "
-            f"{[(r.levelname, r.getMessage()) for r in caplog.records]}"
+        # Verify warning was logged via mock logger
+        mock_logger.warning.assert_called_once()
+        call_args = mock_logger.warning.call_args
+        assert (
+            "Failed to enable OpenTelemetry SQLAlchemy instrumentation"
+            in call_args[0][0]
         )
+        assert call_args[1]["error_message"] == "Instrumentation failed"
+        assert call_args[1]["error_type"] == "RuntimeError"
 
     def test_create_engine_with_event_listener_failure(
-        self, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+        self, mocker: MockerFixture
     ) -> None:
         """Test creating engine when event listener registration fails."""
+        # Mock logger to verify warning was called
+        mock_logger = mocker.patch("src.infrastructure.database.session.logger")
+
         # Mock settings with SQL logging enabled
         mock_settings = mocker.MagicMock()
         mock_settings.database_config.database_url = "postgresql+asyncpg://test/db"
@@ -305,20 +306,16 @@ class TestCreateDatabaseEngine:
         # Verify event.listen was called
         assert mock_event_listen.call_count >= 1
 
-        # Verify warning was logged
-        warning_found = False
-        for record in caplog.records:
-            if record.levelname == "WARNING":
-                message = str(record.getMessage())
-                if "Failed to register query performance event listeners" in message:
-                    warning_found = True
-                    assert "InvalidRequestError" in message
-                    break
-
-        assert warning_found, (
-            "No warning logs found. Records: "
-            f"{[(r.levelname, r.getMessage()) for r in caplog.records]}"
-        )
+        # Verify warning was logged via mock logger
+        warning_calls = [
+            call
+            for call in mock_logger.warning.call_args_list
+            if "Failed to register query performance event listeners" in call[0][0]
+        ]
+        assert len(warning_calls) == 1
+        call_args = warning_calls[0]
+        assert call_args[1]["error_message"] == "No such event 'before_cursor_execute'"
+        assert call_args[1]["error_type"] == "InvalidRequestError"
 
 
 @pytest.mark.unit
@@ -848,9 +845,12 @@ class TestQueryEventListeners:
         assert call_kwargs["db_query_duration_ms"] >= 100.0  # Previous 50 + new 50+
 
     def test_after_cursor_execute_logs_slow_queries(
-        self, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+        self, mocker: MockerFixture
     ) -> None:
         """Test that slow queries are logged."""
+        # Mock logger to verify warning was called
+        mock_logger = mocker.patch("src.infrastructure.database.session.logger")
+
         # Mock dependencies
         mock_settings = mocker.MagicMock()
         mock_settings.log_config.enable_sql_logging = True
@@ -887,26 +887,19 @@ class TestQueryEventListeners:
             executemany=False,
         )
 
-        # Check that slow query was logged
-        caplog.set_level("WARNING")
-
-        # Look through all records for the slow query
-        slow_query_found = False
-        for record in caplog.records:
-            message = str(record.getMessage())
-            if "slow_query_detected" in message:
-                slow_query_found = True
-                # Verify key information is in the log message
-                assert "SELECT * FROM large_table" in message
-                assert "test-correlation-123" in message
-                assert "duration_ms" in message
-                assert "threshold_ms" in message
-                break
-
-        assert slow_query_found, (
-            "No slow query logs found. Records: "
-            f"{[r.getMessage() for r in caplog.records]}"
+        # Verify slow query was logged via mock logger
+        mock_logger.warning.assert_called_once()
+        call_args = mock_logger.warning.call_args
+        assert "slow_query_detected" in call_args[0][0]
+        # Verify the keyword arguments
+        assert (
+            call_args[1]["query"] == "SELECT * FROM large_table WHERE status = :status"
         )
+        assert call_args[1]["correlation_id"] == "test-correlation-123"
+        assert call_args[1]["duration_ms"] >= 50.0
+        assert call_args[1]["threshold_ms"] == 10
+        assert call_args[1]["parameters"] == {"status": "active"}
+        assert call_args[1]["executemany"] is False
 
 
 @pytest.mark.unit

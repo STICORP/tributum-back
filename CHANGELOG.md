@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- OpenTelemetry metrics integration with GCP Cloud Monitoring for comprehensive observability
+- System metrics collection (CPU, memory, asyncio tasks, garbage collection) with configurable intervals
+- HTTP request and error metrics with detailed attributes for monitoring and alerting
+- Database connection pool metrics with exhaustion warnings
+- Background metrics collection task with graceful shutdown handling
 - Database query performance tracking with OpenTelemetry instrumentation and slow query detection
 - Granular performance metrics configuration for request logging middleware
 - Performance monitoring for HTTP requests with configurable slow/critical thresholds

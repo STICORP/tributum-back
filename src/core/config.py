@@ -126,6 +126,26 @@ class ObservabilityConfig(BaseModel):
         description="Trace sampling rate (0.0 to 1.0)",
     )
 
+    # Metrics configuration
+    enable_metrics: bool = Field(
+        default=False, description="Whether to enable OpenTelemetry metrics"
+    )
+    metrics_export_interval_ms: int = Field(
+        default=60000,  # 60 seconds
+        ge=1000,
+        le=300000,
+        description="Metrics export interval in milliseconds",
+    )
+    enable_system_metrics: bool = Field(
+        default=True, description="Enable system metrics collection (CPU, memory, etc.)"
+    )
+    system_metrics_interval_s: int = Field(
+        default=60,
+        ge=10,
+        le=300,
+        description="System metrics collection interval in seconds",
+    )
+
 
 class DatabaseConfig(BaseModel):
     """Database configuration settings."""

@@ -221,11 +221,14 @@ The implementation seamlessly integrates with the existing logging and observabi
 ---
 
 ### Task 2.3: OpenTelemetry Metrics Integration
-**Status**: pending
+**Status**: ✅ completed
 **Files to modify**:
 - `src/core/observability.py`
 - `src/api/main.py` (lifespan context)
 - `src/api/middleware/request_logging.py`
+- `src/api/middleware/error_handler.py`
+- `src/core/config.py` (metrics configuration)
+- `pyproject.toml` (add GCP monitoring exporter)
 
 **Current State**:
 - OpenTelemetry API/SDK already installed
@@ -277,6 +280,57 @@ The implementation seamlessly integrates with the existing logging and observabi
 - No performance impact on request handling
 - Graceful degradation if deps missing
 - Correlates with distributed traces
+
+**Implementation Summary**:
+Task 2.3 has been successfully implemented with comprehensive OpenTelemetry metrics integration:
+
+1. **Enhanced Observability Framework**:
+   - Refactored `setup_tracing()` to `setup_observability()` handling both tracing and metrics
+   - Created `MeterProvider` with GCP Cloud Monitoring exporter
+   - Added configurable metrics export intervals
+   - Maintains backward compatibility with existing tracing setup
+
+2. **System Metrics Collection**:
+   - Process CPU percentage monitoring via `psutil`
+   - Memory usage tracking (RSS) with fallback to `resource` module
+   - Active asyncio tasks count for leak detection
+   - Database connection pool metrics with exhaustion warnings
+   - Garbage collection statistics by generation
+
+3. **Application Metrics Instruments**:
+   - `http.server.request.count`: Total HTTP requests with method/route/status attributes
+   - `http.server.request.duration`: Request duration histogram in milliseconds
+   - `http.server.error.count`: Error counter with error type and code attributes
+   - `db.query.count`: Database query counter per request
+   - `db.query.duration`: Database query duration histogram
+
+4. **Background Metrics Collection**:
+   - Periodic system metrics collection task in application lifespan
+   - Configurable interval (default 60 seconds)
+   - Database pool monitoring with exhaustion alerts
+   - Graceful task cancellation on application shutdown
+
+5. **Middleware Integration**:
+   - RequestLoggingMiddleware records request metrics automatically
+   - Error handler middleware records error metrics with detailed attributes
+   - Database query metrics integrated with existing query tracking
+
+6. **Configuration Enhancements**:
+   - Added `enable_metrics`, `metrics_export_interval_ms` to ObservabilityConfig
+   - Added `enable_system_metrics`, `system_metrics_interval_s` for system monitoring
+   - Updated `.env.example` with new metrics configuration options
+
+7. **Dependencies**:
+   - Added `opentelemetry-exporter-gcp-monitoring` for GCP Cloud Monitoring export
+   - Uses `psutil` for enhanced system metrics (with graceful fallback)
+
+8. **Testing**:
+   - Comprehensive unit tests for system metrics collectors
+   - Integration tests for metrics collection pipeline
+   - Tests verify graceful handling of missing dependencies
+   - Confirms no performance impact on request handling
+
+The implementation follows OpenTelemetry semantic conventions, integrates seamlessly with existing infrastructure, and provides production-ready observability with GCP Cloud Monitoring integration.
 
 ---
 

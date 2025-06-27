@@ -26,6 +26,7 @@ from src.core.exceptions import (
     ValidationError,
 )
 from src.core.logging import get_logger, log_exception
+from src.core.observability import error_counter
 
 logger = get_logger(__name__)
 
@@ -89,6 +90,17 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
         status_code = status.HTTP_401_UNAUTHORIZED
     elif isinstance(exc, BusinessRuleError):
         status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    # Record error metric if counter is available
+    if error_counter is not None:
+        error_attributes = {
+            "http.method": request.method,
+            "http.route": str(request.url.path),
+            "http.status_code": str(status_code),
+            "error.type": type(exc).__name__,
+            "error.code": exc.error_code,
+        }
+        error_counter.add(1, error_attributes)
 
     # Prepare error details (sanitized)
     details = None
@@ -177,6 +189,17 @@ async def validation_error_handler(request: Request, exc: Exception) -> Response
         correlation_id=correlation_id,
     )
 
+    # Record error metric if counter is available
+    if error_counter is not None:
+        error_attributes = {
+            "http.method": request.method,
+            "http.route": str(request.url.path),
+            "http.status_code": str(status.HTTP_422_UNPROCESSABLE_ENTITY),
+            "error.type": "ValidationError",
+            "error.code": ErrorCode.VALIDATION_ERROR.value,
+        }
+        error_counter.add(1, error_attributes)
+
     # Create error response
     error_response = ErrorResponse(
         error_code=ErrorCode.VALIDATION_ERROR.value,
@@ -242,6 +265,17 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
         correlation_id=correlation_id,
     )
 
+    # Record error metric if counter is available
+    if error_counter is not None:
+        error_attributes = {
+            "http.method": request.method,
+            "http.route": str(request.url.path),
+            "http.status_code": str(exc.status_code),
+            "error.type": "HTTPException",
+            "error.code": error_code,
+        }
+        error_counter.add(1, error_attributes)
+
     # Create error response
     error_response = ErrorResponse(
         error_code=error_code,
@@ -283,6 +317,17 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
         request_path=str(request.url.path),
         query_params=sanitize_context(dict(request.query_params)),
     )
+
+    # Record error metric if counter is available
+    if error_counter is not None:
+        error_attributes = {
+            "http.method": request.method,
+            "http.route": str(request.url.path),
+            "http.status_code": str(status.HTTP_500_INTERNAL_SERVER_ERROR),
+            "error.type": type(exc).__name__,
+            "error.code": ErrorCode.INTERNAL_ERROR.value,
+        }
+        error_counter.add(1, error_attributes)
 
     # In production, hide internal error details
     if settings.environment == "production":

@@ -27,7 +27,13 @@ from src.core.constants import MILLISECONDS_PER_SECOND, TRUNCATED_SUFFIX
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_context
 from src.core.logging import clear_logger_context, get_logger, get_logger_context
-from src.core.observability import get_tracer
+from src.core.observability import (
+    db_query_counter,
+    db_query_duration_histogram,
+    get_tracer,
+    request_counter,
+    request_duration_histogram,
+)
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -343,6 +349,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             duration_ms: Request duration in milliseconds.
             response_log_data: Dictionary containing response log data.
         """
+        # Record metrics if instruments are available
+        if request_counter is not None and request_duration_histogram is not None:
+            # Extract attributes for metrics
+            attributes = {
+                "http.method": response_log_data.get("method", "UNKNOWN"),
+                "http.route": response_log_data.get("path", "UNKNOWN"),
+                "http.status_code": str(response_log_data.get("status_code", 0)),
+            }
+
+            # Record request count
+            request_counter.add(1, attributes)
+
+            # Record request duration
+            request_duration_histogram.record(duration_ms, attributes)
+
         # Check thresholds only if performance metrics are enabled
         if (
             self.log_config.enable_performance_metrics
@@ -777,6 +798,22 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             response_log_data["db_query_avg_ms"] = round(
                 db_query_duration / db_query_count, 2
             )
+
+            # Record database metrics if instruments are available
+            if db_query_counter is not None and db_query_duration_histogram is not None:
+                # Attributes for database metrics
+                db_attributes = {
+                    "http.method": method,
+                    "http.route": path,
+                }
+
+                # Record total queries for this request
+                db_query_counter.add(db_query_count, db_attributes)
+
+                # Record each query's duration (approximated by average)
+                avg_duration = db_query_duration / db_query_count
+                for _ in range(db_query_count):
+                    db_query_duration_histogram.record(avg_duration, db_attributes)
 
         return response_log_data
 

@@ -43,6 +43,7 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi==0.55b1",
     "opentelemetry-instrumentation-sqlalchemy==0.55b1",
     "opentelemetry-exporter-gcp-trace==1.9.0",
+    "opentelemetry-exporter-gcp-monitoring==1.9.0a0",
     # Database dependencies
     "sqlalchemy[asyncio]>=2.0.41",
     "asyncpg>=0.30.0",

@@ -1,7 +1,8 @@
 """Main FastAPI application module."""
 
+import asyncio
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
@@ -15,10 +16,16 @@ from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.logging import get_logger
-from src.core.observability import add_correlation_id_to_span, get_tracer, setup_tracing
+from src.core.observability import (
+    add_correlation_id_to_span,
+    get_database_pool_metrics,
+    get_tracer,
+    setup_tracing,
+)
 from src.infrastructure.database.session import (
     check_database_connection,
     close_database,
+    get_engine,
 )
 
 
@@ -38,8 +45,11 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
     logger = get_logger(__name__)
     tracer = get_tracer(__name__)
 
-    # Startup: Initialize tracing
+    # Startup: Initialize tracing and metrics
     setup_tracing()
+
+    # Get settings for metrics configuration
+    settings = get_settings()
 
     # Startup: Check database connection
     with tracer.start_as_current_span("startup_database_check") as span:
@@ -71,7 +81,63 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
         version=app_instance.version,
     )
 
+    # Start background metric collection task if enabled
+    metric_task = None
+    if (
+        settings.observability_config.enable_metrics
+        and settings.observability_config.enable_system_metrics
+    ):
+
+        async def collect_system_metrics() -> None:
+            """Background task to collect system metrics periodically."""
+            interval = settings.observability_config.system_metrics_interval_s
+            logger.info(
+                "Starting system metrics collection task",
+                interval_seconds=interval,
+            )
+
+            while True:
+                try:
+                    # Sleep for the configured interval
+                    await asyncio.sleep(interval)
+
+                    # Log database pool metrics
+                    engine = get_engine()
+                    if engine:
+                        pool_metrics = get_database_pool_metrics(engine.pool)
+                        logger.debug(
+                            "Database pool metrics",
+                            **pool_metrics,
+                        )
+
+                        # Check for pool exhaustion
+                        if pool_metrics["checked_out"] >= pool_metrics["size"]:
+                            logger.warning(
+                                "Database connection pool exhausted",
+                                **pool_metrics,
+                            )
+
+                except asyncio.CancelledError:
+                    logger.info("System metrics collection task cancelled")
+                    break
+                except Exception as e:
+                    logger.exception(
+                        "Error in system metrics collection",
+                        error=str(e),
+                    )
+                    # Continue running despite errors
+
+        # Start the background task
+        metric_task = asyncio.create_task(collect_system_metrics())
+
     yield
+
+    # Shutdown: Cancel background task if running
+    if metric_task and not metric_task.done():
+        logger.info("Cancelling system metrics collection task")
+        metric_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await metric_task
 
     # Shutdown: Cleanup database connections
     logger.info("Application shutdown initiated")
