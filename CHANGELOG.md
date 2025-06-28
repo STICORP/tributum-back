@@ -59,6 +59,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - CI/CD workflows and pre-commit hooks now auto-format code instead of just checking formatting
+- Local development checks (make all-checks) now auto-format code to match CI/CD behavior
 - Refactored observability functions to appropriate modules for better separation of concerns
 - Reorganized constants to their respective layers (API and infrastructure)
 - Logging processors are now conditionally enabled based on `LogConfig` settings for better performance and flexibility.

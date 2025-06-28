@@ -189,7 +189,7 @@ shellcheck-fix:  ## Run shellcheck with auto-fix suggestions
 	@echo "Running shellcheck with fix suggestions..."
 	@find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -exec uv run shellcheck -f diff {} \; | patch -p1
 
-all-checks: format-check lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck  ## Run all checks including dead code, docstring quality, and shell scripts
+all-checks: format lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck  ## Run all checks including dead code, docstring quality, and shell scripts
 
 # Docker commands
 docker-build:  ## Build all Docker images
