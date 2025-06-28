@@ -2,9 +2,9 @@ repos:
   # Format check using Makefile
   - repo: local
     hooks:
-      - id: format-check
-        name: ruff format check
-        entry: make format-check
+      - id: format
+        name: ruff format
+        entry: make format
         language: system
         pass_filenames: false
         types: [python]

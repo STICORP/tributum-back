@@ -28,8 +28,8 @@ jobs:
     - name: Install dependencies
       run: make install
 
-    - name: Format check
-      run: make format-check
+    - name: Format
+      run: make format
 
     - name: Lint check
       run: make lint
