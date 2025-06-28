@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced context management for logging with size limits, nested contexts, and selective unbinding
 
 ### Changed
+- Removed 10 unused constants from codebase to improve maintainability
 - CI/CD workflows and pre-commit hooks now auto-format code instead of just checking formatting
 - Local development checks (make all-checks) now auto-format code to match CI/CD behavior
 - Refactored observability functions to appropriate modules for better separation of concerns
