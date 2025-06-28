@@ -40,7 +40,7 @@ from opentelemetry.sdk.trace.sampling import (
 )
 from opentelemetry.trace import Link, Span, SpanKind, Status, StatusCode, Tracer
 from opentelemetry.trace.span import TraceState
-from sqlalchemy.pool import Pool
+from sqlalchemy.pool import AsyncAdaptedQueuePool, Pool, QueuePool
 
 from src.core.config import get_settings
 from src.core.context import RequestContext
@@ -463,7 +463,9 @@ def _get_gc_collections(_: CallbackOptions) -> list[Observation]:
     return results
 
 
-def get_database_pool_metrics(pool: Pool | None) -> dict[str, int]:
+def get_database_pool_metrics(
+    pool: AsyncAdaptedQueuePool | QueuePool | Pool | None,
+) -> dict[str, int]:
     """Get database connection pool metrics.
 
     Args:
@@ -482,21 +484,46 @@ def get_database_pool_metrics(pool: Pool | None) -> dict[str, int]:
         }
 
     try:
-        return {
-            "size": pool.size(),  # type: ignore[attr-defined]
-            "checked_in": pool.checked_in_connections,  # type: ignore[attr-defined]
-            "checked_out": pool.checked_out_connections,  # type: ignore[attr-defined]
-            "overflow": pool.overflow,  # type: ignore[attr-defined]
-            "total": pool.total,  # type: ignore[attr-defined]
-        }
-    except AttributeError:
-        logger.debug("Failed to get pool metrics")
+        # All our pool types (AsyncAdaptedQueuePool and QueuePool) have these methods
+        if isinstance(pool, (AsyncAdaptedQueuePool, QueuePool)):
+            # These pool types have the methods we need
+            size = pool.size()
+            overflow = pool.overflow()
+            checked_out = pool.checkedout()
+            checked_in = pool.checkedin()
+            total = size + overflow
+        else:
+            # For generic Pool type, we can't guarantee these methods exist
+            # So we return zeros and log a debug message
+            logger.debug(
+                "Pool type does not support detailed metrics",
+                pool_type=type(pool).__name__,
+            )
+            return {
+                "size": 0,
+                "checked_in": 0,
+                "checked_out": 0,
+                "overflow": 0,
+                "total": 0,
+            }
+    except (AttributeError, TypeError) as e:
+        logger.debug(
+            "Failed to get pool metrics", error=str(e), pool_type=type(pool).__name__
+        )
         return {
             "size": 0,
             "checked_in": 0,
             "checked_out": 0,
             "overflow": 0,
             "total": 0,
+        }
+    else:
+        return {
+            "size": size,
+            "checked_in": checked_in,
+            "checked_out": checked_out,
+            "overflow": overflow,
+            "total": total,
         }
 
 

@@ -8,6 +8,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.sampling import Decision
 from opentelemetry.trace import SpanKind, Status, StatusCode
 from pytest_mock import MockerFixture
+from sqlalchemy.pool import AsyncAdaptedQueuePool, QueuePool
 
 import src.core.observability
 from src.core.config import Settings
@@ -636,13 +637,12 @@ class TestMetricsHelpers:
 
     def test_get_database_pool_metrics_with_pool(self, mocker: MockerFixture) -> None:
         """Test get_database_pool_metrics with a valid pool."""
-        # Create a mock pool
-        mock_pool = mocker.Mock()
+        # Create a mock that is an instance of QueuePool
+        mock_pool = mocker.Mock(spec=QueuePool)
         mock_pool.size.return_value = 10
-        mock_pool.checked_in_connections = 7
-        mock_pool.checked_out_connections = 3
-        mock_pool.overflow = 0
-        mock_pool.total = 10
+        mock_pool.checkedin.return_value = 7
+        mock_pool.checkedout.return_value = 3
+        mock_pool.overflow.return_value = 0
 
         result = get_database_pool_metrics(mock_pool)
 
@@ -652,6 +652,27 @@ class TestMetricsHelpers:
             "checked_out": 3,
             "overflow": 0,
             "total": 10,
+        }
+
+    def test_get_database_pool_metrics_with_async_pool(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test get_database_pool_metrics with AsyncAdaptedQueuePool."""
+        # Create a mock that is an instance of AsyncAdaptedQueuePool
+        mock_pool = mocker.Mock(spec=AsyncAdaptedQueuePool)
+        mock_pool.size.return_value = 15
+        mock_pool.checkedin.return_value = 12
+        mock_pool.checkedout.return_value = 3
+        mock_pool.overflow.return_value = 5
+
+        result = get_database_pool_metrics(mock_pool)
+
+        assert result == {
+            "size": 15,
+            "checked_in": 12,
+            "checked_out": 3,
+            "overflow": 5,
+            "total": 20,
         }
 
     def test_get_database_pool_metrics_with_none(self) -> None:
@@ -666,12 +687,36 @@ class TestMetricsHelpers:
             "total": 0,
         }
 
+    def test_get_database_pool_metrics_with_unsupported_pool(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test get_database_pool_metrics with unsupported pool type."""
+        # Create a mock pool that doesn't match QueuePool or AsyncAdaptedQueuePool
+        mock_pool = mocker.Mock()
+
+        # Mock logger to verify debug message
+        mock_logger = mocker.patch("src.core.observability.logger")
+
+        result = get_database_pool_metrics(mock_pool)
+
+        assert result == {
+            "size": 0,
+            "checked_in": 0,
+            "checked_out": 0,
+            "overflow": 0,
+            "total": 0,
+        }
+        mock_logger.debug.assert_called_once_with(
+            "Pool type does not support detailed metrics",
+            pool_type="Mock",
+        )
+
     def test_get_database_pool_metrics_with_attribute_error(
         self, mocker: MockerFixture
     ) -> None:
         """Test get_database_pool_metrics when pool attributes are missing."""
-        # Create a mock pool that raises AttributeError
-        mock_pool = mocker.Mock()
+        # Create a mock pool that is recognized as QueuePool but raises AttributeError
+        mock_pool = mocker.Mock(spec=QueuePool)
         mock_pool.size.side_effect = AttributeError("No such attribute")
 
         # Mock logger to verify debug message
@@ -686,7 +731,9 @@ class TestMetricsHelpers:
             "overflow": 0,
             "total": 0,
         }
-        mock_logger.debug.assert_called_once_with("Failed to get pool metrics")
+        mock_logger.debug.assert_called_once_with(
+            "Failed to get pool metrics", error="No such attribute", pool_type="Mock"
+        )
 
 
 @pytest.mark.unit

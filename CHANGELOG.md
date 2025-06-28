@@ -89,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Obsolete plan.md file superseded by modular specification approach
 
 ### Fixed
+- Database pool metrics collection now correctly handles AsyncAdaptedQueuePool and QueuePool types
 - Database credentials standardized across documentation to match Docker setup (tributum/tributum_pass)
 - CI pipeline failure due to missing docker/scripts directory
 - pytest-rich and pytest-xdist compatibility issue for parallel test execution
