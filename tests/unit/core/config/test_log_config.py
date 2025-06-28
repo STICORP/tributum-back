@@ -151,3 +151,65 @@ class TestLogConfig:
         assert config.log_request_body is True
         assert config.log_response_body is True
         assert config.max_body_log_size == 20480
+
+    def test_enhanced_sanitization_defaults(self) -> None:
+        """Test default values for enhanced sanitization fields."""
+        config = LogConfig()
+
+        # Enhanced pattern-based detection defaults
+        assert config.additional_sensitive_patterns == []
+        assert config.sensitive_value_detection is True
+        assert config.excluded_fields_from_sanitization == []
+
+    def test_enhanced_sanitization_custom_values(self) -> None:
+        """Test custom values for enhanced sanitization fields."""
+        config = LogConfig(
+            additional_sensitive_patterns=[r"\b\d{3}-\d{2}-\d{4}\b", r"[A-Z]{2}\d{6}"],
+            sensitive_value_detection=False,
+            excluded_fields_from_sanitization=["debug_info", "raw_data"],
+        )
+
+        assert config.additional_sensitive_patterns == [
+            r"\b\d{3}-\d{2}-\d{4}\b",
+            r"[A-Z]{2}\d{6}",
+        ]
+        assert config.sensitive_value_detection is False
+        assert config.excluded_fields_from_sanitization == ["debug_info", "raw_data"]
+
+    def test_complete_config_with_enhanced_sanitization(self) -> None:
+        """Test LogConfig with all fields including enhanced sanitization."""
+        config = LogConfig(
+            log_level="DEBUG",
+            log_format="json",
+            sampling_rate=0.5,
+            enable_async_logging=True,
+            excluded_paths=["/health"],
+            sensitive_fields=["password", "token"],
+            enable_sql_logging=True,
+            slow_query_threshold_ms=150,
+            enable_performance_processor=True,
+            log_request_body=True,
+            max_body_log_size=15360,
+            # Enhanced sanitization fields
+            additional_sensitive_patterns=[r"\bSSN:\s*\d{3}-\d{2}-\d{4}\b"],
+            sensitive_value_detection=True,
+            excluded_fields_from_sanitization=["debug_field"],
+        )
+
+        # Standard fields
+        assert config.log_level == "DEBUG"
+        assert config.log_format == "json"
+        assert config.sampling_rate == 0.5
+        assert config.enable_async_logging is True
+        assert config.excluded_paths == ["/health"]
+        assert config.sensitive_fields == ["password", "token"]
+        assert config.enable_sql_logging is True
+        assert config.slow_query_threshold_ms == 150
+        assert config.enable_performance_processor is True
+        assert config.log_request_body is True
+        assert config.max_body_log_size == 15360
+
+        # Enhanced sanitization fields
+        assert config.additional_sensitive_patterns == [r"\bSSN:\s*\d{3}-\d{2}-\d{4}\b"]
+        assert config.sensitive_value_detection is True
+        assert config.excluded_fields_from_sanitization == ["debug_field"]

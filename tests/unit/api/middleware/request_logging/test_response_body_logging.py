@@ -24,6 +24,13 @@ class TestResponseBodyLogging:
 
     def test_logs_json_response_body(self, mocker: MockerFixture) -> None:
         """Test that middleware logs JSON response body."""
+        # Mock the settings to disable value detection for this test
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = False
+        mock_get_log_config = mocker.patch("src.core.error_context._get_log_config")
+        mock_get_log_config.return_value = mock_log_config
+
         mock_logger = mocker.Mock()
         mocker.patch(
             "src.api.middleware.request_logging.get_logger", return_value=mock_logger

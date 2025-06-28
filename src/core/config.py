@@ -108,6 +108,19 @@ class LogConfig(BaseModel):
         default=5000, gt=0, description="Log error if request slower than this (ms)"
     )
 
+    # Enhanced pattern-based detection configuration
+    additional_sensitive_patterns: list[str] = Field(
+        default_factory=list,
+        description="Additional regex patterns for sensitive value detection",
+    )
+    sensitive_value_detection: bool = Field(
+        default=True, description="Enable value-based detection of sensitive data"
+    )
+    excluded_fields_from_sanitization: list[str] = Field(
+        default_factory=list,
+        description="Field names to exclude from sanitization entirely",
+    )
+
 
 class ObservabilityConfig(BaseModel):
     """Observability configuration settings for OpenTelemetry."""

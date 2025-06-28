@@ -12,11 +12,115 @@ from src.api.constants import SENSITIVE_HEADERS
 from src.core.constants import REDACTED, SENSITIVE_FIELD_PATTERNS
 from src.core.exceptions import TributumError
 
+# Constants for credit card validation
+_MIN_CREDIT_CARD_LENGTH = 13
+_LUHN_SINGLE_DIGIT_MAX = 9
+
+# Compiled regex patterns for sensitive value detection (for performance)
+_CREDIT_CARD_PATTERN = re.compile(r"\b(?:\d[ -]*?){13,19}\b", re.IGNORECASE)
+_EMAIL_PATTERN = re.compile(
+    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", re.IGNORECASE
+)
+_PHONE_PATTERN = re.compile(
+    r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b", re.IGNORECASE
+)
+_UUID_PATTERN = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+    re.IGNORECASE,
+)
+_JWT_PATTERN = re.compile(
+    r"\b[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\b", re.IGNORECASE
+)
+
 if TYPE_CHECKING:  # pragma: no cover
     # TYPE_CHECKING is False at runtime; used only for static type analysis
     from fastapi import Request
 
+    from src.core.config import LogConfig
+
 T = TypeVar("T")
+
+
+def _get_log_config() -> "LogConfig":
+    """Get the current logging configuration.
+
+    Returns:
+        LogConfig: Current logging configuration instance
+    """
+    # Import here to avoid circular imports with the global config module
+    # This is acceptable as it's only called when sanitization is needed
+    from src.core.config import get_settings  # noqa: PLC0415
+
+    return get_settings().log_config
+
+
+def _luhn_check(card_number: str) -> bool:
+    """Validate a credit card number using the Luhn algorithm.
+
+    Args:
+        card_number: Credit card number string (may contain spaces/dashes)
+
+    Returns:
+        bool: True if the number passes Luhn validation
+    """
+    # Remove all non-digit characters
+    digits = re.sub(r"\D", "", card_number)
+
+    # Need at least minimum digits for a valid credit card
+    if len(digits) < _MIN_CREDIT_CARD_LENGTH:
+        return False
+
+    # Reject obviously invalid patterns
+    if digits == "0" * len(digits):  # All zeros
+        return False
+    if len(set(digits)) == 1:  # All same digit
+        return False
+
+    # Luhn algorithm implementation
+    total = 0
+    reverse_digits = digits[::-1]
+
+    for i, digit in enumerate(reverse_digits):
+        n = int(digit)
+        if i % 2 == 1:  # Every second digit from right
+            n *= 2
+            if n > _LUHN_SINGLE_DIGIT_MAX:
+                n = n // 10 + n % 10
+        total += n
+
+    return total % 10 == 0
+
+
+def detect_sensitive_value(value: str) -> bool:
+    """Detect if a string value contains sensitive data patterns.
+
+    Checks for common sensitive data formats including credit cards (with Luhn
+    validation), emails, phone numbers, UUIDs, and JWTs.
+
+    Args:
+        value: String value to check for sensitive patterns
+
+    Returns:
+        bool: True if the value matches any sensitive pattern
+    """
+    if not isinstance(value, str) or not value.strip():
+        return False
+
+    # Check for credit card pattern and validate with Luhn
+    if _CREDIT_CARD_PATTERN.search(value):
+        # Extract potential card numbers and validate each
+        potential_cards = _CREDIT_CARD_PATTERN.findall(value)
+        for card in potential_cards:
+            if _luhn_check(card):
+                return True
+
+    # Check other patterns and return immediately if found
+    return bool(
+        _EMAIL_PATTERN.search(value)
+        or _PHONE_PATTERN.search(value)
+        or _UUID_PATTERN.search(value)
+        or _JWT_PATTERN.search(value)
+    )
 
 
 def is_sensitive_field(field_name: str) -> bool:
@@ -32,25 +136,54 @@ def is_sensitive_field(field_name: str) -> bool:
     return any(re.match(pattern, field_lower) for pattern in SENSITIVE_FIELD_PATTERNS)
 
 
-def _sanitize_dict(data: dict[str, Any]) -> None:
-    """Recursively sanitize a dictionary in place."""
+def _sanitize_dict(data: dict[str, Any], log_config: "LogConfig | None" = None) -> None:
+    """Recursively sanitize a dictionary in place.
+
+    Args:
+        data: Dictionary to sanitize in place
+        log_config: Optional logging configuration for enhanced sanitization
+    """
+    if log_config is None:
+        log_config = _get_log_config()
+
     for key in list(data.keys()):  # Use list() to avoid mutation during iteration
         value = data[key]
-        if is_sensitive_field(key):
+
+        # Check if field is excluded from sanitization
+        if key in log_config.excluded_fields_from_sanitization:
+            continue
+
+        # Primary detection: field name patterns (existing behavior)
+        if is_sensitive_field(key):  # noqa: SIM114
+            data[key] = REDACTED
+        # Secondary detection: value patterns (new behavior)
+        elif (
+            log_config.sensitive_value_detection
+            and isinstance(value, str)
+            and detect_sensitive_value(value)
+        ):
             data[key] = REDACTED
         elif isinstance(value, dict):
-            _sanitize_dict(value)
+            _sanitize_dict(value, log_config)
         elif isinstance(value, list):
-            _sanitize_list(value)
+            _sanitize_list(value, log_config)
 
 
-def _sanitize_list(data: list[Any]) -> None:
-    """Recursively sanitize items in a list."""
+def _sanitize_list(data: list[Any], log_config: "LogConfig | None" = None) -> None:
+    """Recursively sanitize items in a list.
+
+    Args:
+        data: List to sanitize recursively
+        log_config: Optional logging configuration for enhanced sanitization
+    """
+    if log_config is None:
+        log_config = _get_log_config()
+
     for item in data:
         if isinstance(item, dict):
-            _sanitize_dict(item)
+            _sanitize_dict(item, log_config)
         elif isinstance(item, list):
-            _sanitize_list(item)
+            _sanitize_list(item, log_config)
 
 
 @overload
@@ -67,6 +200,10 @@ def sanitize_context(context: Any) -> Any:
     Creates a deep copy of the context and replaces any sensitive values
     with a redacted placeholder. Handles nested dictionaries recursively.
 
+    Enhanced to detect sensitive data in values (credit cards, emails, etc.)
+    in addition to field name patterns. Configuration is automatically
+    loaded from the current application settings.
+
     Args:
         context: The context dictionary to sanitize
 
@@ -78,7 +215,11 @@ def sanitize_context(context: Any) -> Any:
 
     # Create a deep copy to avoid modifying the original
     sanitized = deepcopy(context)
-    _sanitize_dict(sanitized)
+
+    # Get current configuration for enhanced sanitization
+    log_config = _get_log_config()
+    _sanitize_dict(sanitized, log_config)
+
     return sanitized
 
 
