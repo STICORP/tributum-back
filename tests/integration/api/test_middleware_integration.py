@@ -30,8 +30,7 @@ async def test_all_middleware_active() -> None:
         assert len(correlation_id) == 36  # UUID format
         assert correlation_id.count("-") == 4
 
-        # RequestLoggingMiddleware doesn't add headers, but we can
-        # verify it doesn't break anything
+        # Verify middleware doesn't break anything
         assert response.status_code == 200
         assert response.json() == {"message": "Hello from Tributum!"}
 
@@ -44,7 +43,6 @@ async def test_middleware_execution_order() -> None:
     The expected order is:
     1. SecurityHeadersMiddleware (first to process request, last to process response)
     2. RequestContextMiddleware (creates or preserves correlation ID)
-    3. RequestLoggingMiddleware (uses correlation ID for logging)
     """
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:

@@ -4,6 +4,7 @@ This module provides centralized exception handling for all API endpoints,
 ensuring consistent error responses and proper logging of exceptions.
 """
 
+import logging
 import traceback
 
 from fastapi import FastAPI, Request, status
@@ -16,7 +17,6 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.context import RequestContext, generate_request_id
-from src.core.error_context import sanitize_context
 from src.core.exceptions import (
     BusinessRuleError,
     ErrorCode,
@@ -25,10 +25,8 @@ from src.core.exceptions import (
     UnauthorizedError,
     ValidationError,
 )
-from src.core.logging import get_logger, log_exception
-from src.core.observability import error_counter
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 
 def get_service_info(settings: Settings) -> ServiceInfo:
@@ -70,14 +68,17 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
 
-    # Log the exception with full context
-    log_exception(
-        logger,
-        exc,
-        f"Handling {type(exc).__name__}",
-        request_method=request.method,
-        request_path=str(request.url.path),
-        query_params=sanitize_context(dict(request.query_params)),
+    # Log the exception
+    logger.error(
+        "Handling %s: %s",
+        type(exc).__name__,
+        exc.message,
+        extra={
+            "request_method": request.method,
+            "request_path": str(request.url.path),
+            "error_code": exc.error_code,
+            "correlation_id": correlation_id,
+        },
     )
 
     # Map exception types to HTTP status codes
@@ -91,28 +92,17 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
     elif isinstance(exc, BusinessRuleError):
         status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    # Record error metric if counter is available
-    if error_counter is not None:
-        error_attributes = {
-            "http.method": request.method,
-            "http.route": str(request.url.path),
-            "http.status_code": str(status_code),
-            "error.type": type(exc).__name__,
-            "error.code": exc.error_code,
-        }
-        error_counter.add(1, error_attributes)
+    # Error metrics removed in Phase 0
 
-    # Prepare error details (sanitized)
-    details = None
-    if exc.context:
-        details = sanitize_context(exc.context)
+    # Prepare error details
+    details = exc.context if exc.context else None
 
     # Prepare debug info for development environments
     debug_info = None
     if settings.environment == "development":
         debug_info = {
             "stack_trace": exc.stack_trace,
-            "error_context": sanitize_context(exc.context) if exc.context else {},
+            "error_context": exc.context if exc.context else {},
             "exception_type": type(exc).__name__,
         }
         # Add cause information if available
@@ -182,23 +172,14 @@ async def validation_error_handler(request: Request, exc: Exception) -> Response
 
     # Log the validation error
     logger.warning(
-        "Request validation failed",
-        request_method=request.method,
-        request_path=str(request.url.path),
-        validation_errors=field_errors,
-        correlation_id=correlation_id,
+        "Request validation failed - method: %s, path: %s, correlation_id: %s",
+        request.method,
+        str(request.url.path),
+        correlation_id,
+        extra={"validation_errors": field_errors},
     )
 
-    # Record error metric if counter is available
-    if error_counter is not None:
-        error_attributes = {
-            "http.method": request.method,
-            "http.route": str(request.url.path),
-            "http.status_code": str(status.HTTP_422_UNPROCESSABLE_ENTITY),
-            "error.type": "ValidationError",
-            "error.code": ErrorCode.VALIDATION_ERROR.value,
-        }
-        error_counter.add(1, error_attributes)
+    # Error metrics removed in Phase 0
 
     # Create error response
     error_response = ErrorResponse(
@@ -257,24 +238,15 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
 
     # Log the exception
     logger.warning(
-        "HTTP exception",
-        request_method=request.method,
-        request_path=str(request.url.path),
-        status_code=exc.status_code,
-        detail=exc.detail,
-        correlation_id=correlation_id,
+        "HTTP exception - status: %d, method: %s, path: %s, detail: %s",
+        exc.status_code,
+        request.method,
+        str(request.url.path),
+        exc.detail,
+        extra={"correlation_id": correlation_id},
     )
 
-    # Record error metric if counter is available
-    if error_counter is not None:
-        error_attributes = {
-            "http.method": request.method,
-            "http.route": str(request.url.path),
-            "http.status_code": str(exc.status_code),
-            "error.type": "HTTPException",
-            "error.code": error_code,
-        }
-        error_counter.add(1, error_attributes)
+    # Error metrics removed in Phase 0
 
     # Create error response
     error_response = ErrorResponse(
@@ -309,25 +281,17 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
     correlation_id = RequestContext.get_correlation_id()
 
     # Log the full exception with stack trace
-    log_exception(
-        logger,
-        exc,
-        "Unhandled exception",
-        request_method=request.method,
-        request_path=str(request.url.path),
-        query_params=sanitize_context(dict(request.query_params)),
+    logger.exception(
+        "Unhandled exception: %s",
+        type(exc).__name__,
+        extra={
+            "request_method": request.method,
+            "request_path": str(request.url.path),
+            "correlation_id": correlation_id,
+        },
     )
 
-    # Record error metric if counter is available
-    if error_counter is not None:
-        error_attributes = {
-            "http.method": request.method,
-            "http.route": str(request.url.path),
-            "http.status_code": str(status.HTTP_500_INTERNAL_SERVER_ERROR),
-            "error.type": type(exc).__name__,
-            "error.code": ErrorCode.INTERNAL_ERROR.value,
-        }
-        error_counter.add(1, error_attributes)
+    # Error metrics removed in Phase 0
 
     # In production, hide internal error details
     if settings.environment == "production":

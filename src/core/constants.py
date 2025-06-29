@@ -1,22 +1,11 @@
 """Core application constants."""
 
-# Logging and context management
-FINGERPRINT_MAX_PARTS = 5
-MAX_CONTEXT_SIZE = 10000
-MAX_CONTEXT_DEPTH = 10
-MAX_VALUE_SIZE = 1000
-TRUNCATED_SUFFIX = "... [TRUNCATED]"
-
-# Logging processors constants
-MIN_CONTAINER_ID_LENGTH = 12
-EXCEPTION_TUPLE_MIN_LENGTH = 3
-TRACEBACK_FRAMES_TO_INCLUDE = 3
-
 # Time constants
 MILLISECONDS_PER_SECOND = 1000
 
 # Security and redaction
 REDACTED = "[REDACTED]"
+# Note: SENSITIVE_FIELD_PATTERNS will be replaced with a simpler regex in Phase 4
 SENSITIVE_FIELD_PATTERNS = [
     r".*password.*",
     r".*passwd.*",

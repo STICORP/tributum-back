@@ -4,13 +4,13 @@ This module provides the async engine and session factory configuration
 for the Tributum application, with proper connection pooling and cleanup.
 """
 
+import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 from weakref import WeakKeyDictionary
 
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from sqlalchemy import event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import DBAPICursor, ExecutionContext
@@ -24,11 +24,9 @@ from sqlalchemy.ext.asyncio import (
 
 from src.core.config import get_settings
 from src.core.context import RequestContext
-from src.core.error_context import sanitize_context
-from src.core.logging import bind_logger_context, get_logger, get_logger_context
 from src.infrastructure.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
 
 # Store query start times for execution contexts
 _query_start_times: WeakKeyDictionary[ExecutionContext, float] = WeakKeyDictionary()
@@ -87,37 +85,31 @@ def _after_cursor_execute(
     # Get current correlation ID for request tracking
     correlation_id = RequestContext.get_correlation_id()
 
-    # Update query metrics in logger context - aggregate values
-    current_context = get_logger_context()
-    current_count = current_context.get("db_query_count", 0)
-    current_duration = current_context.get("db_query_duration_ms", 0.0)
-
-    bind_logger_context(
-        db_query_count=current_count + 1,
-        db_query_duration_ms=current_duration + duration_ms,
-    )
+    # Query metrics removed in Phase 0
 
     # Log slow queries
     if (
         settings.log_config.enable_sql_logging
         and duration_ms >= settings.log_config.slow_query_threshold_ms
     ):
-        # Sanitize parameters for logging
-        sanitized_params = None
-        if parameters:
-            sanitized_params = sanitize_context({"params": parameters}).get("params")
+        # Parameters logging
+        sanitized_params = parameters  # TODO: Will be sanitized in Phase 4
 
         # Clean up the SQL statement for logging
         clean_statement = " ".join(statement.split())[:500]  # Limit length
 
         logger.warning(
-            "slow_query_detected",
-            query=clean_statement,
-            duration_ms=round(duration_ms, 2),
-            parameters=sanitized_params,
-            correlation_id=correlation_id,
-            executemany=executemany,
-            threshold_ms=settings.log_config.slow_query_threshold_ms,
+            "Slow query detected: %s... Duration: %.2fms",
+            clean_statement[:100],
+            round(duration_ms, 2),
+            extra={
+                "query": clean_statement,
+                "duration_ms": round(duration_ms, 2),
+                "parameters": sanitized_params,
+                "correlation_id": correlation_id,
+                "executemany": executemany,
+                "threshold_ms": settings.log_config.slow_query_threshold_ms,
+            },
         )
 
 
@@ -155,27 +147,8 @@ def create_database_engine(database_url: str | None = None) -> AsyncEngine:
         },
     )
 
-    # Enable OpenTelemetry instrumentation if SQL logging is enabled
+    # Add custom event listeners for detailed query logging if SQL logging is enabled
     if settings.log_config.enable_sql_logging:
-        try:
-            # Instrument the sync engine for compatibility with SQLAlchemy events
-            SQLAlchemyInstrumentor().instrument(
-                engine=engine.sync_engine,
-                enable_commenter=True,
-                commenter_options={"opentelemetry_values": True},
-            )
-            logger.info("Enabled OpenTelemetry SQLAlchemy instrumentation")
-        except (RuntimeError, AttributeError, TypeError) as e:
-            # RuntimeError: General instrumentation failures (e.g.,
-            # AlreadyInstrumentedError)
-            # AttributeError: Engine missing expected attributes
-            # TypeError: Invalid arguments to instrument method
-            logger.warning(
-                "Failed to enable OpenTelemetry SQLAlchemy instrumentation",
-                error_type=type(e).__name__,
-                error_message=str(e),
-            )
-
         try:
             # Add custom event listeners for detailed query logging
             # Use the sync_engine for event listeners as they work with sync events
@@ -192,18 +165,16 @@ def create_database_engine(database_url: str | None = None) -> AsyncEngine:
             # AttributeError: Target doesn't support event listening
             # TypeError: Invalid arguments to event.listen
             logger.warning(
-                "Failed to register query performance event listeners",
-                error_type=type(e).__name__,
-                error_message=str(e),
+                "Failed to register query performance event listeners: %s: %s",
+                type(e).__name__,
+                str(e),
             )
 
     logger.info(
-        "Created database engine",
-        pool_size=db_config.pool_size,
-        max_overflow=db_config.max_overflow,
-        pool_timeout=db_config.pool_timeout,
-        pool_pre_ping=db_config.pool_pre_ping,
-        sql_logging_enabled=settings.log_config.enable_sql_logging,
+        "Created database engine - pool_size: %d, max_overflow: %d, sql_logging: %s",
+        db_config.pool_size,
+        db_config.max_overflow,
+        settings.log_config.enable_sql_logging,
     )
 
     return engine

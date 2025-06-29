@@ -12,10 +12,6 @@ from src.core.exceptions import (
     UnauthorizedError,
     ValidationError,
 )
-from src.core.logging import configure_structlog
-
-# Configure logging for tests
-configure_structlog()
 
 
 @pytest.fixture

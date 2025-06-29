@@ -5,6 +5,7 @@ and integrates with the project's configuration and logging systems.
 """
 
 import asyncio
+import logging
 from typing import Any
 
 from alembic import context
@@ -13,15 +14,14 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from src.core.config import get_settings
-from src.core.logging import get_logger
 from src.infrastructure.database.base import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-# Initialize our structured logger
-logger = get_logger(__name__)
+# Initialize standard logger
+logger = logging.getLogger(__name__)
 
 # Set the target metadata for autogenerate support
 target_metadata = Base.metadata

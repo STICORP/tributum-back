@@ -76,6 +76,7 @@ class TestErrorResponseFormat:
 
 
 @pytest.mark.integration
+@pytest.mark.skip(reason="Sensitive data sanitization planned for Phase 4")
 class TestSensitiveDataSanitization:
     """Test that sensitive data is sanitized in error responses."""
 

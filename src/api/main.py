@@ -1,31 +1,20 @@
 """Main FastAPI application module."""
 
-import asyncio
+import logging
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
-from opentelemetry import trace
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from src.api.middleware.error_handler import register_exception_handlers
 from src.api.middleware.request_context import RequestContextMiddleware
-from src.api.middleware.request_logging import RequestLoggingMiddleware
 from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
-from src.core.logging import get_logger
-from src.core.observability import (
-    add_correlation_id_to_span,
-    get_database_pool_metrics,
-    get_tracer,
-    setup_tracing,
-)
 from src.infrastructure.database.session import (
     check_database_connection,
     close_database,
-    get_engine,
 )
 
 
@@ -42,102 +31,26 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
     Raises:
         RuntimeError: If database connection fails during startup.
     """
-    logger = get_logger(__name__)
-    tracer = get_tracer(__name__)
-
-    # Startup: Initialize tracing and metrics
-    setup_tracing()
-
-    # Get settings for metrics configuration
-    settings = get_settings()
+    logger = logging.getLogger(__name__)
 
     # Startup: Check database connection
-    with tracer.start_as_current_span("startup_database_check") as span:
-        is_healthy, error_msg = await check_database_connection()
+    is_healthy, error_msg = await check_database_connection()
 
-        if is_healthy:
-            span.set_attribute("database.connection_check", "success")
-            logger.info("Database connection successful")
-        else:
-            span.set_attribute("database.connection_check", "failed")
-            span.set_attribute("error.message", error_msg or "Unknown error")
-            span.set_status(
-                trace.Status(
-                    trace.StatusCode.ERROR, error_msg or "Database connection failed"
-                )
-            )
-
-            logger.error(
-                "Database connection failed during startup",
-                error_message=error_msg,
-            )
-            msg = f"Database connection failed: {error_msg}"
-            raise RuntimeError(msg)
+    if is_healthy:
+        logger.info("Database connection successful")
+    else:
+        logger.error("Database connection failed during startup: %s", error_msg)
+        msg = f"Database connection failed: {error_msg}"
+        raise RuntimeError(msg)
 
     # Log startup with app info
     logger.info(
-        "Application startup complete",
-        app_name=app_instance.title,
-        version=app_instance.version,
+        "Application startup complete - %s v%s",
+        app_instance.title,
+        app_instance.version,
     )
 
-    # Start background metric collection task if enabled
-    metric_task = None
-    if (
-        settings.observability_config.enable_metrics
-        and settings.observability_config.enable_system_metrics
-    ):
-
-        async def collect_system_metrics() -> None:
-            """Background task to collect system metrics periodically."""
-            interval = settings.observability_config.system_metrics_interval_s
-            logger.info(
-                "Starting system metrics collection task",
-                interval_seconds=interval,
-            )
-
-            while True:
-                try:
-                    # Sleep for the configured interval
-                    await asyncio.sleep(interval)
-
-                    # Log database pool metrics
-                    engine = get_engine()
-                    if engine:
-                        pool_metrics = get_database_pool_metrics(engine.pool)
-                        logger.debug(
-                            "Database pool metrics",
-                            **pool_metrics,
-                        )
-
-                        # Check for pool exhaustion
-                        if pool_metrics["checked_out"] >= pool_metrics["size"]:
-                            logger.warning(
-                                "Database connection pool exhausted",
-                                **pool_metrics,
-                            )
-
-                except asyncio.CancelledError:
-                    logger.info("System metrics collection task cancelled")
-                    break
-                except Exception as e:
-                    logger.exception(
-                        "Error in system metrics collection",
-                        error=str(e),
-                    )
-                    # Continue running despite errors
-
-        # Start the background task
-        metric_task = asyncio.create_task(collect_system_metrics())
-
     yield
-
-    # Shutdown: Cancel background task if running
-    if metric_task and not metric_task.done():
-        logger.info("Cancelling system metrics collection task")
-        metric_task.cancel()
-        with suppress(asyncio.CancelledError):
-            await metric_task
 
     # Shutdown: Cleanup database connections
     logger.info("Application shutdown initiated")
@@ -175,9 +88,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Order is important: middleware are executed in reverse order of registration
     # So the last middleware added is the first to process requests
 
-    # 3. Request logging middleware (logs requests/responses with correlation ID)
-    application.add_middleware(RequestLoggingMiddleware, log_config=settings.log_config)
-
     # 2. Request context middleware (creates correlation ID)
     application.add_middleware(RequestContextMiddleware)
 
@@ -207,36 +117,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Returns:
             dict[str, object]: A dictionary with status and database connectivity.
         """
+        logger = logging.getLogger(__name__)
         health_status: dict[str, object] = {"status": "healthy", "database": False}
-        tracer = get_tracer(__name__)
 
         # Check database connectivity
-        with tracer.start_as_current_span("health_check_database") as span:
-            is_healthy, error_msg = await check_database_connection()
+        is_healthy, error_msg = await check_database_connection()
 
-            health_status["database"] = is_healthy
-            span.set_attribute("database.available", str(is_healthy).lower())
+        health_status["database"] = is_healthy
 
-            if not is_healthy:
-                # Log error but don't fail the health check entirely
-                # This allows the service to report as "degraded" rather than "down"
-                logger = get_logger(__name__)
-                logger.warning(
-                    "Database health check failed",
-                    error_message=error_msg,
-                )
-                health_status["status"] = "degraded"
-
-                span.set_attribute("error.message", error_msg or "Unknown error")
-                # Don't set ERROR status - degraded state is expected behavior
-                span.set_status(
-                    trace.Status(
-                        trace.StatusCode.OK,
-                        "Database unavailable but service operational",
-                    )
-                )
-
-            span.set_attribute("health.status", str(health_status["status"]))
+        if not is_healthy:
+            # Log error but don't fail the health check entirely
+            # This allows the service to report as "degraded" rather than "down"
+            logger.warning("Database health check failed: %s", error_msg)
+            health_status["status"] = "degraded"
 
         return health_status
 
@@ -264,11 +157,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
 
 app = create_app()
-
-# Instrument FastAPI after app creation to ensure proper tracing
-# The instrumentor adds automatic span creation for all HTTP requests
-FastAPIInstrumentor.instrument_app(
-    app,
-    server_request_hook=add_correlation_id_to_span,
-    excluded_urls="/docs,/redoc,/openapi.json",
-)

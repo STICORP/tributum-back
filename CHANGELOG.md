@@ -8,24 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Configurable sanitization strategies for sensitive data (redact, mask, hash, truncate) with per-field customization
-- Enhanced sensitive data detection with pattern-based value scanning (credit cards, emails, phone numbers, UUIDs, JWTs)
-- Advanced OpenTelemetry trace sampling with composite sampling strategies based on endpoint priority and request characteristics
-- Intelligent span enrichment with endpoint classification, user context, and comprehensive request metadata
-- Span milestone events for tracking key checkpoints in request processing with structured attributes
-- OpenTelemetry metrics integration with GCP Cloud Monitoring for comprehensive observability
-- System metrics collection (CPU, memory, asyncio tasks, garbage collection) with configurable intervals
-- HTTP request and error metrics with detailed attributes for monitoring and alerting
-- Database connection pool metrics with exhaustion warnings
-- Background metrics collection task with graceful shutdown handling
-- Database query performance tracking with OpenTelemetry instrumentation and slow query detection
-- Granular performance metrics configuration for request logging middleware
-- Performance monitoring for HTTP requests with configurable slow/critical thresholds
-- Automatic structlog configuration on first logger usage
 - Deterministic check-implementation command with checkbox tracking for validation consistency
-- Enhanced logging processors for system metrics and error context enrichment
 - Database lifecycle management with startup checks and graceful shutdown
-- Complete middleware integration with security headers, correlation IDs, and request logging
+- Complete middleware integration with security headers and correlation IDs
 - Docker commands in Makefile for simplified container management and development workflow
 - Docker Compose configuration for development and production environments
 - Shellcheck integration for shell script linting in CI/CD and pre-commit hooks
@@ -56,16 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md documentation for AI-assisted development guidance
 - Comprehensive CLAUDE.md with architecture overview, development workflows, and coding conventions
 - Task analysis and review commands for improved planning
-- Enhanced logging configuration with advanced features for sampling, async logging, and request filtering
-- Advanced context management for logging with size limits, nested contexts, and selective unbinding
 
 ### Changed
+- **BREAKING**: Simplified observability infrastructure to Phase 0 implementation by removing complex features including structured logging (structlog), OpenTelemetry tracing, metrics collection, and advanced error context in favor of standard Python logging
 - Removed 10 unused constants from codebase to improve maintainability
 - CI/CD workflows and pre-commit hooks now auto-format code instead of just checking formatting
 - Local development checks (make all-checks) now auto-format code to match CI/CD behavior
-- Refactored observability functions to appropriate modules for better separation of concerns
-- Reorganized constants to their respective layers (API and infrastructure)
-- Logging processors are now conditionally enabled based on `LogConfig` settings for better performance and flexibility.
 - Enhanced .env.example with comprehensive documentation, clear sections, and environment-specific examples
 - Refactored constants into layer-specific modules following clean architecture principles
 - Split large configuration test file (727 lines) into focused modules for improved maintainability
@@ -90,18 +71,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Claude command templates introduced for standardized task management
 
 ### Removed
+- Complex observability infrastructure: structured logging (structlog), OpenTelemetry tracing, metrics collection, and advanced error context
+- src/core/logging.py (structlog-based logging system)
+- src/core/observability.py (OpenTelemetry setup and configuration)
+- src/core/error_context.py (complex error context management)
+- src/api/middleware/request_logging.py (advanced request logging middleware)
+- OpenTelemetry dependencies from pyproject.toml
+- Extensive test suites for removed observability features (13,000+ lines of test code)
 - do command from Claude command list as redundant with existing development workflow
 - Obsolete plan.md file superseded by modular specification approach
 
 ### Fixed
-- Database pool metrics collection now correctly handles AsyncAdaptedQueuePool and QueuePool types
 - Database credentials standardized across documentation to match Docker setup (tributum/tributum_pass)
 - CI pipeline failure due to missing docker/scripts directory
 - pytest-rich and pytest-xdist compatibility issue for parallel test execution
-- Structlog warning about format_exc_info in development logging
 - Test fixture timeouts in CI environments by configuring pytest to apply timeouts only to test functions
 - Intermittent Docker container startup failures in CI caused by network creation conflicts
-- Duplicate timestamp issue in log output caused by double processing in structlog configuration
 
 ## [0.3.0] - 2025-06-20
 

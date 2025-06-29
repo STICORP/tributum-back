@@ -9,7 +9,7 @@ import traceback
 from enum import Enum
 from typing import Any
 
-from src.core.constants import FINGERPRINT_MAX_PARTS
+# Fingerprint generation simplified in Phase 0
 
 
 class ErrorCode(Enum):
@@ -107,10 +107,11 @@ class TributumError(Exception):
             str: A hash string for error grouping
         """
         # Use the first few frames from the stack trace to identify location
-        # Skip the last few frames which are in the exception initialization
+        # Simplified in Phase 0 - use fixed number of frames
+        max_frames = 5
         relevant_frames = (
-            self.stack_trace[-FINGERPRINT_MAX_PARTS:]
-            if len(self.stack_trace) > FINGERPRINT_MAX_PARTS
+            self.stack_trace[-max_frames:]
+            if len(self.stack_trace) > max_frames
             else self.stack_trace
         )
 

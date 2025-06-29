@@ -1,5 +1,6 @@
 """Shared test configuration and fixtures."""
 
+import logging
 from collections.abc import AsyncGenerator, Generator
 
 import pytest
@@ -9,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from src.api.main import app, create_app
 from src.core.config import get_settings
 from src.core.context import RequestContext
-from src.core.logging import get_logger
 from src.infrastructure.database.dependencies import get_db
 from src.infrastructure.database.session import _db_manager, close_database
 
@@ -114,11 +114,11 @@ async def clean_database_connections() -> AsyncGenerator[None]:
                 # - RuntimeError: Event loop is closed
                 # - ConnectionError/OSError: Connection already closed
                 # Log them for debugging but don't fail the test
-                logger = get_logger(__name__)
+                logger = logging.getLogger(__name__)
                 logger.debug(
-                    "Expected error during database cleanup",
-                    error_type=type(e).__name__,
-                    error=str(e),
+                    "Expected error during database cleanup: %s: %s",
+                    type(e).__name__,
+                    str(e),
                 )
                 # Still reset the manager to clear references
                 _db_manager.reset()

@@ -67,49 +67,6 @@ class TestGetDb:
         assert mock_logger.debug.call_count == 2
 
     @pytest.mark.asyncio
-    async def test_get_db_tracks_query_metrics(self, mocker: MockerFixture) -> None:
-        """Test that get_db tracks database query metrics."""
-        # Create a mock session
-        mock_session = mocker.MagicMock(spec=AsyncSession)
-
-        # Mock the get_async_session context manager
-        mock_get_async_session = mocker.patch(
-            "src.infrastructure.database.dependencies.get_async_session"
-        )
-        mock_get_async_session.return_value.__aenter__.return_value = mock_session
-        mock_get_async_session.return_value.__aexit__.return_value = None
-
-        # Mock the logger context functions
-        mock_get_logger_context = mocker.patch(
-            "src.infrastructure.database.dependencies.get_logger_context"
-        )
-        # First call: initial context
-        # Second call: context after queries
-        mock_get_logger_context.side_effect = [
-            {"db_query_count": 0, "db_query_duration_ms": 0.0},
-            {"db_query_count": 5, "db_query_duration_ms": 123.45},
-        ]
-
-        # Mock the logger
-        mock_logger = mocker.patch("src.infrastructure.database.dependencies.logger")
-
-        # Use the dependency
-        async for _ in get_db():
-            pass  # Simulate using the session
-
-        # Verify completion log includes query metrics
-        calls = mock_logger.debug.call_args_list
-        assert len(calls) == 2
-
-        # Check the completion call includes metrics
-        completion_call = calls[1]
-        assert completion_call[0][0] == "Database session dependency completed"
-        assert "session_query_count" in completion_call[1]
-        assert "session_query_duration_ms" in completion_call[1]
-        assert completion_call[1]["session_query_count"] == 5
-        assert completion_call[1]["session_query_duration_ms"] == 123.45
-
-    @pytest.mark.asyncio
     async def test_get_db_handles_exception(self, mocker: MockerFixture) -> None:
         """Test that get_db properly propagates exceptions."""
         # Create exception to raise

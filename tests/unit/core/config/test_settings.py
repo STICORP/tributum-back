@@ -54,12 +54,8 @@ class TestSettings:
             assert settings.log_config.log_level == "WARNING"  # Set by pytest-env
         with pytest_check.check:
             assert settings.log_config.log_format == "console"
-        with pytest_check.check:
-            assert settings.log_config.render_json_logs is False
-        with pytest_check.check:
-            assert settings.log_config.add_timestamp is False  # Set by pytest-env
-        with pytest_check.check:
-            assert settings.log_config.timestamper_format == "iso"
+        # Removed attributes tested in Phase 0:
+        # render_json_logs, add_timestamp, timestamper_format
 
     def test_default_observability_config(self) -> None:
         """Test default observability configuration."""
@@ -71,11 +67,10 @@ class TestSettings:
         with pytest_check.check:
             assert settings.observability_config.enable_tracing is False
         with pytest_check.check:
-            assert settings.observability_config.service_name == "tributum"
-        with pytest_check.check:
             assert settings.observability_config.gcp_project_id is None
         with pytest_check.check:
             assert settings.observability_config.trace_sample_rate == 1.0
+        # Removed attribute tested in Phase 0: service_name
 
     def test_default_database_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test default database configuration."""
@@ -138,8 +133,7 @@ class TestSettings:
         # In production, console format should be overridden to json
         with pytest_check.check:
             assert settings.log_config.log_format == "json"
-        with pytest_check.check:
-            assert settings.log_config.render_json_logs is True
+        # Phase 0: Removed assertion for render_json_logs which no longer exists
 
     def test_case_insensitive_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that environment variables are case-insensitive."""
@@ -184,7 +178,7 @@ class TestSettings:
         assert settings.openapi_url is None
 
     def test_production_environment_json_logs(self, production_env: None) -> None:
-        """Test that production environment sets JSON logs and async logging.
+        """Test that production environment sets JSON logs.
 
         Uses the production_env fixture to set up production environment.
         """
@@ -192,9 +186,7 @@ class TestSettings:
         settings = Settings()
         assert settings.environment == "production"
         assert settings.log_config.log_format == "json"
-        assert settings.log_config.render_json_logs is True
-        # Production should also enable async logging automatically
-        assert settings.log_config.enable_async_logging is True
+        # Removed attributes in Phase 0: render_json_logs, enable_async_logging
 
     def test_development_environment_console_logs(self, development_env: None) -> None:
         """Test that development environment keeps console logs.
@@ -205,19 +197,7 @@ class TestSettings:
         settings = Settings()
         assert settings.environment == "development"
         assert settings.log_config.log_format == "console"
-        assert settings.log_config.render_json_logs is False
-        # Development should not enable async logging by default
-        assert settings.log_config.enable_async_logging is False
+        # Removed attributes in Phase 0: render_json_logs, enable_async_logging
 
-    def test_production_async_logging_explicit_override(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """Test that explicitly disabling async logging in production is respected."""
-        # Set production environment and explicitly disable async logging
-        monkeypatch.setenv("ENVIRONMENT", "production")
-        monkeypatch.setenv("LOG_CONFIG__ENABLE_ASYNC_LOGGING", "false")
-
-        settings = Settings()
-        assert settings.environment == "production"
-        # Should NOT enable async logging when explicitly set to false
-        assert settings.log_config.enable_async_logging is False
+    # Removed test in Phase 0: test_production_async_logging_explicit_override
+    # This test checked enable_async_logging which was removed
