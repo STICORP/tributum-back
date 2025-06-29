@@ -4,12 +4,12 @@ This module provides centralized exception handling for all API endpoints,
 ensuring consistent error responses and proper logging of exceptions.
 """
 
-import logging
 import traceback
 
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
+from loguru import logger
 from starlette.exceptions import HTTPException
 
 from src.api.constants import HTTP_500_INTERNAL_SERVER_ERROR
@@ -25,8 +25,6 @@ from src.core.exceptions import (
     UnauthorizedError,
     ValidationError,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def get_service_info(settings: Settings) -> ServiceInfo:
@@ -70,15 +68,13 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
 
     # Log the exception
     logger.error(
-        "Handling %s: %s",
-        type(exc).__name__,
-        exc.message,
-        extra={
-            "request_method": request.method,
-            "request_path": str(request.url.path),
-            "error_code": exc.error_code,
-            "correlation_id": correlation_id,
-        },
+        "Handling {exception_type}: {message}",
+        exception_type=type(exc).__name__,
+        message=exc.message,
+        request_method=request.method,
+        request_path=str(request.url.path),
+        error_code=exc.error_code,
+        correlation_id=correlation_id,
     )
 
     # Map exception types to HTTP status codes
@@ -172,11 +168,12 @@ async def validation_error_handler(request: Request, exc: Exception) -> Response
 
     # Log the validation error
     logger.warning(
-        "Request validation failed - method: %s, path: %s, correlation_id: %s",
-        request.method,
-        str(request.url.path),
-        correlation_id,
-        extra={"validation_errors": field_errors},
+        "Request validation failed - method: {method}, path: {path}",
+        "correlation_id: {correlation_id}",
+        method=request.method,
+        path=str(request.url.path),
+        correlation_id=correlation_id,
+        validation_errors=field_errors,
     )
 
     # Error metrics removed in Phase 0
@@ -238,12 +235,13 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
 
     # Log the exception
     logger.warning(
-        "HTTP exception - status: %d, method: %s, path: %s, detail: %s",
-        exc.status_code,
-        request.method,
-        str(request.url.path),
-        exc.detail,
-        extra={"correlation_id": correlation_id},
+        "HTTP exception - status: {status}, method: {method}, path: {path}",
+        "detail: {detail}",
+        status=exc.status_code,
+        method=request.method,
+        path=str(request.url.path),
+        detail=exc.detail,
+        correlation_id=correlation_id,
     )
 
     # Error metrics removed in Phase 0
@@ -282,13 +280,11 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
 
     # Log the full exception with stack trace
     logger.exception(
-        "Unhandled exception: %s",
-        type(exc).__name__,
-        extra={
-            "request_method": request.method,
-            "request_path": str(request.url.path),
-            "correlation_id": correlation_id,
-        },
+        "Unhandled exception: {exception_type}",
+        exception_type=type(exc).__name__,
+        request_method=request.method,
+        request_path=str(request.url.path),
+        correlation_id=correlation_id,
     )
 
     # Error metrics removed in Phase 0

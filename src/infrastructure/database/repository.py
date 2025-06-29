@@ -4,18 +4,16 @@ This module provides a generic repository base class that implements
 common CRUD operations for SQLAlchemy models using async patterns.
 """
 
-import logging
 from collections.abc import Mapping
 from typing import TypeVar
 
+from loguru import logger
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.constants import DEFAULT_PAGINATION_LIMIT
 from src.infrastructure.database.base import BaseModel
-
-logger = logging.getLogger(__name__)
 
 # Type variable for generic model type
 T = TypeVar("T", bound=BaseModel)
@@ -42,7 +40,7 @@ class BaseRepository[T: BaseModel]:
     def __init__(self, session: AsyncSession, model_class: type[T]) -> None:
         self.session = session
         self.model_class = model_class
-        logger.debug("Initialized repository for %s", model_class.__name__)
+        logger.debug("Initialized repository for {}", model_class.__name__)
 
     async def get_by_id(self, entity_id: int) -> T | None:
         """Retrieve a model instance by its ID.
@@ -53,7 +51,7 @@ class BaseRepository[T: BaseModel]:
         Returns:
             T | None: The model instance if found, None otherwise.
         """
-        logger.debug("Fetching %s by ID: %d", self.model_class.__name__, entity_id)
+        logger.debug("Fetching {} by ID: {}", self.model_class.__name__, entity_id)
 
         stmt = select(self.model_class).where(self.model_class.id == entity_id)
         result = await self.session.execute(stmt)
@@ -61,11 +59,11 @@ class BaseRepository[T: BaseModel]:
 
         if instance:
             logger.debug(
-                "Found %s instance with ID: %d", self.model_class.__name__, entity_id
+                "Found {} instance with ID: {}", self.model_class.__name__, entity_id
             )
         else:
             logger.debug(
-                "%s instance not found with ID: %d",
+                "{} instance not found with ID: {}",
                 self.model_class.__name__,
                 entity_id,
             )
@@ -85,7 +83,7 @@ class BaseRepository[T: BaseModel]:
             list[T]: List of model instances.
         """
         logger.debug(
-            "Fetching all %s with pagination - skip: %d, limit: %d",
+            "Fetching all {} with pagination - skip: {}, limit: {}",
             self.model_class.__name__,
             skip,
             limit,
@@ -101,7 +99,7 @@ class BaseRepository[T: BaseModel]:
         instances = list(result.scalars().all())
 
         logger.debug(
-            "Retrieved %d %s instances", len(instances), self.model_class.__name__
+            "Retrieved {} {} instances", len(instances), self.model_class.__name__
         )
 
         return instances
@@ -115,7 +113,7 @@ class BaseRepository[T: BaseModel]:
         Returns:
             T: The created model instance with populated ID and timestamps.
         """
-        logger.debug("Creating new %s instance", self.model_class.__name__)
+        logger.debug("Creating new {} instance", self.model_class.__name__)
 
         self.session.add(obj)
         await self.session.flush()  # Flush to get the ID without committing
@@ -124,7 +122,7 @@ class BaseRepository[T: BaseModel]:
         await self.session.refresh(obj)
 
         logger.info(
-            "Created %s instance with ID: %d", self.model_class.__name__, obj.id
+            "Created {} instance with ID: {}", self.model_class.__name__, obj.id
         )
 
         return obj
@@ -140,7 +138,7 @@ class BaseRepository[T: BaseModel]:
             T | None: The updated model instance if found, None otherwise.
         """
         logger.debug(
-            "Updating %s instance ID %d - fields: %s",
+            "Updating {} instance ID {} - fields: {}",
             self.model_class.__name__,
             entity_id,
             list(data.keys()),
@@ -150,7 +148,7 @@ class BaseRepository[T: BaseModel]:
         instance = await self.get_by_id(entity_id)
         if not instance:
             logger.debug(
-                "%s instance not found for update - ID: %d",
+                "{} instance not found for update - ID: {}",
                 self.model_class.__name__,
                 entity_id,
             )
@@ -162,7 +160,7 @@ class BaseRepository[T: BaseModel]:
                 setattr(instance, key, value)
             else:
                 logger.warning(
-                    "Attempted to update non-existent field '%s' on %s",
+                    "Attempted to update non-existent field '{}' on {}",
                     key,
                     self.model_class.__name__,
                 )
@@ -172,7 +170,7 @@ class BaseRepository[T: BaseModel]:
         await self.session.refresh(instance)
 
         logger.info(
-            "Updated %s instance ID %d - fields: %s",
+            "Updated {} instance ID {} - fields: {}",
             self.model_class.__name__,
             entity_id,
             list(data.keys()),
@@ -190,7 +188,7 @@ class BaseRepository[T: BaseModel]:
             bool: True if the instance was deleted, False if not found.
         """
         logger.debug(
-            "Deleting %s instance with ID: %d", self.model_class.__name__, entity_id
+            "Deleting {} instance with ID: {}", self.model_class.__name__, entity_id
         )
 
         # Build delete statement
@@ -202,11 +200,11 @@ class BaseRepository[T: BaseModel]:
 
         if deleted:
             logger.info(
-                "Deleted %s instance with ID: %d", self.model_class.__name__, entity_id
+                "Deleted {} instance with ID: {}", self.model_class.__name__, entity_id
             )
         else:
             logger.debug(
-                "%s instance not found for deletion - ID: %d",
+                "{} instance not found for deletion - ID: {}",
                 self.model_class.__name__,
                 entity_id,
             )
@@ -219,13 +217,13 @@ class BaseRepository[T: BaseModel]:
         Returns:
             int: The total number of instances.
         """
-        logger.debug("Counting %s instances", self.model_class.__name__)
+        logger.debug("Counting {} instances", self.model_class.__name__)
 
         stmt = select(func.count()).select_from(self.model_class)
         result = await self.session.execute(stmt)
         count_value = result.scalar() or 0
 
-        logger.debug("Counted %d %s instances", count_value, self.model_class.__name__)
+        logger.debug("Counted {} {} instances", count_value, self.model_class.__name__)
 
         return count_value
 
@@ -239,7 +237,7 @@ class BaseRepository[T: BaseModel]:
             bool: True if the instance exists, False otherwise.
         """
         logger.debug(
-            "Checking existence of %s with ID: %d", self.model_class.__name__, entity_id
+            "Checking existence of {} with ID: {}", self.model_class.__name__, entity_id
         )
 
         stmt = (
@@ -251,7 +249,7 @@ class BaseRepository[T: BaseModel]:
         exists_value = (result.scalar() or 0) > 0
 
         logger.debug(
-            "Existence check result for %s with ID %d: %s",
+            "Existence check result for {} with ID {}: {}",
             self.model_class.__name__,
             entity_id,
             exists_value,
@@ -269,7 +267,7 @@ class BaseRepository[T: BaseModel]:
             list[T]: List of model instances matching all conditions.
         """
         logger.debug(
-            "Filtering %s instances with filters: %s",
+            "Filtering {} instances with filters: {}",
             self.model_class.__name__,
             kwargs,
         )
@@ -281,7 +279,7 @@ class BaseRepository[T: BaseModel]:
                 stmt = stmt.where(getattr(self.model_class, field) == value)
             else:
                 logger.warning(
-                    "Attempted to filter by non-existent field '%s' on %s",
+                    "Attempted to filter by non-existent field '{}' on {}",
                     field,
                     self.model_class.__name__,
                 )
@@ -293,7 +291,7 @@ class BaseRepository[T: BaseModel]:
         instances = list(result.scalars().all())
 
         logger.debug(
-            "Filtered %s - found %d instances with filters: %s",
+            "Filtered {} - found {} instances with filters: {}",
             self.model_class.__name__,
             len(instances),
             kwargs,
@@ -311,7 +309,7 @@ class BaseRepository[T: BaseModel]:
             T | None: The first matching instance if found, None otherwise.
         """
         logger.debug(
-            "Finding one %s instance with filters: %s",
+            "Finding one {} instance with filters: {}",
             self.model_class.__name__,
             kwargs,
         )
@@ -323,7 +321,7 @@ class BaseRepository[T: BaseModel]:
                 stmt = stmt.where(getattr(self.model_class, field) == value)
             else:
                 logger.warning(
-                    "Attempted to filter by non-existent field '%s' on %s",
+                    "Attempted to filter by non-existent field '{}' on {}",
                     field,
                     self.model_class.__name__,
                 )
@@ -336,14 +334,14 @@ class BaseRepository[T: BaseModel]:
 
         if instance:
             logger.debug(
-                "Found %s instance ID %d with filters: %s",
+                "Found {} instance ID {} with filters: {}",
                 self.model_class.__name__,
                 instance.id,
                 kwargs,
             )
         else:
             logger.debug(
-                "%s instance not found with filters: %s",
+                "{} instance not found with filters: {}",
                 self.model_class.__name__,
                 kwargs,
             )

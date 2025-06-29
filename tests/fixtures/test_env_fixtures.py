@@ -23,8 +23,7 @@ def production_env(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     # Set production environment variables
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DEBUG", "false")
-    monkeypatch.setenv("LOG_CONFIG__LOG_FORMAT", "json")
-    monkeypatch.setenv("LOG_CONFIG__RENDER_JSON_LOGS", "true")
+    monkeypatch.setenv("LOG_CONFIG__LOG_FORMATTER_TYPE", "json")
 
     yield
 
@@ -48,8 +47,7 @@ def development_env(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     # Set development environment variables
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("DEBUG", "true")
-    monkeypatch.setenv("LOG_CONFIG__LOG_FORMAT", "console")
-    monkeypatch.setenv("LOG_CONFIG__RENDER_JSON_LOGS", "false")
+    monkeypatch.setenv("LOG_CONFIG__LOG_FORMATTER_TYPE", "console")
 
     yield
 
@@ -73,8 +71,7 @@ def staging_env(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     # Set staging environment variables
     monkeypatch.setenv("ENVIRONMENT", "staging")
     monkeypatch.setenv("DEBUG", "false")
-    monkeypatch.setenv("LOG_CONFIG__LOG_FORMAT", "json")
-    monkeypatch.setenv("LOG_CONFIG__RENDER_JSON_LOGS", "true")
+    monkeypatch.setenv("LOG_CONFIG__LOG_FORMATTER_TYPE", "json")
 
     yield
 

@@ -53,7 +53,7 @@ class TestSettings:
         with pytest_check.check:
             assert settings.log_config.log_level == "WARNING"  # Set by pytest-env
         with pytest_check.check:
-            assert settings.log_config.log_format == "console"
+            assert settings.log_config.log_formatter_type == "console"
         # Removed attributes tested in Phase 0:
         # render_json_logs, add_timestamp, timestamper_format
 
@@ -132,7 +132,7 @@ class TestSettings:
             assert settings.log_config.log_level == "DEBUG"
         # In production, console format should be overridden to json
         with pytest_check.check:
-            assert settings.log_config.log_format == "json"
+            assert settings.log_config.log_formatter_type == "json"
         # Phase 0: Removed assertion for render_json_logs which no longer exists
 
     def test_case_insensitive_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -185,7 +185,7 @@ class TestSettings:
         _ = production_env  # Fixture sets up environment
         settings = Settings()
         assert settings.environment == "production"
-        assert settings.log_config.log_format == "json"
+        assert settings.log_config.log_formatter_type == "json"
         # Removed attributes in Phase 0: render_json_logs, enable_async_logging
 
     def test_development_environment_console_logs(self, development_env: None) -> None:
@@ -196,7 +196,7 @@ class TestSettings:
         _ = development_env  # Fixture sets up environment
         settings = Settings()
         assert settings.environment == "development"
-        assert settings.log_config.log_format == "console"
+        assert settings.log_config.log_formatter_type == "console"
         # Removed attributes in Phase 0: render_json_logs, enable_async_logging
 
     # Removed test in Phase 0: test_production_async_logging_explicit_override

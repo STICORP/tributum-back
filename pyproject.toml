@@ -36,6 +36,8 @@ dependencies = [
     "orjson>=3.10.18",
     "python-multipart>=0.0.20",
     "psutil>=7.0.0",
+    # Logging
+    "loguru>=0.7.2",
     # Database dependencies
     "sqlalchemy[asyncio]>=2.0.41",
     "asyncpg>=0.30.0",
@@ -318,6 +320,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise AssertionError",
     "raise NotImplementedError",
+    "\\.\\.\\.",  # Exclude Protocol method placeholders
 ]
 
 # ===========================

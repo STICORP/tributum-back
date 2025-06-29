@@ -808,14 +808,14 @@ class TestQueryEventListeners:
             call_args[0][1][:100] == "SELECT * FROM large_table WHERE status = :status"
         )  # truncated query
         assert call_args[0][2] >= 50.0  # duration_ms
-        # Verify the extra dict
-        extra = call_args[1]["extra"]
-        assert extra["query"] == "SELECT * FROM large_table WHERE status = :status"
-        assert extra["correlation_id"] == "test-correlation-123"
-        assert extra["duration_ms"] >= 50.0
-        assert extra["threshold_ms"] == 10
-        assert extra["parameters"] == {"status": "active"}
-        assert extra["executemany"] is False
+        # Verify the keyword arguments (Loguru style)
+        kwargs = call_args[1]
+        assert kwargs["query"] == "SELECT * FROM large_table WHERE status = :status"
+        assert kwargs["correlation_id"] == "test-correlation-123"
+        assert kwargs["duration_ms"] >= 50.0
+        assert kwargs["threshold_ms"] == 10
+        assert kwargs["parameters"] == {"status": "active"}
+        assert kwargs["executemany"] is False
 
 
 @pytest.mark.unit

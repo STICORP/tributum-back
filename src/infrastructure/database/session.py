@@ -4,13 +4,13 @@ This module provides the async engine and session factory configuration
 for the Tributum application, with proper connection pooling and cleanup.
 """
 
-import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
 from weakref import WeakKeyDictionary
 
+from loguru import logger
 from sqlalchemy import event, text
 from sqlalchemy.engine import Connection
 from sqlalchemy.engine.interfaces import DBAPICursor, ExecutionContext
@@ -25,8 +25,6 @@ from sqlalchemy.ext.asyncio import (
 from src.core.config import get_settings
 from src.core.context import RequestContext
 from src.infrastructure.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
-
-logger = logging.getLogger(__name__)
 
 # Store query start times for execution contexts
 _query_start_times: WeakKeyDictionary[ExecutionContext, float] = WeakKeyDictionary()
@@ -99,17 +97,15 @@ def _after_cursor_execute(
         clean_statement = " ".join(statement.split())[:500]  # Limit length
 
         logger.warning(
-            "Slow query detected: %s... Duration: %.2fms",
+            "Slow query detected: {}... Duration: {:.2f}ms",
             clean_statement[:100],
             round(duration_ms, 2),
-            extra={
-                "query": clean_statement,
-                "duration_ms": round(duration_ms, 2),
-                "parameters": sanitized_params,
-                "correlation_id": correlation_id,
-                "executemany": executemany,
-                "threshold_ms": settings.log_config.slow_query_threshold_ms,
-            },
+            query=clean_statement,
+            duration_ms=round(duration_ms, 2),
+            parameters=sanitized_params,
+            correlation_id=correlation_id,
+            executemany=executemany,
+            threshold_ms=settings.log_config.slow_query_threshold_ms,
         )
 
 
@@ -165,13 +161,13 @@ def create_database_engine(database_url: str | None = None) -> AsyncEngine:
             # AttributeError: Target doesn't support event listening
             # TypeError: Invalid arguments to event.listen
             logger.warning(
-                "Failed to register query performance event listeners: %s: %s",
+                "Failed to register query performance event listeners: {}: {}",
                 type(e).__name__,
                 str(e),
             )
 
     logger.info(
-        "Created database engine - pool_size: %d, max_overflow: %d, sql_logging: %s",
+        "Created database engine - pool_size: {}, max_overflow: {}, sql_logging: {}",
         db_config.pool_size,
         db_config.max_overflow,
         settings.log_config.enable_sql_logging,

@@ -18,9 +18,9 @@ class LogConfig(BaseModel):
         default="INFO",
         description="Logging level",
     )
-    log_format: Literal["json", "console"] = Field(
+    log_formatter_type: Literal["console", "json", "gcp", "aws"] = Field(
         default="console",
-        description="Log output format",
+        description="Log formatter type",
     )
     excluded_paths: list[str] = Field(
         default_factory=lambda: ["/health", "/metrics"],
@@ -192,7 +192,7 @@ class Settings(BaseSettings):
         super().model_post_init(__context)
         # In production, default to JSON logs
         if self.environment in ("production", "staging"):
-            self.log_config.log_format = "json"
+            self.log_config.log_formatter_type = "json"
 
     @field_validator("docs_url", "redoc_url", "openapi_url", mode="before")
     @classmethod

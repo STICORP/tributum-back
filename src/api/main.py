@@ -1,17 +1,18 @@
 """Main FastAPI application module."""
 
-import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI
+from loguru import logger
 
 from src.api.middleware.error_handler import register_exception_handlers
 from src.api.middleware.request_context import RequestContextMiddleware
 from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
+from src.core.logging import setup_logging
 from src.infrastructure.database.session import (
     check_database_connection,
     close_database,
@@ -31,8 +32,6 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
     Raises:
         RuntimeError: If database connection fails during startup.
     """
-    logger = logging.getLogger(__name__)
-
     # Startup: Check database connection
     is_healthy, error_msg = await check_database_connection()
 
@@ -69,6 +68,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
     if settings is None:
         settings = get_settings()
+
+    # Setup logging first
+    setup_logging(settings)
 
     application = FastAPI(
         title=settings.app_name,
@@ -117,7 +119,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         Returns:
             dict[str, object]: A dictionary with status and database connectivity.
         """
-        logger = logging.getLogger(__name__)
         health_status: dict[str, object] = {"status": "healthy", "database": False}
 
         # Check database connectivity

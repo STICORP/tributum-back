@@ -6,11 +6,15 @@ import uvicorn
 
 from src.api.main import app
 from src.core.config import get_settings
+from src.core.logging import setup_logging
 
 
 def main() -> None:
     """Main entry point for the Tributum application."""
     settings = get_settings()
+
+    # Setup logging first
+    setup_logging(settings)
 
     # Check for Cloud Run PORT environment variable
     # Cloud Run sets PORT to the port the container should listen on

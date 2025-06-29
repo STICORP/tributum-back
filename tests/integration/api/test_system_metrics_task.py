@@ -30,7 +30,7 @@ class TestSystemMetricsTask:
 
         # Mock logger
         mock_logger = mocker.Mock()
-        mocker.patch("src.api.main.logging.getLogger", return_value=mock_logger)
+        mocker.patch("src.api.main.logger", mock_logger)
 
         # Phase 0: Removed mock for tracer and span which no longer exist
 

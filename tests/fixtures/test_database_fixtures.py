@@ -5,7 +5,6 @@ enabling true parallel test execution against a single PostgreSQL container.
 """
 
 import asyncio
-import logging
 import os
 from collections.abc import AsyncGenerator, Generator
 from pathlib import Path
@@ -14,11 +13,10 @@ import asyncpg
 import pytest
 from alembic import command as alembic_command
 from alembic.config import Config
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from src.core.config import get_settings
-
-logger = logging.getLogger(__name__)
 
 
 async def run_migrations_on_database(database_url: str) -> None:
@@ -51,7 +49,7 @@ async def run_migrations_on_database(database_url: str) -> None:
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, alembic_command.upgrade, alembic_cfg, "head")
 
-        logger.info("Migrations completed successfully on %s", database_url)
+        logger.info("Migrations completed successfully", database_url=database_url)
     finally:
         # Restore original environment variable
         if original_db_url is not None:
@@ -103,7 +101,7 @@ async def setup_worker_database(
     )
 
     # Create the database
-    logger.info("Creating test database: %s", worker_database_name)
+    logger.info("Creating test database", database_name=worker_database_name)
     conn = await asyncpg.connect(admin_url)
     try:
         # Drop if exists and create fresh
@@ -116,7 +114,7 @@ async def setup_worker_database(
     database_url = f"{database_url_base}/{worker_database_name}"
 
     # Run migrations on the new database
-    logger.info("Running migrations on database: %s", worker_database_name)
+    logger.info("Running migrations on database", database_name=worker_database_name)
     await run_migrations_on_database(database_url)
 
     yield database_url

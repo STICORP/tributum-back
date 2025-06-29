@@ -4,16 +4,14 @@ This module provides dependency injection functions for database sessions
 in FastAPI routes, ensuring proper lifecycle management and cleanup.
 """
 
-import logging
 from collections.abc import AsyncGenerator
 from typing import Annotated
 
 from fastapi import Depends
+from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.database.session import get_async_session
-
-logger = logging.getLogger(__name__)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession]:

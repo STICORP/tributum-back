@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Loguru-based logging system with improved performance
 - Deterministic check-implementation command with checkbox tracking for validation consistency
 - Database lifecycle management with startup checks and graceful shutdown
 - Complete middleware integration with security headers and correlation IDs
@@ -43,7 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task analysis and review commands for improved planning
 
 ### Changed
-- **BREAKING**: Simplified observability infrastructure to Phase 0 implementation by removing complex features including structured logging (structlog), OpenTelemetry tracing, metrics collection, and advanced error context in favor of standard Python logging
+- **BREAKING**: Simplified observability infrastructure to Phase 0 implementation by removing complex features including structured logging (structlog), OpenTelemetry tracing, metrics collection, and advanced error context
+- Migrated from standard Python logging to Loguru for better performance
+- Updated log formatter configuration from log_format to log_formatter_type with extended options
 - Removed 10 unused constants from codebase to improve maintainability
 - CI/CD workflows and pre-commit hooks now auto-format code instead of just checking formatting
 - Local development checks (make all-checks) now auto-format code to match CI/CD behavior
