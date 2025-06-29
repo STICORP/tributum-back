@@ -121,6 +121,20 @@ class LogConfig(BaseModel):
         description="Field names to exclude from sanitization entirely",
     )
 
+    # Sanitization strategy configuration
+    default_sanitization_strategy: Literal["redact", "mask", "hash", "truncate"] = (
+        Field(
+            default="redact",
+            description="Default sanitization strategy for sensitive fields",
+        )
+    )
+    field_sanitization_strategies: dict[
+        str, Literal["redact", "mask", "hash", "truncate"]
+    ] = Field(
+        default_factory=dict,
+        description="Per-field sanitization strategy overrides",
+    )
+
 
 class ObservabilityConfig(BaseModel):
     """Observability configuration settings for OpenTelemetry."""

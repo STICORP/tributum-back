@@ -25,6 +25,8 @@ class TestRequestBodyLogging:
         mock_log_config = mocker.Mock()
         mock_log_config.excluded_fields_from_sanitization = []
         mock_log_config.sensitive_value_detection = False
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
         mock_get_log_config = mocker.patch("src.core.error_context._get_log_config")
         mock_get_log_config.return_value = mock_log_config
 

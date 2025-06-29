@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Configurable sanitization strategies for sensitive data (redact, mask, hash, truncate) with per-field customization
 - Enhanced sensitive data detection with pattern-based value scanning (credit cards, emails, phone numbers, UUIDs, JWTs)
 - Advanced OpenTelemetry trace sampling with composite sampling strategies based on endpoint priority and request characteristics
 - Intelligent span enrichment with endpoint classification, user context, and comprehensive request metadata

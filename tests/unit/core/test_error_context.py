@@ -1,7 +1,7 @@
 """Tests for error context utilities."""
 
 import time
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from pytest_mock import MockerFixture
@@ -9,14 +9,21 @@ from pytest_mock import MockerFixture
 from src.api.constants import SENSITIVE_HEADERS
 from src.core.constants import REDACTED
 from src.core.error_context import (
+    SanitizationStrategy,
+    _apply_strategy,
     _luhn_check,
     _sanitize_dict,
     _sanitize_list,
     capture_request_context,
     detect_sensitive_value,
     enrich_error,
+    hash_value,
     is_sensitive_field,
+    mask_value,
+    redact_value,
     sanitize_context,
+    sanitize_context_with_options,
+    truncate_value,
 )
 from src.core.exceptions import TributumError, ValidationError
 
@@ -249,6 +256,8 @@ class TestSanitizeContext:
         mock_log_config = mocker.Mock()
         mock_log_config.excluded_fields_from_sanitization = []
         mock_log_config.sensitive_value_detection = False
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
 
         mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
         mock_get_settings.return_value = mock_log_config
@@ -821,6 +830,8 @@ class TestEnhancedSanitization:
         mock_log_config = mocker.Mock()
         mock_log_config.excluded_fields_from_sanitization = []
         mock_log_config.sensitive_value_detection = True
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
 
         mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
         mock_get_settings.return_value = mock_log_config
@@ -845,6 +856,8 @@ class TestEnhancedSanitization:
         mock_log_config = mocker.Mock()
         mock_log_config.excluded_fields_from_sanitization = []
         mock_log_config.sensitive_value_detection = False
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
 
         mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
         mock_get_settings.return_value = mock_log_config
@@ -870,6 +883,8 @@ class TestEnhancedSanitization:
             "safe_token",
         ]
         mock_log_config.sensitive_value_detection = True
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
 
         mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
         mock_get_settings.return_value = mock_log_config
@@ -897,6 +912,8 @@ class TestEnhancedSanitization:
         mock_log_config = mocker.Mock()
         mock_log_config.excluded_fields_from_sanitization = []
         mock_log_config.sensitive_value_detection = True
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
 
         mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
         mock_get_settings.return_value = mock_log_config
@@ -918,6 +935,8 @@ class TestEnhancedSanitization:
         mock_log_config = mocker.Mock()
         mock_log_config.excluded_fields_from_sanitization = []
         mock_log_config.sensitive_value_detection = True
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
 
         mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
         mock_get_settings.return_value = mock_log_config
@@ -1006,6 +1025,8 @@ class TestEnhancedSanitization:
         mock_log_config = mocker.Mock()
         mock_log_config.excluded_fields_from_sanitization = []
         mock_log_config.sensitive_value_detection = True
+        mock_log_config.default_sanitization_strategy = "redact"
+        mock_log_config.field_sanitization_strategies = {}
         mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
         mock_get_settings.return_value = mock_log_config
 
@@ -1092,3 +1113,355 @@ class TestEnhancedSanitization:
         assert average_time_ms < 3.0, (
             f"Average sanitization time {average_time_ms:.2f}ms exceeds 3ms threshold"
         )
+
+
+@pytest.mark.unit
+class TestSanitizationStrategies:
+    """Test cases for sanitization strategy functions."""
+
+    def test_redact_value(self) -> None:
+        """Test redact_value function."""
+        assert redact_value("secret") == "[REDACTED]"
+        assert redact_value(12345) == "[REDACTED]"
+        assert redact_value(None) == "[REDACTED]"
+        assert redact_value({"key": "value"}) == "[REDACTED]"
+
+    def test_mask_value_with_strings(self) -> None:
+        """Test mask_value with string inputs."""
+        # Long strings show last 4 chars
+        assert mask_value("1234567890") == "******7890"
+        assert mask_value("secret_password") == "***********word"
+        assert mask_value("abcdefgh") == "****efgh"
+
+        # Short strings are fully redacted
+        assert mask_value("123") == "[REDACTED]"
+        assert mask_value("abcd") == "[REDACTED]"
+        assert mask_value("") == "[REDACTED]"
+
+    def test_mask_value_with_non_strings(self) -> None:
+        """Test mask_value with non-string inputs."""
+        # Numbers converted to string
+        assert mask_value(1234567890) == "******7890"
+        assert mask_value(1234) == "[REDACTED]"
+
+        # None converted to string
+        assert mask_value(None) == "[REDACTED]"
+
+        # Objects converted to string
+        assert mask_value({"key": "value"}) == "************ue'}"
+
+    def test_hash_value_with_strings(self) -> None:
+        """Test hash_value with string inputs."""
+        # Consistent hashing
+        result1 = hash_value("secret_data")
+        result2 = hash_value("secret_data")
+        assert result1 == result2
+        assert result1.startswith("sha256:")
+        assert len(result1) == 15  # "sha256:" + 8 chars
+
+        # Different inputs produce different hashes
+        assert hash_value("data1") != hash_value("data2")
+
+        # Empty string has a hash
+        result = hash_value("")
+        assert result.startswith("sha256:")
+        assert len(result) == 15
+
+    def test_hash_value_with_non_strings(self) -> None:
+        """Test hash_value with non-string inputs."""
+        # Numbers converted to string
+        result = hash_value(12345)
+        assert result.startswith("sha256:")
+        assert len(result) == 15
+
+        # None converted to string
+        result = hash_value(None)
+        assert result.startswith("sha256:")
+
+        # Objects converted to string
+        result = hash_value({"key": "value"})
+        assert result.startswith("sha256:")
+
+    def test_truncate_value_with_strings(self) -> None:
+        """Test truncate_value with string inputs."""
+        # Default truncation (10 chars)
+        assert truncate_value("This is a long string") == "This is..."
+        assert truncate_value("Short") == "Short"
+        assert truncate_value("Exactly10!") == "Exactly10!"
+        assert truncate_value("Exactly11!!") == "Exactly..."
+
+        # Custom length
+        assert (
+            truncate_value("This is a long string", max_length=15) == "This is a lo..."
+        )
+        assert truncate_value("Short", max_length=20) == "Short"
+
+        # Edge cases
+        assert (
+            truncate_value("abc", max_length=3) == "abc"
+        )  # Can't truncate, return as is
+        assert truncate_value("ab", max_length=3) == "ab"
+        assert truncate_value("abcd", max_length=3) == "..."  # Only ellipsis fits
+        assert truncate_value("", max_length=10) == ""
+
+    def test_truncate_value_with_non_strings(self) -> None:
+        """Test truncate_value with non-string inputs."""
+        # Numbers converted to string
+        assert truncate_value(1234567890123456, max_length=10) == "1234567..."
+        assert truncate_value(123) == "123"
+
+        # None converted to string
+        assert truncate_value(None) == "None"
+
+        # Objects converted to string (dict string repr is long)
+        result = truncate_value({"key": "value"}, max_length=10)
+        assert result == "{'key':..."
+
+    def test_apply_strategy(self) -> None:
+        """Test _apply_strategy function."""
+        # Test all strategies
+        assert _apply_strategy("secret", SanitizationStrategy.REDACT) == "[REDACTED]"
+        assert _apply_strategy("1234567890", SanitizationStrategy.MASK) == "******7890"
+        assert _apply_strategy("data", SanitizationStrategy.HASH).startswith("sha256:")
+        assert (
+            _apply_strategy("long string", SanitizationStrategy.TRUNCATE)
+            == "long st..."
+        )
+
+        # Test with non-string values
+        assert _apply_strategy(12345, SanitizationStrategy.MASK) == "*2345"
+        assert _apply_strategy(None, SanitizationStrategy.TRUNCATE) == "None"
+
+
+@pytest.mark.unit
+class TestSanitizationWithOptions:
+    """Test cases for sanitize_context_with_options function."""
+
+    def test_basic_sanitization_with_options(self) -> None:
+        """Test basic sanitization with different strategies."""
+        data = {
+            "password": "secret123",
+            "api_key": "key-12345",
+            "username": "john_doe",
+            "email": "john@example.com",
+        }
+
+        # Use hash strategy by default
+        result = sanitize_context_with_options(data, strategy=SanitizationStrategy.HASH)
+        assert result["password"].startswith("sha256:")
+        assert result["api_key"].startswith("sha256:")
+        assert result["username"] == "john_doe"  # Not sensitive
+        assert result["email"].startswith("sha256:")  # Detected by value
+
+    def test_field_specific_strategies(self) -> None:
+        """Test per-field strategy overrides."""
+        data = {
+            "password": "super_secret_password",
+            "credit_card": "4532015112830366",
+            "api_key": "sk_live_1234567890abcdef",
+            "notes": "Some general notes",
+        }
+
+        field_strategies = {
+            "password": SanitizationStrategy.MASK,
+            "credit_card": SanitizationStrategy.MASK,
+            "api_key": SanitizationStrategy.HASH,
+        }
+
+        result = sanitize_context_with_options(
+            data,
+            strategy=SanitizationStrategy.REDACT,
+            field_strategies=field_strategies,
+        )
+
+        assert result["password"] == "*****************word"
+        assert result["credit_card"] == "************0366"
+        assert result["api_key"].startswith("sha256:")
+        assert result["notes"] == "Some general notes"
+
+    def test_non_dict_input(self) -> None:
+        """Test that non-dict inputs are returned unchanged."""
+        assert sanitize_context_with_options("string") == "string"
+        assert sanitize_context_with_options(123) == 123
+        assert sanitize_context_with_options(None) is None
+        assert sanitize_context_with_options([1, 2, 3]) == [1, 2, 3]
+
+    def test_circular_reference_detection(self, mocker: MockerFixture) -> None:
+        """Test circular reference detection in sanitize_context_with_options."""
+        # Mock the configuration
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = False
+        mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
+        mock_get_settings.return_value = mock_log_config
+
+        # Create circular reference
+        data: dict[str, object] = {"name": "root"}
+        child: dict[str, object] = {"name": "child", "parent": data}
+        data["child"] = child
+
+        # This should not cause infinite recursion
+        result = sanitize_context_with_options(data)
+
+        # Check the structure
+        assert result["name"] == "root"
+        assert result["child"]["name"] == "child"
+        assert result["child"]["parent"] == "[CIRCULAR]"
+
+    def test_nested_structures_with_strategies(self, mocker: MockerFixture) -> None:
+        """Test strategies work with nested structures."""
+        # Mock the configuration
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = True
+        mock_get_settings = mocker.patch("src.core.error_context._get_log_config")
+        mock_get_settings.return_value = mock_log_config
+
+        data = {
+            "user": {
+                "password": "secret123",
+                "profile": {"email": "user@example.com", "phone": "+1-555-123-4567"},
+            },
+            "items": [  # Changed from api_keys to avoid sensitive field detection
+                {"name": "item1", "secret": "secret1"},
+                {"name": "item2", "secret": "secret2"},
+            ],
+        }
+
+        result = sanitize_context_with_options(data, strategy=SanitizationStrategy.MASK)
+
+        # Check nested sanitization
+        assert result["user"]["password"] == "*****t123"
+        assert result["user"]["profile"]["email"] == "************.com"
+        assert result["user"]["profile"]["phone"] == "***********4567"
+        items = cast("list[dict[str, str]]", result["items"])
+        assert items[0]["secret"] == "***ret1"
+        assert items[1]["secret"] == "***ret2"
+
+
+@pytest.mark.unit
+class TestCircularReferenceProtection:
+    """Test cases for circular reference protection."""
+
+    def test_circular_dict_reference(self, mocker: MockerFixture) -> None:
+        """Test _sanitize_dict handles circular references."""
+        # Mock the configuration
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = False
+
+        # Create data with circular reference
+        data: dict[str, object] = {"name": "parent", "sensitive_key": "secret"}
+        data["self"] = data  # Circular reference
+
+        visited: set[int] = set()
+        _sanitize_dict(data, mock_log_config, visited)
+
+        # Should sanitize the sensitive field but skip the circular reference
+        assert data["sensitive_key"] == "[REDACTED]"
+        assert data["name"] == "parent"
+        # The circular reference itself can't be marked in the dict
+
+    def test_circular_list_reference(self, mocker: MockerFixture) -> None:
+        """Test _sanitize_list handles circular references."""
+        # Mock the configuration
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = False
+
+        # Create list with circular reference
+        inner_dict = {"password": "secret"}
+        data: list[Any] = [inner_dict]
+        data.append(data)  # Circular reference
+
+        visited: set[int] = set()
+        _sanitize_list(data, mock_log_config, visited)
+
+        # Should sanitize the dict but mark the circular reference
+        assert data[0]["password"] == "[REDACTED]"
+        assert data[1] == "[CIRCULAR]"
+
+    def test_nested_circular_references(self, mocker: MockerFixture) -> None:
+        """Test complex nested circular references.
+
+        Note: The current implementation treats shared references as circular.
+        When child1 references child2 as sibling, child2 is added to visited.
+        When the list processor later encounters child2, it's already visited
+        and marked as circular. This prevents infinite recursion but may be
+        overly aggressive for some use cases.
+        """
+        # Mock the configuration
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = False
+
+        # Create complex circular structure
+        root: dict[str, object] = {"name": "root", "password": "root_pass"}
+        child1: dict[str, object] = {"name": "child1", "token": "token1"}
+        child2: dict[str, object] = {"name": "child2", "secret": "secret2"}
+
+        root["children"] = [child1, child2]
+        child1["parent"] = root
+        child1["sibling"] = child2
+        child2["parent"] = root
+        child2["sibling"] = child1
+
+        visited: set[int] = set()
+        _sanitize_dict(root, mock_log_config, visited)
+
+        # Check sanitization
+        assert root["password"] == "[REDACTED]"
+        children = cast("list[object]", root["children"])
+
+        # First child is processed normally
+        assert isinstance(children[0], dict)
+        child0 = cast("dict[str, object]", children[0])
+        assert child0["token"] == "[REDACTED]"
+        assert child0["parent"] == "[CIRCULAR]"
+
+        # Second child is marked as circular because it was already
+        # visited when processing child1["sibling"]
+        assert children[1] == "[CIRCULAR]"
+
+        # child0's sibling was processed, so child2's fields were sanitized
+        # but we can't check them directly since child2 in the list is "[CIRCULAR]"
+
+    def test_dict_already_in_visited_early_return(self, mocker: MockerFixture) -> None:
+        """Test _sanitize_dict early return when dict already visited (line 285)."""
+        # Mock the configuration
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = False
+
+        # Create a dict
+        data = {"password": "secret", "user": "john"}
+
+        # Pre-populate visited with the dict's ID
+        visited = {id(data)}
+
+        # Call _sanitize_dict - it should return early
+        _sanitize_dict(data, mock_log_config, visited)
+
+        # Data should remain unchanged since we returned early
+        assert data["password"] == "secret"
+        assert data["user"] == "john"
+
+    def test_list_already_in_visited_early_return(self, mocker: MockerFixture) -> None:
+        """Test _sanitize_list early return when list already visited (line 345)."""
+        # Mock the configuration
+        mock_log_config = mocker.Mock()
+        mock_log_config.excluded_fields_from_sanitization = []
+        mock_log_config.sensitive_value_detection = False
+
+        # Create a list with sensitive data
+        data = [{"password": "secret"}, {"token": "abc123"}]
+
+        # Pre-populate visited with the list's ID
+        visited = {id(data)}
+
+        # Call _sanitize_list - it should return early
+        _sanitize_list(data, mock_log_config, visited)
+
+        # Data should remain unchanged since we returned early
+        assert data[0]["password"] == "secret"
+        assert data[1]["token"] == "abc123"
