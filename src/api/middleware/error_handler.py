@@ -17,6 +17,7 @@ from src.api.schemas.errors import ErrorResponse, ServiceInfo
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.context import RequestContext, generate_request_id
+from src.core.error_context import sanitize_error_context
 from src.core.exceptions import (
     BusinessRuleError,
     ErrorCode,
@@ -66,15 +67,23 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
 
-    # Log the exception
+    # Create sanitized error context
+    error_context = sanitize_error_context(
+        exc,
+        {
+            "request_method": request.method,
+            "request_path": str(request.url.path),
+            "error_code": exc.error_code,
+        },
+    )
+
+    # Log the exception with sanitized context
     logger.error(
         "Handling {exception_type}: {message}",
         exception_type=type(exc).__name__,
         message=exc.message,
-        request_method=request.method,
-        request_path=str(request.url.path),
-        error_code=exc.error_code,
         correlation_id=correlation_id,
+        **error_context,
     )
 
     # Map exception types to HTTP status codes
@@ -166,14 +175,22 @@ async def validation_error_handler(request: Request, exc: Exception) -> Response
             field_errors[field_name] = []
         field_errors[field_name].append(error_msg)
 
-    # Log the validation error
+    # Create sanitized error context
+    error_context = sanitize_error_context(
+        exc,
+        {
+            "path": str(request.url.path),
+            "method": request.method,
+            "validation_errors": field_errors,
+        },
+    )
+
+    # Log the validation error with sanitized context
     logger.warning(
-        "Request validation failed - method: {method}, path: {path}",
-        "correlation_id: {correlation_id}",
-        method=request.method,
-        path=str(request.url.path),
+        "Request validation failed",
         correlation_id=correlation_id,
-        validation_errors=field_errors,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        **error_context,
     )
 
     # Error metrics removed in Phase 0
@@ -233,15 +250,22 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
     elif exc.status_code >= HTTP_500_INTERNAL_SERVER_ERROR:
         severity = "HIGH"
 
-    # Log the exception
+    # Create sanitized error context
+    error_context = sanitize_error_context(
+        exc,
+        {
+            "status": exc.status_code,
+            "method": request.method,
+            "path": str(request.url.path),
+            "detail": exc.detail,
+        },
+    )
+
+    # Log the exception with sanitized context
     logger.warning(
-        "HTTP exception - status: {status}, method: {method}, path: {path}",
-        "detail: {detail}",
-        status=exc.status_code,
-        method=request.method,
-        path=str(request.url.path),
-        detail=exc.detail,
+        "HTTP exception",
         correlation_id=correlation_id,
+        **error_context,
     )
 
     # Error metrics removed in Phase 0
@@ -278,13 +302,21 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
     settings = get_settings()
     correlation_id = RequestContext.get_correlation_id()
 
-    # Log the full exception with stack trace
+    # Create sanitized error context
+    error_context = sanitize_error_context(
+        exc,
+        {
+            "request_method": request.method,
+            "request_path": str(request.url.path),
+        },
+    )
+
+    # Log the full exception with stack trace and sanitized context
     logger.exception(
         "Unhandled exception: {exception_type}",
         exception_type=type(exc).__name__,
-        request_method=request.method,
-        request_path=str(request.url.path),
         correlation_id=correlation_id,
+        **error_context,
     )
 
     # Error metrics removed in Phase 0
