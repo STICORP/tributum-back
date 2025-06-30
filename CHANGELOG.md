@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Pluggable log formatters (console, json, gcp, aws) with automatic environment detection
 - Request logging middleware with performance tracking and slow request detection
 - Loguru-based logging system with improved performance
 - Deterministic check-implementation command with checkbox tracking for validation consistency

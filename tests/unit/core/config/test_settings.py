@@ -53,7 +53,9 @@ class TestSettings:
         with pytest_check.check:
             assert settings.log_config.log_level == "WARNING"  # Set by pytest-env
         with pytest_check.check:
-            assert settings.log_config.log_formatter_type == "console"
+            assert (
+                settings.log_config.log_formatter_type is None
+            )  # Auto-detect by default
         # Removed attributes tested in Phase 0:
         # render_json_logs, add_timestamp, timestamper_format
 

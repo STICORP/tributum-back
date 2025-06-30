@@ -1,8 +1,10 @@
-"""Logging configuration using Loguru with full type safety and GCP integration."""
+"""Logging configuration using Loguru with pluggable formatters."""
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import sys
 from typing import Any, Final, Protocol
 
@@ -44,6 +46,11 @@ class LogConfigProtocol(Protocol):
     @property
     def log_level(self) -> str:
         """Logging level."""
+        ...
+
+    @property
+    def log_formatter_type(self) -> str | None:
+        """Log formatter type."""
         ...
 
 
@@ -103,11 +110,191 @@ def should_log_path(record: dict[str, Any]) -> bool:
     return True
 
 
-def setup_logging(settings: SettingsProtocol) -> None:
-    """Configure Loguru for the application.
+def serialize_for_json(record: dict[str, Any]) -> str:
+    """Format log record as generic JSON for development/self-hosted.
 
-    This is a basic setup for Phase 1. Cloud-specific formatters
-    will be added in Phase 3.
+    Args:
+        record: Loguru record to format.
+
+    Returns:
+        str: JSON-formatted log entry with newline.
+    """
+    log_entry: dict[str, Any] = {
+        "timestamp": record["time"].isoformat(),
+        "level": record["level"].name,
+        "message": record["message"],
+        "logger": record["name"],
+        "function": record["function"],
+        "module": record["module"],
+        "line": record["line"],
+    }
+
+    # Add extra fields (includes correlation_id, request_id, etc.)
+    if extra := record.get("extra", {}):
+        # Filter out internal Loguru fields
+        filtered_extra = {k: v for k, v in extra.items() if not k.startswith("_")}
+        if filtered_extra:
+            log_entry.update(filtered_extra)
+
+    # Add exception info if present
+    if exc := record.get("exception"):
+        exception_info = {
+            "type": exc.type.__name__ if exc.type else None,
+            "value": str(exc.value) if exc.value else None,
+            "traceback": exc.traceback if exc.traceback else None,
+        }
+        log_entry["exception"] = exception_info
+
+    return json.dumps(log_entry, default=str) + "\n"
+
+
+def serialize_for_gcp(record: dict[str, Any]) -> str:
+    """Format log record for GCP Cloud Logging.
+
+    Follows GCP structured logging format:
+    https://cloud.google.com/logging/docs/structured-logging
+
+    Args:
+        record: Loguru record to format.
+
+    Returns:
+        str: JSON-formatted log entry for GCP with newline.
+    """
+    # Map Loguru levels to GCP severity
+    severity_mapping = {
+        "TRACE": "DEBUG",
+        "DEBUG": "DEBUG",
+        "INFO": "INFO",
+        "SUCCESS": "INFO",
+        "WARNING": "WARNING",
+        "ERROR": "ERROR",
+        "CRITICAL": "CRITICAL",
+    }
+
+    # Build GCP-compatible log entry
+    log_entry: dict[str, Any] = {
+        "severity": severity_mapping.get(record["level"].name, "INFO"),
+        "message": record["message"],
+        "timestamp": record["time"].isoformat(),
+    }
+
+    # Add labels for GCP
+    labels = {
+        "function": record["function"],
+        "module": record["module"],
+        "line": str(record["line"]),
+    }
+
+    # Add extra fields to labels
+    if extra := record.get("extra", {}):
+        # Add specific fields that GCP understands
+        if correlation_id := extra.get("correlation_id"):
+            log_entry["logging.googleapis.com/trace"] = correlation_id
+
+        if request_id := extra.get("request_id"):
+            labels["request_id"] = request_id
+
+        # Add other fields to jsonPayload
+        json_payload = {
+            k: v
+            for k, v in extra.items()
+            if k not in {"correlation_id", "request_id"} and not k.startswith("_")
+        }
+        if json_payload:
+            log_entry["jsonPayload"] = json_payload
+
+    labels_dict: dict[str, str] = labels
+    log_entry["logging.googleapis.com/labels"] = labels_dict
+
+    # Add source location for error reporting
+    if record.get("exception"):
+        source_location = {
+            "file": record["file"].path,
+            "line": str(record["line"]),
+            "function": record["function"],
+        }
+        log_entry["logging.googleapis.com/sourceLocation"] = source_location
+
+    return json.dumps(log_entry, default=str) + "\n"
+
+
+def serialize_for_aws(record: dict[str, Any]) -> str:
+    """Format log record for AWS CloudWatch.
+
+    Follows AWS CloudWatch Logs Insights format for better querying.
+
+    Args:
+        record: Loguru record to format.
+
+    Returns:
+        str: JSON-formatted log entry for AWS with newline.
+    """
+    log_entry: dict[str, Any] = {
+        "timestamp": record["time"].isoformat(),
+        "level": record["level"].name,
+        "message": record["message"],
+        "logger": record["name"],
+        "function": record["function"],
+        "module": record["module"],
+        "line": record["line"],
+    }
+
+    # Add AWS-specific fields
+    if extra := record.get("extra", {}):
+        # AWS X-Ray integration
+        if correlation_id := extra.get("correlation_id"):
+            log_entry["traceId"] = correlation_id
+
+        if request_id := extra.get("request_id"):
+            log_entry["requestId"] = request_id
+
+        # Add other fields
+        for key, value in extra.items():
+            if not key.startswith("_") and key not in log_entry:
+                log_entry[key] = value
+
+    # Add exception details
+    if exc := record.get("exception"):
+        error_info = {
+            "type": exc.type.__name__ if exc.type else None,
+            "message": str(exc.value) if exc.value else None,
+            "stackTrace": exc.traceback if exc.traceback else None,
+        }
+        log_entry["error"] = error_info
+
+    return json.dumps(log_entry, default=str) + "\n"
+
+
+# Type for formatter functions
+type FormatterFunc = Any  # Callable[[dict[str, Any]], str]
+
+# Formatter registry - easily extensible
+LOG_FORMATTERS: dict[str, FormatterFunc | None] = {
+    "console": None,  # Use Loguru's default console formatter
+    "json": serialize_for_json,
+    "gcp": serialize_for_gcp,
+    "aws": serialize_for_aws,
+}
+
+
+def detect_environment() -> str:
+    """Auto-detect the deployment environment.
+
+    Returns:
+        str: Detected formatter type (console, gcp, aws).
+    """
+    # Check for cloud-specific environment variables
+    if os.getenv("K_SERVICE"):  # Cloud Run
+        return "gcp"
+    if os.getenv("AWS_EXECUTION_ENV"):  # AWS Lambda/ECS
+        return "aws"
+    if os.getenv("WEBSITE_INSTANCE_ID"):  # Azure
+        return "json"  # Azure uses generic JSON
+    return "console"  # Local development
+
+
+def setup_logging(settings: SettingsProtocol) -> None:
+    """Configure Loguru with pluggable formatters.
 
     Args:
         settings: Application settings containing log configuration.
@@ -121,16 +308,44 @@ def setup_logging(settings: SettingsProtocol) -> None:
     # Remove default handler
     logger.remove()
 
-    # Add console handler with development-friendly format
-    logger.add(
-        sys.stdout,
-        format=DEFAULT_LOG_FORMAT,
-        level=settings.log_config.log_level,
-        enqueue=True,  # Thread-safe async logging
-        colorize=True,  # Colored output for development
-        diagnose=settings.debug,  # Include variable values in tracebacks
-        backtrace=settings.debug,  # Include full traceback
-    )
+    # Determine formatter type
+    formatter_type = settings.log_config.log_formatter_type
+
+    # Auto-detect if not specified
+    if not formatter_type:
+        formatter_type = detect_environment()
+
+    # Get formatter function
+    formatter = LOG_FORMATTERS.get(formatter_type)
+
+    if formatter_type == "console" or formatter is None:
+        # Human-readable console format for development
+        logger.add(
+            sys.stdout,
+            format=DEFAULT_LOG_FORMAT,
+            level=settings.log_config.log_level,
+            enqueue=True,
+            colorize=True,
+            diagnose=settings.debug,
+            backtrace=settings.debug,
+        )
+    else:
+        # Structured format for cloud providers or JSON
+        # Create a custom sink that uses the formatter
+        def structured_sink(message: object) -> None:
+            """Custom sink that formats and writes structured logs."""
+            if formatter and hasattr(message, "record"):
+                formatted = formatter(message.record)
+                sys.stdout.write(formatted)
+                sys.stdout.flush()
+
+        logger.add(
+            structured_sink,
+            level=settings.log_config.log_level,
+            enqueue=True,  # Thread-safe async logging
+            diagnose=False,  # No variable values in production
+            backtrace=False,  # Minimal traceback in production
+        )
 
     # Configure standard library logging to use Loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
@@ -138,6 +353,14 @@ def setup_logging(settings: SettingsProtocol) -> None:
     # Disable noisy loggers
     for logger_name in ["uvicorn.access", "urllib3.connectionpool"]:
         logging.getLogger(logger_name).disabled = True
+
+    # Log the formatter being used
+    logger.info(
+        "Logging configured with {} formatter",
+        formatter_type,
+        formatter_type=formatter_type,
+        log_level=settings.log_config.log_level,
+    )
 
     # Mark as configured
     _state.configured = True

@@ -18,9 +18,9 @@ class LogConfig(BaseModel):
         default="INFO",
         description="Logging level",
     )
-    log_formatter_type: Literal["console", "json", "gcp", "aws"] = Field(
-        default="console",
-        description="Log formatter type",
+    log_formatter_type: Literal["console", "json", "gcp", "aws"] | None = Field(
+        default=None,
+        description="Log output formatter. Auto-detected if not specified.",
     )
     excluded_paths: list[str] = Field(
         default_factory=lambda: ["/health", "/metrics"],
