@@ -74,6 +74,7 @@ def test_app() -> FastAPI:
     return app
 
 
+@pytest.mark.unit
 class TestRequestLoggingMiddleware:
     """Test request logging middleware."""
 
@@ -219,6 +220,7 @@ class TestRequestLoggingMiddleware:
         assert completion_logs[0]["extra"]["status_code"] == 200
 
 
+@pytest.mark.unit
 class TestContextPropagation:
     """Test context propagation through async calls."""
 

@@ -22,6 +22,7 @@ from src.core.logging import (
 )
 
 
+@pytest.mark.unit
 class TestLoggingSetup:
     """Test basic logging setup."""
 
@@ -154,6 +155,7 @@ class TestLoggingSetup:
         assert "Async log message" in output.getvalue()
 
 
+@pytest.mark.unit
 class TestInterceptHandler:
     """Test standard library logging interception."""
 
@@ -189,6 +191,7 @@ class TestInterceptHandler:
         assert "Standard library message" in output.getvalue()
 
 
+@pytest.mark.unit
 class TestUtilityFunctions:
     """Test utility functions in logging module."""
 
@@ -255,6 +258,7 @@ class TestUtilityFunctions:
         assert first_count == second_count
 
 
+@pytest.mark.unit
 class TestInterceptHandlerEdgeCases:
     """Test edge cases in InterceptHandler."""
 

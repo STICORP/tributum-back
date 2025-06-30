@@ -1,5 +1,6 @@
 """Shared test configuration and fixtures."""
 
+import pathlib
 from collections.abc import AsyncGenerator, Generator
 
 import pytest
@@ -205,3 +206,58 @@ async def client_with_db(
 
     # Clear the dependency override
     test_app.dependency_overrides.clear()
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    """Enforce that all test items have appropriate markers based on their location.
+
+    This hook ensures that:
+    - All tests in tests/unit/ have @pytest.mark.unit
+    - All tests in tests/integration/ have @pytest.mark.integration
+    """
+    errors = []
+
+    for item in items:
+        # Get the test file path relative to the project root
+        test_path = pathlib.Path(item.fspath).relative_to(config.rootpath)
+        test_path_str = str(test_path).replace("\\", "/")  # Normalize for Windows
+
+        # Determine expected marker based on path
+        expected_marker = None
+        if test_path_str.startswith("tests/unit/"):
+            expected_marker = "unit"
+        elif test_path_str.startswith("tests/integration/"):
+            expected_marker = "integration"
+
+        if expected_marker:
+            # Check if the test has the expected marker
+            has_marker = any(
+                marker.name == expected_marker for marker in item.iter_markers()
+            )
+
+            if not has_marker:
+                # Get the test location for error message
+                if hasattr(item, "cls") and item.cls:
+                    location = f"{test_path}::{item.cls.__name__}::{item.name}"
+                else:
+                    location = f"{test_path}::{item.name}"
+
+                errors.append(
+                    f"{location} is missing @pytest.mark.{expected_marker} marker"
+                )
+
+    if errors:
+        # Report all missing markers
+        error_message = (
+            "\n\nMissing pytest markers found:\n"
+            + "\n".join(
+                f"  - {error}" for error in sorted(errors)[:10]
+            )  # Show first 10
+            + (f"\n  ... and {len(errors) - 10} more" if len(errors) > 10 else "")
+            + f"\n\nTotal: {len(errors)} missing markers\n"
+            + "\nPlease add the appropriate @pytest.mark.unit or "
+            + "@pytest.mark.integration decorator to your test classes or functions."
+        )
+        pytest.exit(error_message, returncode=1)

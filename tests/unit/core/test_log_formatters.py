@@ -27,6 +27,7 @@ class MessageWithRecord(Protocol):
     record: dict[str, Any]
 
 
+@pytest.mark.unit
 class TestFormatters:
     """Test individual formatter functions."""
 
@@ -191,6 +192,7 @@ class TestFormatters:
             assert data["severity"] == gcp_severity
 
 
+@pytest.mark.unit
 class TestEnvironmentDetection:
     """Test automatic environment detection."""
 
@@ -218,6 +220,7 @@ class TestEnvironmentDetection:
         assert detect_environment() == "console"
 
 
+@pytest.mark.unit
 class TestFormatterIntegration:
     """Test formatter integration with Loguru."""
 
@@ -345,6 +348,7 @@ class TestFormatterIntegration:
         assert data["message"] == "AWS test message"
 
 
+@pytest.mark.unit
 class TestCloudAgnostic:
     """Test cloud-agnostic functionality."""
 
