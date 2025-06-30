@@ -46,7 +46,7 @@ class TestSystemMetricsTask:
 
         # Verify error logging - updated to match new logging format
         mock_logger.error.assert_called_once_with(
-            "Database connection failed during startup: %s",
+            "Database connection failed during startup: {}",
             "Connection refused",
         )
 

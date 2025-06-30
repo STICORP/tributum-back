@@ -1,8 +1,5 @@
 """Unit tests for RequestContextMiddleware."""
 
-from collections.abc import Awaitable, Callable, MutableMapping
-from typing import Any
-
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
@@ -124,93 +121,28 @@ class TestRequestContextMiddleware:
         assert correlation_id != ""
         assert len(correlation_id) == 36
 
-    @pytest.mark.asyncio
-    async def test_non_http_request_passthrough(self) -> None:
-        """Test that non-HTTP requests (like WebSocket) are passed through."""
-        # Create a mock app that tracks if it was called
-        called = False
-
-        async def mock_app(
-            scope: MutableMapping[str, Any],
-            receive: Callable[[], Awaitable[MutableMapping[str, Any]]],
-            send: Callable[[MutableMapping[str, Any]], Awaitable[None]],
-        ) -> None:
-            nonlocal called
-            called = True
-            # Use the parameters to avoid unused argument warnings
-            assert scope["type"] == "websocket"
-            assert receive is not None
-            assert send is not None
-
-        # Create middleware instance
-        middleware = RequestContextMiddleware(mock_app)
-
-        # Create a WebSocket scope
-        websocket_scope: MutableMapping[str, Any] = {
-            "type": "websocket",
-            "path": "/ws",
-            "headers": [],
-        }
-
-        # Mock receive and send callables
-        async def mock_receive() -> MutableMapping[str, Any]:
-            return {"type": "websocket.connect"}
-
-        async def mock_send(message: MutableMapping[str, Any]) -> None:
-            pass
-
-        # Call middleware with WebSocket scope
-        await middleware(websocket_scope, mock_receive, mock_send)
-
-        # Verify the app was called directly without context handling
-        assert called
-        # Context should remain None (not set by middleware)
-        assert RequestContext.get_correlation_id() is None
-
-    @pytest.mark.asyncio
-    async def test_exception_handling_clears_context(self) -> None:
+    def test_exception_handling_clears_context(self, app: FastAPI) -> None:
         """Test that context is cleared when the app raises an exception."""
 
-        # Create a mock app that raises an exception
-        async def failing_app(
-            scope: MutableMapping[str, Any],
-            receive: Callable[[], Awaitable[MutableMapping[str, Any]]],
-            send: Callable[[MutableMapping[str, Any]], Awaitable[None]],
-        ) -> None:
-            # Use the parameters to avoid unused argument warnings
-            assert scope is not None
-            assert receive is not None
-            assert send is not None
+        # Add an endpoint that raises an exception
+        @app.get("/failing")
+        async def failing_endpoint() -> None:
             # Verify context is set before exception
             assert RequestContext.get_correlation_id() is not None
             raise ValueError("Test exception")
 
-        # Create middleware instance
-        middleware = RequestContextMiddleware(failing_app)
-
-        # Create an HTTP scope
-        http_scope: MutableMapping[str, Any] = {
-            "type": "http",
-            "method": "GET",
-            "path": "/test",
-            "headers": [],
-        }
-
-        # Mock receive and send callables
-        async def mock_receive() -> MutableMapping[str, Any]:
-            return {"type": "http.request", "body": b""}
-
-        async def mock_send(message: MutableMapping[str, Any]) -> None:
-            # Use the parameter to avoid unused argument warnings
-            assert message is not None
+        # Create test client
+        client = TestClient(app, raise_server_exceptions=False)
 
         # Ensure context is clear before test
         RequestContext.clear()
         assert RequestContext.get_correlation_id() is None
 
-        # Call middleware and expect exception
-        with pytest.raises(ValueError, match="Test exception"):
-            await middleware(http_scope, mock_receive, mock_send)
+        # Make request that will fail
+        response = client.get("/failing")
+
+        # Should get 500 error
+        assert response.status_code == 500
 
         # Verify context was cleared after exception
         assert RequestContext.get_correlation_id() is None

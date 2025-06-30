@@ -146,11 +146,16 @@ def setup_logging(settings: SettingsProtocol) -> None:
 def bind_context(**kwargs: object) -> None:
     """Bind context variables to the logger.
 
+    This is for persistent context that should remain for the
+    lifetime of the application or a long-running operation.
+
+    For request-scoped context, use logger.contextualize() instead.
+
     Args:
         **kwargs: Context variables to bind.
 
     Example:
-        >>> bind_context(user_id=123, request_id="abc")
+        >>> bind_context(service_name="api", version="1.0.0")
     """
     logger.configure(extra=kwargs)
 

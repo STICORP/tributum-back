@@ -27,3 +27,6 @@ SENSITIVE_HEADERS = {
     "x-secret-key",
     "proxy-authorization",
 }
+
+# Logging
+MAX_BODY_LOG_SIZE = 10240  # 10KB - Maximum request/response body size to log

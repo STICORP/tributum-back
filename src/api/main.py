@@ -9,6 +9,7 @@ from loguru import logger
 
 from src.api.middleware.error_handler import register_exception_handlers
 from src.api.middleware.request_context import RequestContextMiddleware
+from src.api.middleware.request_logging import RequestLoggingMiddleware
 from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
@@ -38,13 +39,13 @@ async def lifespan(app_instance: FastAPI) -> AsyncGenerator[None]:
     if is_healthy:
         logger.info("Database connection successful")
     else:
-        logger.error("Database connection failed during startup: %s", error_msg)
+        logger.error("Database connection failed during startup: {}", error_msg)
         msg = f"Database connection failed: {error_msg}"
         raise RuntimeError(msg)
 
     # Log startup with app info
     logger.info(
-        "Application startup complete - %s v%s",
+        "Application startup complete - {} v{}",
         app_instance.title,
         app_instance.version,
     )
@@ -90,6 +91,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Order is important: middleware are executed in reverse order of registration
     # So the last middleware added is the first to process requests
 
+    # 3. Request logging middleware (logs requests/responses)
+    application.add_middleware(RequestLoggingMiddleware, log_config=settings.log_config)
+
     # 2. Request context middleware (creates correlation ID)
     application.add_middleware(RequestContextMiddleware)
 
@@ -129,7 +133,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not is_healthy:
             # Log error but don't fail the health check entirely
             # This allows the service to report as "degraded" rather than "down"
-            logger.warning("Database health check failed: %s", error_msg)
+            logger.warning("Database health check failed: {}", error_msg)
             health_status["status"] = "degraded"
 
         return health_status

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Request logging middleware with performance tracking and slow request detection
 - Loguru-based logging system with improved performance
 - Deterministic check-implementation command with checkbox tracking for validation consistency
 - Database lifecycle management with startup checks and graceful shutdown

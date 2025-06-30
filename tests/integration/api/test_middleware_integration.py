@@ -133,6 +133,7 @@ async def test_health_endpoint_with_middleware() -> None:
         # All middleware should be active
         assert "X-Content-Type-Options" in response.headers
         assert CORRELATION_ID_HEADER in response.headers
+        # Note: X-Request-ID is not present for /health as it's excluded from logging
 
 
 @pytest.mark.integration
@@ -155,3 +156,4 @@ async def test_info_endpoint_with_middleware() -> None:
         # All middleware should be active
         assert "X-Content-Type-Options" in response.headers
         assert CORRELATION_ID_HEADER in response.headers
+        assert "X-Request-ID" in response.headers
