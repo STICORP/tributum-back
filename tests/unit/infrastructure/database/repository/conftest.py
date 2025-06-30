@@ -1,8 +1,5 @@
 """Shared fixtures and test models for repository tests."""
 
-from typing import cast
-from unittest.mock import MagicMock
-
 import pytest
 from pytest_mock import MockerFixture
 from sqlalchemy import String
@@ -23,15 +20,15 @@ class ModelForRepositoryTesting(BaseModel):
 
 
 @pytest.fixture
-def mock_session(mocker: MockerFixture) -> MagicMock:
+def mock_session(mocker: MockerFixture) -> AsyncSession:
     """Create a properly mocked async session."""
-    mock = mocker.MagicMock(spec=AsyncSession)
-    return cast("MagicMock", mock)
+    mock: AsyncSession = mocker.AsyncMock(spec=AsyncSession)
+    return mock
 
 
 @pytest.fixture
 def test_repository(
-    mock_session: MagicMock,
+    mock_session: AsyncSession,
 ) -> BaseRepository[ModelForRepositoryTesting]:
     """Create a test repository instance."""
-    return BaseRepository(cast("AsyncSession", mock_session), ModelForRepositoryTesting)
+    return BaseRepository(mock_session, ModelForRepositoryTesting)

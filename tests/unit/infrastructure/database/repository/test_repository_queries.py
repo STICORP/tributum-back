@@ -1,11 +1,11 @@
 """Unit tests for repository query operations."""
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock
 
 import pytest
 import pytest_check
 from pytest_mock import MockerFixture
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.database.repository import BaseRepository
 
@@ -20,7 +20,7 @@ class TestRepositoryQueries:
     async def test_get_all_with_results(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_all with multiple results."""
@@ -43,7 +43,7 @@ class TestRepositoryQueries:
         mock_result = mocker.MagicMock()
         mock_result.scalars.return_value = mock_scalars
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -57,12 +57,12 @@ class TestRepositoryQueries:
         assert result[0].name == "Test Item 1"
 
         # Verify the query was executed
-        mock_session.execute.assert_called_once()
+        mock_execute.assert_called_once()
 
     async def test_get_all_with_pagination(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_all with skip and limit parameters."""
@@ -84,7 +84,7 @@ class TestRepositoryQueries:
         mock_result = mocker.MagicMock()
         mock_result.scalars.return_value = mock_scalars
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -96,12 +96,12 @@ class TestRepositoryQueries:
         assert result[0].id == 11
 
         # Verify the query was executed
-        mock_session.execute.assert_called_once()
+        mock_execute.assert_called_once()
 
     async def test_get_all_empty_result(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_all when no results are found."""
@@ -126,7 +126,7 @@ class TestRepositoryQueries:
     async def test_count_with_instances(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test count when instances exist."""
@@ -134,7 +134,7 @@ class TestRepositoryQueries:
         mock_result = mocker.MagicMock()
         mock_result.scalar.return_value = 5
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -143,12 +143,12 @@ class TestRepositoryQueries:
 
         # Verify count
         assert result == 5
-        mock_session.execute.assert_called()
+        mock_execute.assert_called()
 
     async def test_count_empty_table(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test count when no instances exist."""
@@ -169,7 +169,7 @@ class TestRepositoryQueries:
     async def test_count_with_none_result(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test count when database returns None."""
@@ -190,7 +190,7 @@ class TestRepositoryQueries:
     async def test_exists_true(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test exists when instance exists."""
@@ -198,7 +198,7 @@ class TestRepositoryQueries:
         mock_result = mocker.MagicMock()
         mock_result.scalar.return_value = 1
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -207,12 +207,12 @@ class TestRepositoryQueries:
 
         # Verify exists is True
         assert result is True
-        mock_session.execute.assert_called()
+        mock_execute.assert_called()
 
     async def test_exists_false(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test exists when instance doesn't exist."""
@@ -233,7 +233,7 @@ class TestRepositoryQueries:
     async def test_exists_with_none_result(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test exists when database returns None."""
@@ -254,7 +254,7 @@ class TestRepositoryQueries:
     async def test_filter_by_single_condition(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test filter_by with a single condition."""
@@ -291,7 +291,7 @@ class TestRepositoryQueries:
         mock_result = mocker.MagicMock()
         mock_result.scalars.return_value = mock_scalars
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -305,12 +305,12 @@ class TestRepositoryQueries:
         assert result[1].id == 2
 
         # Verify the query was executed
-        mock_session.execute.assert_called_once()
+        mock_execute.assert_called_once()
 
     async def test_filter_by_multiple_conditions(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test filter_by with multiple conditions."""
@@ -330,7 +330,7 @@ class TestRepositoryQueries:
         mock_result = mocker.MagicMock()
         mock_result.scalars.return_value = mock_scalars
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -350,12 +350,12 @@ class TestRepositoryQueries:
             assert result[0].id == 1
 
         # Verify the query was executed
-        mock_session.execute.assert_called_once()
+        mock_execute.assert_called_once()
 
     async def test_filter_by_no_matches(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test filter_by when no instances match."""
@@ -380,7 +380,7 @@ class TestRepositoryQueries:
     async def test_filter_by_with_nonexistent_field(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test filter_by with a field that doesn't exist on the model."""
@@ -406,7 +406,7 @@ class TestRepositoryQueries:
     async def test_find_one_by_single_condition(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test find_one_by with a single condition."""
@@ -423,7 +423,7 @@ class TestRepositoryQueries:
         mock_result = mocker.MagicMock()
         mock_result.scalar_one_or_none.return_value = test_instance
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -436,12 +436,12 @@ class TestRepositoryQueries:
         assert result.name == "Test Name"
 
         # Verify the query was executed
-        mock_session.execute.assert_called_once()
+        mock_execute.assert_called_once()
 
     async def test_find_one_by_multiple_conditions(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test find_one_by with multiple conditions."""
@@ -480,7 +480,7 @@ class TestRepositoryQueries:
     async def test_find_one_by_no_match(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test find_one_by when no instance matches."""
@@ -501,7 +501,7 @@ class TestRepositoryQueries:
     async def test_find_one_by_returns_first_match(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test find_one_by returns only the first match when multiple exist."""
@@ -533,7 +533,7 @@ class TestRepositoryQueries:
     async def test_find_one_by_with_nonexistent_field(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test find_one_by with a field that doesn't exist on the model."""

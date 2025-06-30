@@ -1,13 +1,12 @@
 """Unit tests for repository CRUD operations."""
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, cast
-from unittest.mock import MagicMock
 
 import pytest
 import pytest_check
 from pytest_mock import MockerFixture
 from sqlalchemy import String
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.base import BaseModel
@@ -15,27 +14,22 @@ from src.infrastructure.database.repository import BaseRepository
 
 from .conftest import ModelForRepositoryTesting
 
-if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
 
 @pytest.mark.unit
 @pytest.mark.asyncio
 class TestRepositoryCRUD:
     """Test cases for BaseRepository CRUD operations."""
 
-    async def test_init(self, mock_session: MagicMock) -> None:
+    async def test_init(self, mock_session: AsyncSession) -> None:
         """Test repository initialization."""
-        repo = BaseRepository(
-            cast("AsyncSession", mock_session), ModelForRepositoryTesting
-        )
-        assert repo.session is cast("AsyncSession", mock_session)
+        repo = BaseRepository(mock_session, ModelForRepositoryTesting)
+        assert repo.session is mock_session
         assert repo.model_class is ModelForRepositoryTesting
 
     async def test_get_by_id_found(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_by_id when the instance exists."""
@@ -51,7 +45,7 @@ class TestRepositoryCRUD:
         # Mock the query result
         mock_result = mocker.MagicMock()
         mock_result.scalar_one_or_none.return_value = test_instance
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -69,19 +63,19 @@ class TestRepositoryCRUD:
             assert result.name == "Test Item"
 
         # Verify the query was executed
-        mock_session.execute.assert_called_once()
+        mock_execute.assert_called_once()
 
     async def test_get_by_id_not_found(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test get_by_id when the instance doesn't exist."""
         # Mock empty result
         mock_result = mocker.MagicMock()
         mock_result.scalar_one_or_none.return_value = None
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -92,12 +86,12 @@ class TestRepositoryCRUD:
         assert result is None
 
         # Verify the query was executed
-        mock_session.execute.assert_called_once()
+        mock_execute.assert_called_once()
 
     async def test_create_success(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test successful creation of a new instance."""
@@ -114,9 +108,11 @@ class TestRepositoryCRUD:
             obj.created_at = datetime.now(UTC)
             obj.updated_at = datetime.now(UTC)
 
-        mocker.patch.object(mock_session, "add", mocker.MagicMock())
-        mocker.patch.object(mock_session, "flush", mocker.AsyncMock(side_effect=set_id))
-        mocker.patch.object(
+        mock_add = mocker.patch.object(mock_session, "add", mocker.MagicMock())
+        mock_flush = mocker.patch.object(
+            mock_session, "flush", mocker.AsyncMock(side_effect=set_id)
+        )
+        mock_refresh = mocker.patch.object(
             mock_session, "refresh", mocker.AsyncMock(side_effect=set_timestamps)
         )
 
@@ -138,14 +134,14 @@ class TestRepositoryCRUD:
             assert result.updated_at is not None
 
         # Verify the session methods were called
-        mock_session.add.assert_called_once()
-        mock_session.flush.assert_called_once()
-        mock_session.refresh.assert_called_once()
+        mock_add.assert_called_once()
+        mock_flush.assert_called_once()
+        mock_refresh.assert_called_once()
 
     async def test_create_with_minimal_data(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test creation with only required fields."""
@@ -182,7 +178,7 @@ class TestRepositoryCRUD:
             assert result.updated_at is not None
 
     async def test_repository_with_different_model(
-        self, mock_session: MagicMock, mocker: MockerFixture
+        self, mock_session: AsyncSession, mocker: MockerFixture
     ) -> None:
         """Test that repository works with different model types."""
 
@@ -193,7 +189,7 @@ class TestRepositoryCRUD:
             title: Mapped[str] = mapped_column(String(200))
 
         # Create repository for different model
-        repo = BaseRepository(cast("AsyncSession", mock_session), AnotherModel)
+        repo = BaseRepository(mock_session, AnotherModel)
 
         # Create instance
         instance = AnotherModel(title="Another Test")
@@ -223,7 +219,7 @@ class TestRepositoryCRUD:
     async def test_update_success(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test successful update of an existing instance."""
@@ -247,8 +243,8 @@ class TestRepositoryCRUD:
         def update_timestamps(obj: ModelForRepositoryTesting) -> None:
             obj.updated_at = datetime.now(UTC)
 
-        mocker.patch.object(mock_session, "flush", mocker.AsyncMock())
-        mocker.patch.object(
+        mock_flush = mocker.patch.object(mock_session, "flush", mocker.AsyncMock())
+        mock_refresh = mocker.patch.object(
             mock_session, "refresh", mocker.AsyncMock(side_effect=update_timestamps)
         )
 
@@ -272,13 +268,13 @@ class TestRepositoryCRUD:
 
         # Verify methods were called
         mock_get_by_id.assert_called_once_with(1)
-        mock_session.flush.assert_called_once()
-        mock_session.refresh.assert_called_once()
+        mock_flush.assert_called_once()
+        mock_refresh.assert_called_once()
 
     async def test_update_partial_data(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test update with partial data (only some fields)."""
@@ -333,7 +329,7 @@ class TestRepositoryCRUD:
     async def test_update_with_nonexistent_field(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test update with a field that doesn't exist on the model."""
@@ -370,7 +366,7 @@ class TestRepositoryCRUD:
     async def test_delete_success(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test successful deletion of an instance."""
@@ -378,7 +374,7 @@ class TestRepositoryCRUD:
         mock_result = mocker.MagicMock()
         mock_result.rowcount = 1  # One row deleted
 
-        mocker.patch.object(
+        mock_execute = mocker.patch.object(
             mock_session, "execute", mocker.AsyncMock(return_value=mock_result)
         )
 
@@ -387,12 +383,12 @@ class TestRepositoryCRUD:
 
         # Verify deletion was successful
         assert result is True
-        mock_session.execute.assert_called()
+        mock_execute.assert_called()
 
     async def test_delete_not_found(
         self,
         test_repository: BaseRepository[ModelForRepositoryTesting],
-        mock_session: MagicMock,
+        mock_session: AsyncSession,
         mocker: MockerFixture,
     ) -> None:
         """Test deletion when instance doesn't exist."""

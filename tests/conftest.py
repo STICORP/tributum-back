@@ -261,3 +261,93 @@ def pytest_collection_modifyitems(
             + "@pytest.mark.integration decorator to your test classes or functions."
         )
         pytest.exit(error_message, returncode=1)
+
+
+def _get_test_files(root_path: pathlib.Path) -> list[pathlib.Path]:
+    """Get all Python test files to check for mock imports."""
+    test_files: list[pathlib.Path] = []
+    for test_dir in ["tests/unit", "tests/integration", "tests/fixtures"]:
+        test_path = root_path / test_dir
+        if test_path.exists():
+            test_files.extend(test_path.rglob("*.py"))
+
+    # Also check conftest.py files in test directories
+    conftest_files = list(root_path.rglob("conftest.py"))
+    test_files.extend([f for f in conftest_files if "tests" in str(f)])
+    return test_files
+
+
+def _check_file_for_mock_imports(
+    test_file: pathlib.Path, root_path: pathlib.Path
+) -> list[str]:
+    """Check a single file for forbidden unittest.mock imports."""
+    errors = []
+    forbidden_patterns = [
+        "import unittest.mock",
+        "from unittest import mock",
+        "from unittest.mock import",
+    ]
+
+    try:
+        content = test_file.read_text(encoding="utf-8")
+        lines = content.splitlines()
+        in_docstring = False
+        docstring_delimiter = None
+
+        for line_num, line in enumerate(lines, 1):
+            line_stripped = line.strip()
+
+            # Track docstring state
+            if '"""' in line_stripped or "'''" in line_stripped:
+                if not in_docstring:
+                    in_docstring = True
+                    docstring_delimiter = '"""' if '"""' in line_stripped else "'''"
+                    if line_stripped.count(docstring_delimiter) >= 2:
+                        in_docstring = False
+                elif docstring_delimiter and docstring_delimiter in line_stripped:
+                    in_docstring = False
+                    docstring_delimiter = None
+
+            # Skip comments, strings, and content inside docstrings
+            if line_stripped.startswith(("#", '"', "'")) or in_docstring:
+                continue
+
+            # Check for forbidden patterns
+            for pattern in forbidden_patterns:
+                if pattern in line_stripped:
+                    relative_path = test_file.relative_to(root_path)
+                    errors.append(f"{relative_path}:{line_num} uses '{pattern}'")
+                    break
+
+    except (OSError, UnicodeDecodeError):
+        # Skip files that can't be read
+        pass
+
+    return errors
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """Enforce pytest-mock usage instead of unittest.mock in test files.
+
+    This hook ensures that all test files use pytest-mock instead of unittest.mock.
+    Forbidden imports: unittest.mock, from unittest import mock, etc.
+    """
+    root_path = pathlib.Path(session.config.rootpath)
+    test_files = _get_test_files(root_path)
+
+    errors = []
+    for test_file in test_files:
+        errors.extend(_check_file_for_mock_imports(test_file, root_path))
+
+    if errors:
+        # Report all forbidden mock imports
+        error_message = (
+            "\n\nForbidden unittest.mock imports found:\n"
+            + "\n".join(f"  - {error}" for error in sorted(errors)[:10])
+            + (f"\n  ... and {len(errors) - 10} more" if len(errors) > 10 else "")
+            + f"\n\nTotal: {len(errors)} forbidden imports\n"
+            + "\nUse pytest-mock instead:\n"
+            + "  def test_something(mocker): mock_obj = mocker.MagicMock()\n"
+            + "\nSee: https://pytest-mock.readthedocs.io/"
+        )
+        pytest.exit(error_message, returncode=1)
