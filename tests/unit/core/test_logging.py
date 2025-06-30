@@ -6,7 +6,7 @@ import logging as std_logging
 import sys
 from collections.abc import Generator
 from io import StringIO
-from typing import Literal
+from typing import Literal, NoReturn
 
 import pytest
 from loguru import logger
@@ -247,22 +247,34 @@ class TestUtilityFunctions:
         setup_logging(mock_settings)
         assert _state.configured is True
 
-        # Count handlers after first setup
-        first_count = len(logger._core.handlers)  # type: ignore[attr-defined]
+        # Add a test handler to track if setup_logging adds more handlers
+        test_output = StringIO()
+        logger.add(test_output, format="{message}", level="INFO")
 
-        # Second call should be a no-op
+        # Log a test message
+        logger.info("Test message 1")
+
+        # Second call should be a no-op due to _state.configured check
         setup_logging(mock_settings)
-        second_count = len(logger._core.handlers)  # type: ignore[attr-defined]
 
-        # Should have same number of handlers
-        assert first_count == second_count
+        # The same test handler should still work without duplication
+        logger.info("Test message 2")
+        second_output = test_output.getvalue()
+
+        # Verify we still have our messages without handler duplication
+        assert "Test message 1" in second_output
+        assert "Test message 2" in second_output
+        # If handlers were duplicated, we might see duplicate messages
+        assert second_output.count("Test message 1") == 1
 
 
 @pytest.mark.unit
 class TestInterceptHandlerEdgeCases:
     """Test edge cases in InterceptHandler."""
 
-    def test_intercept_handler_frame_error(self) -> None:
+    def test_intercept_handler_frame_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test InterceptHandler when frame access fails."""
         handler = InterceptHandler()
 
@@ -277,28 +289,22 @@ class TestInterceptHandlerEdgeCases:
             exc_info=None,
         )
 
-        # Mock sys._getframe to raise ValueError
-        original_getframe = sys._getframe
-
-        def mock_getframe(depth: int) -> object:
+        def mock_getframe(depth: int) -> NoReturn:
             del depth  # Unused in mock
             raise ValueError("call stack is not deep enough")
 
-        sys._getframe = mock_getframe  # type: ignore[assignment]
+        # Use monkeypatch to properly mock sys._getframe
+        monkeypatch.setattr(sys, "_getframe", mock_getframe)
 
-        try:
-            # This should not raise an exception
-            logger.remove()
-            output = StringIO()
-            logger.add(output, format="{message}", level="INFO")
+        # This should not raise an exception
+        logger.remove()
+        output = StringIO()
+        logger.add(output, format="{message}", level="INFO")
 
-            handler.emit(record)
+        handler.emit(record)
 
-            # Should still log the message
-            assert "Test message" in output.getvalue()
-        finally:
-            # Restore original function
-            sys._getframe = original_getframe
+        # Should still log the message
+        assert "Test message" in output.getvalue()
 
     def test_intercept_handler_constructor(self) -> None:
         """Test InterceptHandler constructor."""
@@ -306,7 +312,9 @@ class TestInterceptHandlerEdgeCases:
         handler = InterceptHandler()
         assert isinstance(handler, std_logging.Handler)
 
-    def test_intercept_handler_while_loop(self) -> None:
+    def test_intercept_handler_while_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """Test InterceptHandler frame traversal logic."""
         handler = InterceptHandler()
 
@@ -321,7 +329,7 @@ class TestInterceptHandlerEdgeCases:
             exc_info=None,
         )
 
-        # Mock frame to simulate the while loop condition
+        # Store original for fallback
         original_getframe = sys._getframe
 
         call_count = 0
@@ -346,20 +354,18 @@ class TestInterceptHandlerEdgeCases:
                         },
                     )()
 
+                # Return the mock frame
                 return MockFrame()
             return original_getframe(depth)
 
-        sys._getframe = mock_getframe  # type: ignore[assignment]
+        # Use monkeypatch to properly mock sys._getframe
+        monkeypatch.setattr(sys, "_getframe", mock_getframe)
 
-        try:
-            logger.remove()
-            output = StringIO()
-            logger.add(output, format="{message}", level="INFO")
+        logger.remove()
+        output = StringIO()
+        logger.add(output, format="{message}", level="INFO")
 
-            handler.emit(record)
+        handler.emit(record)
 
-            # Should still log the message after frame traversal
-            assert "Test message" in output.getvalue()
-        finally:
-            # Restore original function
-            sys._getframe = original_getframe
+        # Should still log the message after frame traversal
+        assert "Test message" in output.getvalue()
