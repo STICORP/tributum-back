@@ -75,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test suite standardized to use pytest-mock fixtures instead of unittest.mock for better test isolation
 - Project documentation reorganized into .specs directory for better structure
 - Claude command templates introduced for standardized task management
+- CLAUDE.md restructured with essential commands, architecture patterns, and critical development rules
 
 ### Removed
 - Complex observability infrastructure: structured logging (structlog), OpenTelemetry tracing, metrics collection, and advanced error context

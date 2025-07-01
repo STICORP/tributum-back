@@ -4,158 +4,134 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Important Directive
 
-You should **ALWAYS** ignore any markdown file in the project, especially README.md, when you perform any type of code analysis or discovery.
-You **CANNOT** rely on markdown files because they are absolutely **OUTDATED** and generally just **PLAIN WRONG**.
-If you read or assimilate any markdown file when coding or performing analysis you will pollute your understanding with **WRONG INFORMATION**.
+- You should **ALWAYS** ignore any markdown file in the project, especially README.md, when you perform any type of code analysis or discovery.
+- You **CANNOT** rely on markdown files because they are absolutely **OUTDATED** and generally just **PLAIN WRONG**.
+- If you read or assimilate any markdown file when coding or performing analysis you will pollute your understanding with **WRONG INFORMATION**.
 
-## Development Commands
+## Project Overview
 
-### Running the Application
+Tributum is a high-performance financial/tax/payment system built with:
+- Python 3.13+ with FastAPI 0.115+
+- PostgreSQL with async SQLAlchemy 2.0+
+- Clean Architecture (DDD-ready) with clear separation of concerns
+- 100% test coverage with comprehensive quality checks
+
+## Essential Commands
+
+### Development
 ```bash
-make dev              # Run with hot-reload for development
-make run              # Run normally
-make docker-up-dev    # Run full stack with PostgreSQL in Docker
-```
-
-### Code Quality Checks (ALWAYS run before committing)
-```bash
-make all-checks       # Run all quality checks (lint, format, type-check, etc.)
-make lint-fix         # Auto-fix linting issues
-make format           # Auto-format code
+make install        # Install dependencies and pre-commit hooks
+make dev           # Run FastAPI with hot-reload (http://localhost:8000)
+make test-fast     # Run tests in parallel (quick feedback)
+make all-checks    # Run ALL quality checks before committing
 ```
 
 ### Testing
 ```bash
-make test             # Run all tests
-make test-unit        # Unit tests only
-make test-integration # Integration tests only
-make test-coverage    # Generate coverage report (must be ≥80%)
+make test          # Run all tests with coverage
+make test-unit     # Unit tests only
+make test-integration  # Integration tests only
+pytest tests/unit/test_specific.py::test_function  # Run single test
 ```
 
-### Database Operations
+### Code Quality (ALL must pass)
 ```bash
-make migrate-create MSG="describe your change"  # Create new migration
-make migrate-up       # Apply migrations
-make migrate-down     # Rollback last migration
+make format        # Auto-format code with Ruff
+make lint          # Linting checks
+make type-check    # MyPy strict type checking
+make pyright       # Additional type checking
+make security      # Security scans (bandit, safety, pip-audit, semgrep)
 ```
-
-## Architecture Overview
-
-This is a FastAPI application following clean architecture principles with these key layers:
-
-### 1. API Layer (`src/api/`)
-- **Entry point**: `src/api/main.py` - FastAPI app configuration
-- **Middleware stack** (order matters):
-  - Security headers
-  - Request context (correlation IDs)
-  - Request logging
-  - Error handling
-- **Schemas**: Pydantic models for request/response validation
-
-### 2. Core Layer (`src/core/`)
-- **Configuration**: `config.py` uses Pydantic Settings with environment variables
-- **Logging**: Structured logging via structlog
-- **Observability**: OpenTelemetry tracing integration
-- **Context**: Thread-safe request context propagation
-
-### 3. Infrastructure Layer (`src/infrastructure/`)
-- **Repository Pattern**: Generic type-safe repository in `database/repository.py`
-- **Database**: SQLAlchemy 2.0+ with async support
-- **Session Management**: Singleton pattern without globals
-- **Dependency Injection**: FastAPI dependencies for database access
-
-### 4. Testing Strategy
-- **Transactional isolation**: Each test runs in a transaction that rolls back
-- **Docker PostgreSQL**: Integration tests use real database
-- **Fixtures**: Well-organized in `tests/fixtures/`
-- **Parallel execution**: Tests can run in parallel with worker-specific databases
-
-## Key Patterns and Conventions
-
-1. **Async-First**: All database operations and endpoints are async
-2. **Type Safety**: Extensive type hints, validated by both MyPy and Pyright
-3. **Error Handling**: Centralized in middleware, returns structured responses
-4. **Logging**: Always use structured logging with context
-5. **Configuration**: All settings via environment variables (see `.env.example`)
-6. **Repository Pattern**: Inherit from `BaseRepository[T]` for data access
-7. **Dependency Injection**: Use FastAPI's `Depends` for dependencies
-
-## Development Workflow
-
-1. **Before starting work**:
-   - Run `make install` to ensure dependencies are up to date
-   - Check existing tests to understand expected behavior
-
-2. **While developing**:
-   - Use `make dev` for hot-reload development
-   - Write tests for new functionality
-   - Follow existing code patterns and conventions
-
-3. **Before committing**:
-   - Run `make all-checks` to ensure code quality
-   - Fix any issues with `make lint-fix` and `make format`
-   - Ensure tests pass with `make test`
-   - Create focused commits with clear messages
-
-4. **Database changes**:
-   - Always create migrations with `make migrate-create MSG="..."`
-   - Test migrations with up/down before committing
-   - Never modify existing migrations
-
-## Important Technical Details
 
 ### Database
-- Uses PostgreSQL with asyncpg driver
-- BigInteger IDs for all tables
-- Timezone-aware timestamps (UTC)
-- Connection pooling configured in `DatabaseConfig`
+```bash
+make migrate-create MSG="add_user_table"  # Create migration
+make migrate-up                           # Apply migrations
+make migrate-down                         # Rollback last migration
+```
 
-### API Response Format
-- Uses orjson for fast JSON serialization
-- Custom response classes in `api/utils/responses.py`
-- Consistent error format with correlation IDs
+### Docker Development
+```bash
+make docker-up-dev    # Start with hot-reload
+make docker-test      # Run tests in Docker
+make docker-migrate   # Run migrations in Docker
+```
 
-### Security
-- Multiple security scanners integrated (Bandit, pip-audit, Safety, Semgrep)
-- Security headers middleware
-- Environment-based configuration without hardcoded secrets
+## Architecture
 
-### Testing
-- Pytest with asyncio support
-- 80% coverage requirement
-- Random test order by default (use `make test-seed SEED=...` for deterministic order)
-- Markers: `@pytest.mark.unit` and `@pytest.mark.integration`
+### Directory Structure
+```
+src/
+├── api/           # HTTP endpoints and request/response models
+├── core/          # Shared utilities, exceptions, logging
+├── domain/        # Business entities and rules (DDD preparation)
+└── infrastructure/# Database, external services, implementations
+```
 
-### Environment Variables
-- Configuration via Pydantic Settings
-- Use double underscore for nested configs (e.g., `LOG__LEVEL=DEBUG`)
-- See `.env.example` for all available options
+### Request Flow
+1. **SecurityHeadersMiddleware** - Adds security headers
+2. **RequestContextMiddleware** - Generates correlation ID
+3. **RequestLoggingMiddleware** - Logs requests/responses
+4. **OpenTelemetry** - Distributed tracing
+5. **FastAPI Router** → **Service** → **Repository** → **Database**
 
-## Common Tasks
+### Key Patterns
 
-### Adding a New Endpoint
-1. Define Pydantic schemas in `src/api/schemas/`
-2. Create endpoint in appropriate module under `src/api/`
-3. Add repository methods if needed in `src/infrastructure/database/`
-4. Write unit and integration tests
-5. Update API documentation if needed
+**Dependency Injection**:
+```python
+@router.get("/users/{user_id}")
+async def get_user(
+    user_id: int,
+    service: UserService = Depends(get_user_service)
+):
+    return await service.get_by_id(user_id)
+```
 
-### Adding a New Database Model
-1. Create model in `src/infrastructure/database/models/`
-2. Inherit from `BaseModel` for standard fields
-3. Create repository inheriting from `BaseRepository[YourModel]`
-4. Generate migration: `make migrate-create MSG="add your_table"`
-5. Add tests for repository methods
+**Repository Pattern**:
+```python
+class UserRepository(BaseRepository[User]):
+    async def get_by_email(self, email: str) -> User | None:
+        # Implementation
+```
 
-### Debugging
-- Set `LOG__LEVEL=DEBUG` for detailed logs
-- Use `LOG__SQL=true` to see SQL queries
-- Check correlation IDs in logs to trace requests
-- OpenTelemetry traces available when configured
+**Configuration (Nested with __ delimiter)**:
+```bash
+DATABASE_CONFIG__POOL_SIZE=10
+DATABASE_CONFIG__POOL_TIMEOUT=30
+```
 
-## Tool Isolation
-Some development tools run in isolated environments via `scripts/tool`:
-- Safety (dependency security scanning)
-- Semgrep (static analysis)
+## Testing Requirements
 
-This prevents dependency conflicts with the main project.
+- **ALWAYS use pytest-mock**, never unittest.mock
+- Tests must maintain 100% coverage
+- Use async fixtures for database operations
+- Tests run in parallel with worker-specific databases
+- Write unit tests in `tests/unit/` and integration tests in `tests/integration/`
+
+## Critical Development Rules
+
+1. **Never bypass checks**: No `# type: ignore`, `# noqa`, or `# pragma: no cover`
+2. **Read files completely**: Always read entire files under 2000 lines
+3. **Follow existing patterns**: Study similar code before implementing
+4. **Test everything**: Write tests for all new features
+5. **Use structured logging**: Always use correlation IDs
+6. **Handle exceptions properly**: Use the exception hierarchy in `src/core/exceptions.py`
+
+## Common Pitfalls to Avoid
+
+- Don't use synchronous database operations (always `async`)
+- Don't forget to add correlation IDs to log messages
+- Don't skip pre-commit hooks or quality checks
+- Don't add dependencies without updating `pyproject.toml`
+- Don't use print() statements - use structured logging
+- Don't commit secrets or hardcoded values
+
+## Before Committing
+
+Always run `make all-checks` to ensure:
+- Code is formatted (Ruff)
+- All linting rules pass
+- Type checking passes (MyPy + Pyright)
+- All tests pass with 100% coverage
+- Security scans pass
+- Pre-commit hooks pass
