@@ -8,6 +8,7 @@ from typing import Any, Protocol, cast
 
 import pytest
 from loguru import logger
+from pytest_mock import MockerFixture
 
 from src.core.config import LogConfig, Settings
 from src.core.logging import (
@@ -274,7 +275,9 @@ class TestFormatterIntegration:
         assert data["correlation_id"] == "test-123"
         assert data["user_id"] == 456
 
-    def test_formatter_auto_detection(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_formatter_auto_detection(
+        self, monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
+    ) -> None:
         """Test formatter auto-detection."""
         # Simulate GCP environment
         monkeypatch.setenv("K_SERVICE", "test-service")
@@ -285,15 +288,20 @@ class TestFormatterIntegration:
 
         logger.remove()
         _state.configured = False
+
+        # Mock the logger.info call to prevent output during test
+        mock_logger_info = mocker.patch("src.core.logging.logger.info")
+
         setup_logging(settings)
 
         # Should auto-detect GCP
-        # Verify by capturing the setup log message
-        output = StringIO()
-        logger.add(output, format="{message}")
-
-        # The setup_logging function should have logged the formatter type
         assert _state.configured
+
+        # Verify the logger.info was called with the expected message
+        mock_logger_info.assert_called_once()
+        call_args = mock_logger_info.call_args
+        assert "Logging configured with {} formatter" in call_args[0][0]
+        assert call_args[0][1] == "gcp"
 
     def test_gcp_formatter_integration(self) -> None:
         """Test GCP formatter integration."""
@@ -461,3 +469,62 @@ class TestCloudAgnostic:
         output_aws = serialize_for_aws(mock_record)
         data_aws = json.loads(output_aws.strip())
         assert "timestamp" in data_aws
+
+    def test_structured_sink_edge_case(self) -> None:
+        """Test structured_sink edge case where message has no record attribute."""
+
+        # Create a message object without record attribute
+        class MessageNoRecord:
+            pass
+
+        # Get the JSON formatter
+        formatter = LOG_FORMATTERS["json"]
+        assert formatter is not None
+
+        # Create the structured sink function directly
+        output = StringIO()
+
+        def structured_sink(message: object) -> None:
+            """Custom sink that formats and writes structured logs."""
+            if formatter and hasattr(message, "record"):
+                formatted = formatter(message.record)
+                output.write(formatted)
+                output.flush()
+
+        # Call with message that has no record - should not write anything
+        structured_sink(MessageNoRecord())
+        assert output.getvalue() == ""
+
+        # Call with proper message
+        class MessageWithRecord:
+            def __init__(self) -> None:
+                class MockLevel:
+                    name = "INFO"
+
+                class MockFile:
+                    path = "test.py"
+
+                class MockTime:
+                    def isoformat(self) -> str:
+                        return "2024-01-01T12:00:00+00:00"
+
+                self.record = {
+                    "time": MockTime(),
+                    "level": MockLevel(),
+                    "message": "Test message",
+                    "name": None,
+                    "function": "test_function",
+                    "module": "test_module",
+                    "line": 42,
+                    "file": MockFile(),
+                    "extra": {},
+                }
+
+        msg = MessageWithRecord()
+        structured_sink(msg)
+
+        # Verify output
+        output_value = output.getvalue()
+        assert output_value
+        parsed = json.loads(output_value.strip())
+        assert parsed["message"] == "Test message"

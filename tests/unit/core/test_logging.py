@@ -11,7 +11,7 @@ from typing import Literal, NoReturn
 import pytest
 from loguru import logger
 
-from src.core.config import LogConfig
+from src.core.config import LogConfig, Settings
 from src.core.logging import (
     InterceptHandler,
     _state,
@@ -369,3 +369,37 @@ class TestInterceptHandlerEdgeCases:
 
         # Should still log the message after frame traversal
         assert "Test message" in output.getvalue()
+
+    def test_structured_sink_coverage(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test structured sink function in setup_logging for coverage."""
+        # Track calls
+        write_calls = []
+        flush_calls = []
+
+        # Mock stdout to verify write/flush calls
+        class MockStdout:
+            def write(self, data: str) -> None:
+                write_calls.append(data)
+
+            def flush(self) -> None:
+                flush_calls.append(True)
+
+        mock_stdout = MockStdout()
+        monkeypatch.setattr("sys.stdout", mock_stdout)
+
+        # Setup with JSON formatter to use structured sink
+        settings = Settings(log_config=LogConfig(log_formatter_type="json"))
+
+        logger.remove()
+        _state.configured = False
+        setup_logging(settings)
+
+        # Log a message to trigger the structured sink
+        logger.info("Test structured sink coverage")
+
+        # Wait for async processing
+        logger.complete()
+
+        # Verify write and flush were called
+        assert len(write_calls) > 0
+        assert len(flush_calls) > 0
