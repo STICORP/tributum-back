@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import (
 
 from src.core.config import get_settings
 from src.core.context import RequestContext
+from src.core.error_context import sanitize_sql_params
 from src.infrastructure.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
 
 # Store query start times for execution contexts
@@ -90,8 +91,8 @@ def _after_cursor_execute(
         settings.log_config.enable_sql_logging
         and duration_ms >= settings.log_config.slow_query_threshold_ms
     ):
-        # Parameters logging
-        sanitized_params = parameters  # TODO: Will be sanitized in Phase 4
+        # Parameters logging - now sanitized
+        sanitized_params = sanitize_sql_params(parameters)
 
         # Clean up the SQL statement for logging
         clean_statement = " ".join(statement.split())[:500]  # Limit length

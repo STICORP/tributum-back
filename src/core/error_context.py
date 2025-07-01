@@ -8,11 +8,13 @@ provider DLP APIs (GCP DLP, AWS Macie, Azure Purview).
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from re import Pattern
 from typing import Any, Final
 
 # Import constants from other modules
 from src.api.constants import SENSITIVE_HEADERS
+from src.core.config import get_settings
 from src.core.constants import REDACTED
 
 # Type alias for values we can sanitize
@@ -20,8 +22,8 @@ SanitizableValue = (
     str | int | float | bool | None | dict[str, Any] | list[Any] | tuple[Any, ...]
 )
 
-# Sensitive field patterns - covers common cases
-SENSITIVE_FIELD_PATTERN: Final[Pattern[str]] = re.compile(
+# Default sensitive field patterns - covers common cases
+DEFAULT_SENSITIVE_PATTERN: Final[Pattern[str]] = re.compile(
     r"(password|passwd|pwd|secret|token|api[_-]?key|apikey|auth|authorization|"
     r"credential|private[_-]?key|access[_-]?key|secret[_-]?key|session|"
     r"ssn|social[_-]?security|pin|cvv|cvc|card[_-]?number|connection[_-]?string)",
@@ -32,8 +34,22 @@ SENSITIVE_FIELD_PATTERN: Final[Pattern[str]] = re.compile(
 MAX_DEPTH: Final[int] = 10
 
 
+@lru_cache(maxsize=1)
+def _get_sensitive_fields() -> list[str]:
+    """Get the configured sensitive fields from settings.
+
+    Returns:
+        list[str]: List of sensitive field names to check.
+    """
+    settings = get_settings()
+    return settings.log_config.sensitive_fields
+
+
 def is_sensitive_field(field_name: str) -> bool:
     """Check if a field name indicates sensitive data.
+
+    Checks against both the default regex pattern and the
+    configured sensitive fields list.
 
     Args:
         field_name: The field name to check.
@@ -41,7 +57,17 @@ def is_sensitive_field(field_name: str) -> bool:
     Returns:
         bool: True if the field appears to contain sensitive data.
     """
-    return bool(SENSITIVE_FIELD_PATTERN.search(field_name))
+    # First check against the default pattern
+    if DEFAULT_SENSITIVE_PATTERN.search(field_name):
+        return True
+
+    # Then check against configured fields (case-insensitive)
+    field_lower = field_name.lower()
+    for sensitive_field in _get_sensitive_fields():
+        if sensitive_field.lower() in field_lower:
+            return True
+
+    return False
 
 
 def is_sensitive_header(header_name: str) -> bool:
@@ -147,3 +173,33 @@ def sanitize_error_context(
             error_context["error_attributes"] = sanitized_attrs
 
     return error_context
+
+
+def sanitize_sql_params(
+    params: object,
+) -> object:
+    """Sanitize SQL query parameters for safe logging.
+
+    This function handles the different parameter formats that SQLAlchemy
+    might use (dict, list, tuple) and sanitizes them appropriately.
+
+    Args:
+        params: SQL query parameters in various formats.
+
+    Returns:
+        object: Sanitized parameters in the same format as input, or REDACTED string.
+            The return type is object to handle all possible parameter types.
+    """
+    if params is None:
+        return None
+
+    if isinstance(params, dict):
+        # Named parameters - sanitize by key name
+        return sanitize_dict(params)
+    if isinstance(params, (list, tuple)):
+        # Positional parameters - can't determine sensitivity by name
+        # Return as-is for now, but could be configured to redact all
+        return params
+
+    # Unknown format - be safe and redact
+    return REDACTED

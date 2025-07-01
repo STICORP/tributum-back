@@ -6,11 +6,13 @@ import pytest
 
 from src.core.constants import REDACTED
 from src.core.error_context import (
+    _get_sensitive_fields,
     is_sensitive_field,
     is_sensitive_header,
     sanitize_dict,
     sanitize_error_context,
     sanitize_headers,
+    sanitize_sql_params,
     sanitize_value,
 )
 
@@ -52,6 +54,36 @@ class TestSensitiveFieldDetection:
     def test_field_detection(self, field_name: str, expected: bool) -> None:
         """Test field name detection."""
         assert is_sensitive_field(field_name) == expected
+
+    def test_configured_sensitive_fields(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Test that configured sensitive fields from settings are detected."""
+        # Clear the cache to ensure we get fresh settings
+        _get_sensitive_fields.cache_clear()
+
+        # Mock settings to include a custom field not in the regex
+        def mock_get_sensitive_fields() -> list[str]:
+            return [
+                "password",
+                "token",
+                "secret",
+                "api_key",
+                "authorization",
+                "custom_sensitive_field",
+            ]
+
+        # Replace the cached function with our mock
+        monkeypatch.setattr(
+            "src.core.error_context._get_sensitive_fields", mock_get_sensitive_fields
+        )
+
+        # Test that the custom field is detected
+        assert is_sensitive_field("custom_sensitive_field") is True
+        assert is_sensitive_field("my_custom_sensitive_field_here") is True
+        assert is_sensitive_field("CUSTOM_SENSITIVE_FIELD") is True
+
+        # Test that non-sensitive fields are still not detected
+        assert is_sensitive_field("username") is False
+        assert is_sensitive_field("email") is False
 
     def test_header_detection(self) -> None:
         """Test header name detection."""
@@ -258,3 +290,62 @@ class TestIntegration:
 
         # Connection string should be redacted due to field name
         assert sanitized["connection_string"] == REDACTED
+
+
+@pytest.mark.unit
+class TestSQLParameterSanitization:
+    """Test SQL parameter sanitization functionality."""
+
+    def test_sanitize_dict_params(self) -> None:
+        """Test sanitizing dictionary SQL parameters."""
+        params = {
+            "user_id": 123,
+            "username": "john",
+            "password": "secret123",
+            "api_key": "sk-12345",
+            "email": "john@example.com",
+        }
+
+        sanitized = sanitize_sql_params(params)
+
+        assert isinstance(sanitized, dict)
+        assert sanitized["user_id"] == 123
+        assert sanitized["username"] == "john"
+        assert sanitized["password"] == REDACTED
+        assert sanitized["api_key"] == REDACTED
+        assert sanitized["email"] == "john@example.com"
+
+    def test_sanitize_list_params(self) -> None:
+        """Test that list parameters are passed through unchanged."""
+        params = ["value1", "secret123", 42]
+
+        sanitized = sanitize_sql_params(params)
+
+        assert sanitized is params  # Should be the same object
+        assert sanitized == ["value1", "secret123", 42]
+
+    def test_sanitize_tuple_params(self) -> None:
+        """Test that tuple parameters are passed through unchanged."""
+        params = ("value1", "secret123", 42)
+
+        sanitized = sanitize_sql_params(params)
+
+        assert sanitized is params  # Should be the same object
+        assert sanitized == ("value1", "secret123", 42)
+
+    def test_sanitize_none_params(self) -> None:
+        """Test that None parameters are handled correctly."""
+        assert sanitize_sql_params(None) is None
+
+    def test_sanitize_unknown_type(self) -> None:
+        """Test that unknown parameter types are redacted."""
+
+        # Pass an object that's not dict/list/tuple
+        class CustomParams:
+            pass
+
+        params = CustomParams()
+
+        sanitized = sanitize_sql_params(params)
+
+        assert sanitized == REDACTED
