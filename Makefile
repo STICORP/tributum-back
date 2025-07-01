@@ -100,6 +100,12 @@ test-seed:  ## Run tests with specific seed (usage: make test-seed SEED=12345)
 test-no-random:  ## Run tests without randomization (for debugging)
 	uv run pytest -p no:randomly
 
+mock-check:  ## Check for forbidden unittest.mock imports in test files
+	uv run python scripts/check-mock-imports.py
+
+markers-check:  ## Check that test files have appropriate pytest markers
+	uv run python scripts/check-test-markers.py
+
 # Database migration commands
 migrate-create:  ## Create new migration (usage: make migrate-create MSG="add users table")
 	@if [ -z "$(MSG)" ]; then echo "Error: MSG is required. Usage: make migrate-create MSG=\"your message\""; exit 1; fi
@@ -189,7 +195,7 @@ shellcheck-fix:  ## Run shellcheck with auto-fix suggestions
 	@echo "Running shellcheck with fix suggestions..."
 	@find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -exec uv run shellcheck -f diff {} \; | patch -p1
 
-all-checks: format lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck  ## Run all checks including dead code, docstring quality, and shell scripts
+all-checks: format lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck mock-check markers-check  ## Run all checks including dead code, docstring quality, and shell scripts
 
 # Docker commands
 docker-build:  ## Build all Docker images

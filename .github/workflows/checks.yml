@@ -66,6 +66,12 @@ jobs:
     - name: Shellcheck
       run: make shellcheck
 
+    - name: Mock Import Check
+      run: make mock-check
+
+    - name: Pytest Markers Check
+      run: make markers-check
+
     - name: Run tests
       run: make test-ci
 
