@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- OpenTelemetry-based distributed tracing with pluggable exporters (console, GCP, AWS, OTLP)
+- Cloud-agnostic observability infrastructure supporting multiple deployment environments
+- Custom Loguru span exporter for development-friendly trace output
+- Automatic instrumentation for FastAPI and SQLAlchemy with correlation ID integration
+- Type stubs for OpenTelemetry to ensure strict type checking
 - Error context sanitization module for redacting sensitive data in logs
 - Pluggable log formatters (console, json, gcp, aws) with automatic environment detection
 - Request logging middleware with performance tracking and slow request detection
@@ -47,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task analysis and review commands for improved planning
 
 ### Changed
-- **BREAKING**: Simplified observability infrastructure to Phase 0 implementation by removing complex features including structured logging (structlog), OpenTelemetry tracing, metrics collection, and advanced error context
+- Observability configuration updated with cloud-agnostic tracing support and pluggable exporters
 - Migrated from standard Python logging to Loguru for better performance
 - Updated log formatter configuration from log_format to log_formatter_type with extended options
 - Removed 10 unused constants from codebase to improve maintainability
@@ -78,12 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md restructured with essential commands, architecture patterns, and critical development rules
 
 ### Removed
-- Complex observability infrastructure: structured logging (structlog), OpenTelemetry tracing, metrics collection, and advanced error context
-- src/core/logging.py (structlog-based logging system)
-- src/core/observability.py (OpenTelemetry setup and configuration)
+- Complex observability infrastructure from initial phase: structured logging (structlog), metrics collection, and advanced error context
 - src/core/error_context.py (complex error context management)
-- src/api/middleware/request_logging.py (advanced request logging middleware)
-- OpenTelemetry dependencies from pyproject.toml
 - Extensive test suites for removed observability features (13,000+ lines of test code)
 - do command from Claude command list as redundant with existing development workflow
 - Obsolete plan.md file superseded by modular specification approach

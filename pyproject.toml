@@ -45,6 +45,12 @@ dependencies = [
     "greenlet>=3.2.3",
     # Server for production
     "uvicorn[standard]>=0.34.3",
+    # OpenTelemetry dependencies
+    "opentelemetry-api>=1.34.1",
+    "opentelemetry-sdk>=1.34.1",
+    "opentelemetry-instrumentation-fastapi>=0.55b1",
+    "opentelemetry-instrumentation-sqlalchemy>=0.55b1",
+    "opentelemetry-exporter-otlp>=1.34.1",  # For OTLP/AWS
 ]
 
 [project.urls]
@@ -88,6 +94,12 @@ dev = [
 
     # Type stubs for test dependencies
     "types-PyYAML>=6.0.12.20250516",
+]
+
+[project.optional-dependencies]
+# GCP-specific dependencies
+gcp = [
+    "opentelemetry-exporter-gcp-trace>=1.9.0",
 ]
 
 # ===========================
@@ -321,6 +333,7 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "\\.\\.\\.",  # Exclude Protocol method placeholders
+    "if TYPE_CHECKING:",  # Exclude type checking blocks
 ]
 
 # ===========================

@@ -14,6 +14,7 @@ from src.api.middleware.security_headers import SecurityHeadersMiddleware
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.logging import setup_logging
+from src.core.observability import instrument_app, setup_tracing
 from src.infrastructure.database.session import (
     check_database_connection,
     close_database,
@@ -72,6 +73,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     # Setup logging first
     setup_logging(settings)
+
+    # Setup tracing
+    setup_tracing(settings)
 
     application = FastAPI(
         title=settings.app_name,
@@ -157,6 +161,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "environment": app_settings.environment,
             "debug": app_settings.debug,
         }
+
+    # Instrument application for tracing (at the end)
+    instrument_app(application, settings)
 
     return application
 

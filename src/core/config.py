@@ -53,15 +53,23 @@ class LogConfig(BaseModel):
 
 
 class ObservabilityConfig(BaseModel):
-    """Minimal observability configuration for Phase 0."""
+    """Cloud-agnostic observability configuration."""
 
     enable_tracing: bool = Field(
-        default=False,
-        description="Tracing disabled in Phase 0",
+        default=True,
+        description="Enable OpenTelemetry tracing",
+    )
+    exporter_type: Literal["console", "gcp", "aws", "otlp", "none"] = Field(
+        default="console",
+        description="Trace exporter type. Auto-detected if not specified.",
+    )
+    exporter_endpoint: str | None = Field(
+        default=None,
+        description="OTLP exporter endpoint (for OTLP/AWS exporters)",
     )
     gcp_project_id: str | None = Field(
         default=None,
-        description="GCP project ID for Cloud Trace exporter",
+        description="GCP project ID (only for GCP exporter)",
     )
     trace_sample_rate: float = Field(
         default=1.0,

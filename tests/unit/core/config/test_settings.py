@@ -67,7 +67,11 @@ class TestSettings:
         with pytest_check.check:
             assert isinstance(settings.observability_config, ObservabilityConfig)
         with pytest_check.check:
-            assert settings.observability_config.enable_tracing is False
+            assert settings.observability_config.enable_tracing is True
+        with pytest_check.check:
+            assert settings.observability_config.exporter_type == "console"
+        with pytest_check.check:
+            assert settings.observability_config.exporter_endpoint is None
         with pytest_check.check:
             assert settings.observability_config.gcp_project_id is None
         with pytest_check.check:
