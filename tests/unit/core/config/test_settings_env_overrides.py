@@ -13,7 +13,6 @@ class TestSettingsEnvOverrides:
 
     def test_new_log_config_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test new log configuration environment variable overrides."""
-        # Phase 0: Only test attributes that still exist in simplified config
         monkeypatch.setenv(
             "LOG_CONFIG__EXCLUDED_PATHS", '["/api/health", "/api/metrics"]'
         )
@@ -32,20 +31,8 @@ class TestSettingsEnvOverrides:
         with pytest_check.check:
             assert settings.log_config.slow_query_threshold_ms == 250
 
-        # Phase 0: Removed attributes that no longer exist
-        # - sampling_rate
-        # - enable_async_logging
-        # - async_queue_size
-        # - enable_performance_processor
-        # - enable_environment_processor
-        # - enable_error_context_processor
-        # - log_request_body
-        # - log_response_body
-        # - max_body_log_size
-
     def test_observability_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test observability configuration environment variable overrides."""
-        # Phase 0: Only test attributes that still exist in simplified config
         monkeypatch.setenv("OBSERVABILITY_CONFIG__ENABLE_TRACING", "true")
         monkeypatch.setenv("OBSERVABILITY_CONFIG__GCP_PROJECT_ID", "my-project")
         monkeypatch.setenv("OBSERVABILITY_CONFIG__TRACE_SAMPLE_RATE", "0.75")
@@ -58,9 +45,6 @@ class TestSettingsEnvOverrides:
             assert settings.observability_config.gcp_project_id == "my-project"
         with pytest_check.check:
             assert settings.observability_config.trace_sample_rate == 0.75
-
-        # Phase 0: Removed attributes that no longer exist
-        # - service_name
 
     def test_database_env_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test database configuration environment variable overrides."""

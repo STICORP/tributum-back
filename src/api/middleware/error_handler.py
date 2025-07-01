@@ -97,8 +97,6 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
     elif isinstance(exc, BusinessRuleError):
         status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    # Error metrics removed in Phase 0
-
     # Prepare error details
     details = exc.context if exc.context else None
 
@@ -193,8 +191,6 @@ async def validation_error_handler(request: Request, exc: Exception) -> Response
         **error_context,
     )
 
-    # Error metrics removed in Phase 0
-
     # Create error response
     error_response = ErrorResponse(
         error_code=ErrorCode.VALIDATION_ERROR.value,
@@ -268,8 +264,6 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
         **error_context,
     )
 
-    # Error metrics removed in Phase 0
-
     # Create error response
     error_response = ErrorResponse(
         error_code=error_code,
@@ -318,8 +312,6 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
         correlation_id=correlation_id,
         **error_context,
     )
-
-    # Error metrics removed in Phase 0
 
     # In production, hide internal error details
     if settings.environment == "production":

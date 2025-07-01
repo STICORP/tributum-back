@@ -777,8 +777,6 @@ class TestQueryEventListeners:
             return_value=mock_settings,
         )
 
-        # Query metrics removed in Phase 0 - no context binding needed
-
         # Mock RequestContext
         mocker.patch(
             "src.infrastructure.database.session.RequestContext.get_correlation_id",

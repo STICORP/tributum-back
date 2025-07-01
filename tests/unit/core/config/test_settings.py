@@ -56,8 +56,6 @@ class TestSettings:
             assert (
                 settings.log_config.log_formatter_type == "console"
             )  # Auto-detected as console for development
-        # Removed attributes tested in Phase 0:
-        # render_json_logs, add_timestamp, timestamper_format
 
     def test_default_observability_config(self) -> None:
         """Test default observability configuration."""
@@ -76,7 +74,6 @@ class TestSettings:
             assert settings.observability_config.gcp_project_id is None
         with pytest_check.check:
             assert settings.observability_config.trace_sample_rate == 1.0
-        # Removed attribute tested in Phase 0: service_name
 
     def test_default_database_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test default database configuration."""
@@ -139,7 +136,6 @@ class TestSettings:
         # In production, console format should be overridden to json
         with pytest_check.check:
             assert settings.log_config.log_formatter_type == "json"
-        # Phase 0: Removed assertion for render_json_logs which no longer exists
 
     def test_case_insensitive_env_vars(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that environment variables are case-insensitive."""
@@ -192,7 +188,6 @@ class TestSettings:
         settings = Settings()
         assert settings.environment == "production"
         assert settings.log_config.log_formatter_type == "json"
-        # Removed attributes in Phase 0: render_json_logs, enable_async_logging
 
     def test_development_environment_console_logs(self, development_env: None) -> None:
         """Test that development environment keeps console logs.
@@ -203,7 +198,3 @@ class TestSettings:
         settings = Settings()
         assert settings.environment == "development"
         assert settings.log_config.log_formatter_type == "console"
-        # Removed attributes in Phase 0: render_json_logs, enable_async_logging
-
-    # Removed test in Phase 0: test_production_async_logging_explicit_override
-    # This test checked enable_async_logging which was removed

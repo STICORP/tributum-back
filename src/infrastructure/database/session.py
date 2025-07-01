@@ -84,8 +84,6 @@ def _after_cursor_execute(
     # Get current correlation ID for request tracking
     correlation_id = RequestContext.get_correlation_id()
 
-    # Query metrics removed in Phase 0
-
     # Log slow queries
     if (
         settings.log_config.enable_sql_logging

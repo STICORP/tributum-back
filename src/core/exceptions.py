@@ -9,8 +9,6 @@ import traceback
 from enum import Enum
 from typing import Any
 
-# Fingerprint generation simplified in Phase 0
-
 
 class ErrorCode(Enum):
     """Standardized error codes for the Tributum application.
@@ -107,7 +105,6 @@ class TributumError(Exception):
             str: A hash string for error grouping
         """
         # Use the first few frames from the stack trace to identify location
-        # Simplified in Phase 0 - use fixed number of frames
         max_frames = 5
         relevant_frames = (
             self.stack_trace[-max_frames:]
