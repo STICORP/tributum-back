@@ -49,7 +49,7 @@ security-deps:  ## Check dependencies for vulnerabilities
 	$(MAKE) security-safety
 
 security-safety:  ## Run safety vulnerability scan
-	./scripts/tool safety scan --continue-on-error || true
+	@true | ./scripts/tool safety scan --continue-on-error || true
 
 security-pip-audit:  ## Run pip-audit vulnerability scan
 	uv run pip-audit
