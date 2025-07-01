@@ -389,7 +389,6 @@ DEBUG = "true"
 
 # Logging configuration for tests - less verbose output
 LOG_CONFIG__LOG_LEVEL = "WARNING"  # Less verbose for tests
-LOG_CONFIG__ADD_TIMESTAMP = "false"  # Cleaner test output
 
 # Don't set API_HOST, API_PORT, or doc URLs - let them use defaults
 # This allows tests to verify the actual default values

@@ -278,6 +278,5 @@ def get_config_defaults(environment: str) -> dict[str, Any]:
         },
         "observability_config": {
             "exporter_type": "console",
-            "trace_to_file": True,
         },
     }

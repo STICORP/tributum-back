@@ -97,6 +97,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Extensive test suites for removed observability features (13,000+ lines of test code)
 - do command from Claude command list as redundant with existing development workflow
 - Obsolete plan.md file superseded by modular specification approach
+- Unused `trace_to_file` configuration option from observability config
+- Unused `ADD_TIMESTAMP` configuration option from test logging config
+- Skipped test for sensitive data sanitization (planned for Phase 4)
 
 ### Fixed
 - Database credentials standardized across documentation to match Docker setup (tributum/tributum_pass)

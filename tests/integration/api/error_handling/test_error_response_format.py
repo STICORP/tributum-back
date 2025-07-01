@@ -1,11 +1,9 @@
 """Integration tests for error response format and sanitization."""
 
 import pytest
-from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from src.api.schemas.errors import ErrorResponse
-from src.core.exceptions import ValidationError
 
 
 @pytest.mark.integration
@@ -73,42 +71,3 @@ class TestErrorResponseFormat:
         data = error.model_dump(mode="json")
         assert data["error_code"] == "TEST_ERROR"
         assert isinstance(data["timestamp"], str)
-
-
-@pytest.mark.integration
-@pytest.mark.skip(reason="Sensitive data sanitization planned for Phase 4")
-class TestSensitiveDataSanitization:
-    """Test that sensitive data is sanitized in error responses."""
-
-    def test_sensitive_context_sanitized(self, app_with_handlers: FastAPI) -> None:
-        """Test that sensitive fields in context are sanitized."""
-
-        @app_with_handlers.get("/test/sensitive-error")
-        async def raise_sensitive_error() -> None:
-            raise ValidationError(
-                "Validation failed",
-                context={
-                    "username": "john.doe",
-                    "password": "secret123",
-                    "api_key": "sk-1234567890",
-                    "token": "bearer-token",
-                    "credit_card": "4111111111111111",
-                    "safe_field": "visible_value",
-                },
-            )
-
-        client = TestClient(app_with_handlers)
-        response = client.get("/test/sensitive-error")
-
-        data = response.json()
-        details = data["details"]
-
-        # Sensitive fields should be redacted
-        assert details["password"] == "[REDACTED]"
-        assert details["api_key"] == "[REDACTED]"
-        assert details["token"] == "[REDACTED]"
-        assert details["credit_card"] == "[REDACTED]"
-
-        # Non-sensitive fields should be preserved
-        assert details["username"] == "john.doe"
-        assert details["safe_field"] == "visible_value"

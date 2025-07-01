@@ -94,7 +94,6 @@ class TestConfigDefaults:
             },
             "observability_config": {
                 "exporter_type": "console",
-                "trace_to_file": True,
             },
         }
 
@@ -109,6 +108,5 @@ class TestConfigDefaults:
             },
             "observability_config": {
                 "exporter_type": "console",
-                "trace_to_file": True,
             },
         }
