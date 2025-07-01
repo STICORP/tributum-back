@@ -4,15 +4,16 @@ This module provides a centralized configuration management system using
 Pydantic Settings. It supports environment variables and .env files.
 """
 
+import os
 from functools import lru_cache
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class LogConfig(BaseModel):
-    """Minimal logging configuration for Phase 0."""
+    """Simplified logging configuration."""
 
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
@@ -24,12 +25,12 @@ class LogConfig(BaseModel):
     )
     excluded_paths: list[str] = Field(
         default_factory=lambda: ["/health", "/metrics"],
-        description="Paths to exclude from logging",
+        description="Paths to exclude from request logging",
     )
     slow_request_threshold_ms: int = Field(
         default=1000,
         gt=0,
-        description="Log warning if request slower than this (ms)",
+        description="Threshold for slow request warnings (milliseconds)",
     )
     enable_sql_logging: bool = Field(
         default=False,
@@ -61,7 +62,7 @@ class ObservabilityConfig(BaseModel):
     )
     exporter_type: Literal["console", "gcp", "aws", "otlp", "none"] = Field(
         default="console",
-        description="Trace exporter type. Auto-detected if not specified.",
+        description="Trace exporter type. Defaults to console for development.",
     )
     exporter_endpoint: str | None = Field(
         default=None,
@@ -77,6 +78,14 @@ class ObservabilityConfig(BaseModel):
         le=1.0,
         description="Trace sampling rate (0.0 to 1.0)",
     )
+
+    @field_validator("exporter_endpoint", "gcp_project_id", mode="before")
+    @classmethod
+    def empty_str_to_none(cls, v: str | None) -> str | None:
+        """Convert empty strings to None for nullable fields."""
+        if v == "":
+            return None
+        return v
 
 
 class DatabaseConfig(BaseModel):
@@ -123,26 +132,16 @@ class DatabaseConfig(BaseModel):
         return v
 
     def get_test_database_url(self) -> str:
-        """Get database URL for testing purposes.
-
-        Returns a modified database URL with '_test' suffix appended to the
-        database name. This ensures tests run against a separate database.
-
-        Returns:
-            str: Test database URL
-        """
-        # Parse the database URL to replace the database name with test database
+        """Get database URL for testing purposes."""
         if "/tributum_db" in self.database_url:
             return self.database_url.replace("/tributum_db", "/tributum_test")
         if "/tributum" in self.database_url:
             return self.database_url.replace("/tributum", "/tributum_test")
-        # For other database names, parse and append _test
-        # This handles cases where the database name might be different
+
         parts = self.database_url.rsplit("/", 1)
         expected_parts = 2
         if len(parts) == expected_parts:
             base_url, db_name = parts
-            # Remove any query parameters from db_name
             db_name = db_name.split("?")[0]
             query_params = ""
             if "?" in parts[1]:
@@ -196,11 +195,45 @@ class Settings(BaseSettings):
     )
 
     def model_post_init(self, __context: object) -> None:
-        """Post initialization to adjust log configuration based on environment."""
+        """Post initialization to set environment-based defaults."""
         super().model_post_init(__context)
-        # In production, default to JSON logs
-        if self.environment in ("production", "staging"):
-            self.log_config.log_formatter_type = "json"
+
+        # Auto-detect formatters and exporters if not specified
+        if self.log_config.log_formatter_type is None:
+            self.log_config.log_formatter_type = self._detect_formatter()
+
+        if self.environment == "production":
+            # Production defaults
+            if self.observability_config.exporter_type == "console":
+                self.observability_config.exporter_type = self._detect_exporter()
+            if self.observability_config.trace_sample_rate == 1.0:
+                self.observability_config.trace_sample_rate = 0.1
+
+    def _detect_formatter(self) -> Literal["console", "json", "gcp", "aws"]:
+        """Auto-detect log formatter based on environment."""
+        # Check for cloud environments first (more authoritative)
+        if os.getenv("K_SERVICE"):  # Cloud Run
+            return "gcp"
+        if os.getenv("AWS_EXECUTION_ENV"):  # AWS
+            return "aws"
+
+        # Fall back to environment-based defaults
+        if self.environment == "development":
+            return "console"
+        return "json"  # Generic JSON for production
+
+    def _detect_exporter(self) -> Literal["console", "gcp", "aws", "otlp", "none"]:
+        """Auto-detect trace exporter based on environment."""
+        # Check for cloud environments first (more authoritative)
+        if os.getenv("K_SERVICE"):  # Cloud Run
+            return "gcp"
+        if os.getenv("AWS_EXECUTION_ENV"):  # AWS
+            return "aws"
+
+        # Fall back to environment-based defaults
+        if self.environment == "development":
+            return "console"
+        return "otlp"  # Generic OTLP
 
     @field_validator("docs_url", "redoc_url", "openapi_url", mode="before")
     @classmethod
@@ -215,12 +248,36 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Get cached settings instance.
+    """Get cached settings instance."""
+    return Settings()
 
-    This function uses lru_cache to ensure that the settings are only
-    loaded once during the application lifecycle, improving performance.
+
+# Configuration helper for environment-based defaults
+def get_config_defaults(environment: str) -> dict[str, Any]:
+    """Get default configuration based on environment.
+
+    Args:
+        environment: The deployment environment.
 
     Returns:
-        Settings: The application settings instance.
+        dict[str, Any]: Default configuration values.
     """
-    return Settings()
+    if environment == "production":
+        return {
+            "log_config": {
+                "log_formatter_type": "gcp",  # Or "aws" based on cloud provider
+            },
+            "observability_config": {
+                "exporter_type": "gcp",  # Or "aws" based on cloud provider
+            },
+        }
+    # Development defaults
+    return {
+        "log_config": {
+            "log_formatter_type": "console",
+        },
+        "observability_config": {
+            "exporter_type": "console",
+            "trace_to_file": True,
+        },
+    }

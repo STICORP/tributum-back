@@ -54,8 +54,8 @@ class TestSettings:
             assert settings.log_config.log_level == "WARNING"  # Set by pytest-env
         with pytest_check.check:
             assert (
-                settings.log_config.log_formatter_type is None
-            )  # Auto-detect by default
+                settings.log_config.log_formatter_type == "console"
+            )  # Auto-detected as console for development
         # Removed attributes tested in Phase 0:
         # render_json_logs, add_timestamp, timestamper_format
 
@@ -130,7 +130,7 @@ class TestSettings:
         """Test log configuration environment variable overrides."""
         monkeypatch.setenv("ENVIRONMENT", "production")
         monkeypatch.setenv("LOG_CONFIG__LOG_LEVEL", "DEBUG")
-        monkeypatch.setenv("LOG_CONFIG__LOG_FORMAT", "json")
+        monkeypatch.setenv("LOG_CONFIG__LOG_FORMATTER_TYPE", "json")
 
         settings = Settings()
 

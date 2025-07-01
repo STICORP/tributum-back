@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Automatic environment detection for log formatters and trace exporters based on deployment platform
+- Configurable sensitive field detection for error context sanitization
+- SQL parameter sanitization for secure database query logging
+- Comprehensive integration tests for observability stack
+- Unit tests for configuration auto-detection functionality
 - OpenTelemetry-based distributed tracing with pluggable exporters (console, GCP, AWS, OTLP)
 - Cloud-agnostic observability infrastructure supporting multiple deployment environments
 - Custom Loguru span exporter for development-friendly trace output
@@ -52,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task analysis and review commands for improved planning
 
 ### Changed
+- Simplified observability configuration with intelligent auto-detection based on deployment environment
+- Enhanced .env.example with clearer organization and environment-specific examples
+- Database session now uses sanitized SQL parameter logging for improved security
+- Error context module integrated with configurable sensitive fields from settings
 - Observability configuration updated with cloud-agnostic tracing support and pluggable exporters
 - Migrated from standard Python logging to Loguru for better performance
 - Updated log formatter configuration from log_format to log_formatter_type with extended options
