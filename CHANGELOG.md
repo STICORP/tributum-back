@@ -107,6 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - pytest-rich and pytest-xdist compatibility issue for parallel test execution
 - Test fixture timeouts in CI environments by configuring pytest to apply timeouts only to test functions
 - Intermittent Docker container startup failures in CI caused by network creation conflicts
+- Test output pollution from JSON formatter bypassing pytest's output capturing
 
 ## [0.3.0] - 2025-06-20
 
