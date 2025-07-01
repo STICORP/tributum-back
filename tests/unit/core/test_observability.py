@@ -1,10 +1,9 @@
 """Tests for simplified observability implementation."""
 
-from unittest.mock import Mock
-
 import pytest
 from fastapi import FastAPI
 from opentelemetry.sdk.trace.export import SpanExportResult
+from opentelemetry.trace import Span, Tracer
 from pytest_mock import MockerFixture
 
 from src.core.config import ObservabilityConfig, Settings
@@ -252,10 +251,15 @@ class TestTracingSetup:
 class TestSpanOperations:
     """Test span operations and utilities."""
 
-    def test_add_correlation_id_to_span(self) -> None:
+    def test_add_correlation_id_to_span(self, mocker: MockerFixture) -> None:
         """Test adding correlation ID to span."""
         # Create mock span
-        mock_span = Mock()
+        mock_span: Span = mocker.MagicMock(spec=Span)
+        # Keep reference to set_attribute method for assertions
+        mock_set_attribute = mocker.patch.object(
+            mock_span, "set_attribute", mocker.MagicMock()
+        )
+
         mock_scope = {
             "headers": [(b"x-request-id", b"req-123")],
         }
@@ -266,13 +270,19 @@ class TestSpanOperations:
         add_correlation_id_to_span(mock_span, mock_scope)
 
         # Verify attributes were set
-        mock_span.set_attribute.assert_any_call("correlation_id", "corr-456")
-        mock_span.set_attribute.assert_any_call("request_id", "req-123")
+        mock_set_attribute.assert_any_call("correlation_id", "corr-456")
+        mock_set_attribute.assert_any_call("request_id", "req-123")
 
     def test_add_span_attributes(self, mocker: MockerFixture) -> None:
         """Test adding custom span attributes."""
-        mock_span = Mock()
-        mock_span.is_recording.return_value = True
+        mock_span: Span = mocker.MagicMock(spec=Span)
+        # Keep references for method assertions
+        mocker.patch.object(
+            mock_span, "is_recording", mocker.MagicMock(return_value=True)
+        )
+        mock_set_attribute = mocker.patch.object(
+            mock_span, "set_attribute", mocker.MagicMock()
+        )
 
         mocker.patch("opentelemetry.trace.get_current_span", return_value=mock_span)
         add_span_attributes(
@@ -282,9 +292,9 @@ class TestSpanOperations:
         )
 
         # All values should be converted to strings
-        mock_span.set_attribute.assert_any_call("user_id", "123")
-        mock_span.set_attribute.assert_any_call("action", "login")
-        mock_span.set_attribute.assert_any_call("success", "True")
+        mock_set_attribute.assert_any_call("user_id", "123")
+        mock_set_attribute.assert_any_call("action", "login")
+        mock_set_attribute.assert_any_call("success", "True")
 
     def test_trace_operation_context_manager(self, mocker: MockerFixture) -> None:
         """Test trace_operation context manager."""
@@ -301,9 +311,16 @@ class TestSpanOperations:
         RequestContext.set_correlation_id("test-correlation")
 
         # Mock tracer and span
-        mock_tracer = Mock()
-        mock_span = Mock()
-        mock_tracer.start_span.return_value = mock_span
+        mock_tracer: Tracer = mocker.MagicMock(spec=Tracer)
+        mock_span: Span = mocker.MagicMock(spec=Span)
+
+        # Keep references for method assertions
+        mock_start_span = mocker.patch.object(
+            mock_tracer, "start_span", mocker.MagicMock(return_value=mock_span)
+        )
+        mock_set_attribute = mocker.patch.object(
+            mock_span, "set_attribute", mocker.MagicMock()
+        )
 
         mocker.patch("src.core.observability.get_tracer", return_value=mock_tracer)
         mock_use_span = mocker.patch("src.core.observability.trace.use_span")
@@ -314,11 +331,11 @@ class TestSpanOperations:
             pass
 
         # Verify span was created with correct name
-        mock_tracer.start_span.assert_called_once_with("test_operation")
+        mock_start_span.assert_called_once_with("test_operation")
 
         # Verify attributes were set
-        mock_span.set_attribute.assert_any_call("operation_type", "unit_test")
-        mock_span.set_attribute.assert_any_call("correlation_id", "test-correlation")
+        mock_set_attribute.assert_any_call("operation_type", "unit_test")
+        mock_set_attribute.assert_any_call("correlation_id", "test-correlation")
 
         # Verify use_span was called
         mock_use_span.assert_called_once_with(mock_span, end_on_exit=True)
