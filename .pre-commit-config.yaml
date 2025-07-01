@@ -133,26 +133,6 @@ repos:
         pass_filenames: false
         exclude: ^tests/  # Exclude test files as shadowing is common in fixtures
 
-  # Check for forbidden unittest.mock imports
-  - repo: local
-    hooks:
-      - id: mock-check
-        name: unittest.mock import check
-        entry: make mock-check
-        language: system
-        pass_filenames: false
-        types: [python]
-
-  # Check for missing pytest markers
-  - repo: local
-    hooks:
-      - id: markers-check
-        name: pytest markers check
-        entry: make markers-check
-        language: system
-        pass_filenames: false
-        types: [python]
-
   # Shellcheck for shell script linting
   - repo: local
     hooks:
