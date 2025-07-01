@@ -95,21 +95,6 @@ class InterceptHandler(logging.Handler):
         )
 
 
-def should_log_path(record: dict[str, Any]) -> bool:
-    """Filter out excluded paths from logs.
-
-    Args:
-        record: Loguru record dictionary.
-
-    Returns:
-        bool: True if the path should be logged.
-    """
-    # TODO: Implementation would check against excluded_paths from settings
-    # For now, log everything
-    del record  # Explicitly indicate parameter is unused in Phase 1
-    return True
-
-
 def serialize_for_json(record: dict[str, Any]) -> str:
     """Format log record as generic JSON for development/self-hosted.
 

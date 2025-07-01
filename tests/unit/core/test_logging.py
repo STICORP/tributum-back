@@ -18,7 +18,6 @@ from src.core.logging import (
     bind_context,
     get_logger,
     setup_logging,
-    should_log_path,
 )
 
 
@@ -194,13 +193,6 @@ class TestInterceptHandler:
 @pytest.mark.unit
 class TestUtilityFunctions:
     """Test utility functions in logging module."""
-
-    def test_should_log_path(self) -> None:
-        """Test should_log_path function."""
-        # This is a stub function in Phase 1, should always return True
-        test_record = {"extra": {}, "level": {"name": "INFO"}}
-        result = should_log_path(test_record)
-        assert result is True
 
     def test_bind_context(self) -> None:
         """Test bind_context function."""
