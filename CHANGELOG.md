@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Comprehensive edge case tests for logging formatters, request middleware, and observability components
 - Automatic environment detection for log formatters and trace exporters based on deployment platform
 - Configurable sensitive field detection for error context sanitization
 - SQL parameter sanitization for secure database query logging
