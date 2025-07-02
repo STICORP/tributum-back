@@ -12,8 +12,10 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.constants import DEFAULT_PAGINATION_LIMIT
 from src.infrastructure.database.base import BaseModel
+
+DEFAULT_PAGINATION_LIMIT = 100
+
 
 # Type variable for generic model type
 T = TypeVar("T", bound=BaseModel)

@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.api.constants import CORRELATION_ID_HEADER
+from src.api.middleware.request_context import CORRELATION_ID_HEADER
 
 
 @pytest.mark.unit

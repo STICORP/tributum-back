@@ -25,7 +25,9 @@ from sqlalchemy.ext.asyncio import (
 from src.core.config import get_settings
 from src.core.context import RequestContext
 from src.core.error_context import sanitize_sql_params
-from src.infrastructure.constants import COMMAND_TIMEOUT_SECONDS, POOL_RECYCLE_SECONDS
+
+POOL_RECYCLE_SECONDS = 3600  # 1 hour
+COMMAND_TIMEOUT_SECONDS = 60
 
 # Store query start times for execution contexts
 _query_start_times: WeakKeyDictionary[ExecutionContext, float] = WeakKeyDictionary()

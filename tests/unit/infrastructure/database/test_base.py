@@ -9,8 +9,7 @@ from sqlalchemy import BigInteger, DateTime, Integer, String
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
-from src.infrastructure.constants import NAMING_CONVENTION
-from src.infrastructure.database.base import Base, BaseModel
+from src.infrastructure.database.base import NAMING_CONVENTION, Base, BaseModel
 
 
 @pytest.mark.unit

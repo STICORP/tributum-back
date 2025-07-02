@@ -13,14 +13,25 @@ from re import Pattern
 from typing import Any, Final
 
 # Import constants from other modules
-from src.api.constants import SENSITIVE_HEADERS
 from src.core.config import get_settings
-from src.core.constants import REDACTED
 
 # Type alias for values we can sanitize
 SanitizableValue = (
     str | int | float | bool | None | dict[str, Any] | list[Any] | tuple[Any, ...]
 )
+
+SENSITIVE_HEADERS = {
+    "authorization",
+    "cookie",
+    "x-api-key",
+    "x-auth-token",
+    "x-csrf-token",
+    "set-cookie",
+    "x-secret-key",
+    "proxy-authorization",
+}
+
+REDACTED = "[REDACTED]"
 
 # Default sensitive field patterns - covers common cases
 DEFAULT_SENSITIVE_PATTERN: Final[Pattern[str]] = re.compile(

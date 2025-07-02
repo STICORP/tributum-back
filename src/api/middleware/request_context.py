@@ -7,8 +7,9 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import Response
 
-from src.api.constants import CORRELATION_ID_HEADER
 from src.core.context import RequestContext
+
+CORRELATION_ID_HEADER = "X-Correlation-ID"
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):

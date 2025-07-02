@@ -4,8 +4,8 @@ from typing import Any
 
 import pytest
 
-from src.core.constants import REDACTED
 from src.core.error_context import (
+    REDACTED,
     _get_sensitive_fields,
     is_sensitive_field,
     is_sensitive_header,

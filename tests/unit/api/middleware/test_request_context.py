@@ -4,8 +4,10 @@ import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 
-from src.api.constants import CORRELATION_ID_HEADER
-from src.api.middleware.request_context import RequestContextMiddleware
+from src.api.middleware.request_context import (
+    CORRELATION_ID_HEADER,
+    RequestContextMiddleware,
+)
 from src.core.context import RequestContext
 
 

@@ -20,7 +20,7 @@ from pytest_mock import MockerFixture
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.constants import CORRELATION_ID_HEADER
+from src.api.middleware.request_context import CORRELATION_ID_HEADER
 
 
 @pytest.mark.integration

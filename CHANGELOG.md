@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Consolidated module-specific constants directly into their respective modules for better cohesion
+
 ### Added
 - Automatic environment detection for log formatters and trace exporters based on deployment platform
 - Configurable sensitive field detection for error context sanitization

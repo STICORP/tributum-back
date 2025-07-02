@@ -12,7 +12,6 @@ from fastapi.responses import Response
 from loguru import logger
 from starlette.exceptions import HTTPException
 
-from src.api.constants import HTTP_500_INTERNAL_SERVER_ERROR
 from src.api.schemas.errors import ErrorResponse, ServiceInfo
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
@@ -26,6 +25,8 @@ from src.core.exceptions import (
     UnauthorizedError,
     ValidationError,
 )
+
+HTTP_500_INTERNAL_SERVER_ERROR = 500
 
 
 def get_service_info(settings: Settings) -> ServiceInfo:

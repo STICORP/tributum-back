@@ -6,7 +6,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from src.api.constants import DEFAULT_HSTS_MAX_AGE
+DEFAULT_HSTS_MAX_AGE = 31536000  # 1 year in seconds
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
