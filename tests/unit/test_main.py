@@ -22,17 +22,21 @@ class TestMainEntryPoint:
         mock_settings.log_config.log_level = "INFO"
 
         mocker.patch("main.get_settings", return_value=mock_settings)
+        mocker.patch("main.setup_logging")  # Mock setup_logging to prevent side effects
         mock_run = mocker.patch("main.uvicorn.run")
 
         main()
 
-        mock_run.assert_called_once_with(
-            "src.api.main:app",
-            host="127.0.0.1",
-            port=8000,
-            reload=True,
-            log_level="info",
-        )
+        mock_run.assert_called_once()
+        args, kwargs = mock_run.call_args
+
+        # In debug mode, app is passed as import string
+        assert args[0] == "src.api.main:app"
+        assert kwargs["host"] == "127.0.0.1"
+        assert kwargs["port"] == 8000
+        assert kwargs["reload"] is True
+        assert "log_config" in kwargs
+        assert isinstance(kwargs["log_config"], dict)
 
     def test_main_function_runs_uvicorn_in_production_mode(
         self, mocker: MockerFixture
@@ -45,6 +49,7 @@ class TestMainEntryPoint:
         mock_settings.log_config.log_level = "INFO"
 
         mocker.patch("main.get_settings", return_value=mock_settings)
+        mocker.patch("main.setup_logging")  # Mock setup_logging to prevent side effects
         mock_run = mocker.patch("main.uvicorn.run")
 
         main()
@@ -57,7 +62,8 @@ class TestMainEntryPoint:
         assert kwargs["host"] == "127.0.0.1"
         assert kwargs["port"] == 8000
         assert kwargs["reload"] is False
-        assert kwargs["log_level"] == "info"
+        assert "log_config" in kwargs
+        assert isinstance(kwargs["log_config"], dict)
 
     def test_main_module_can_be_imported(self) -> None:
         """Test that the main module can be imported without errors."""

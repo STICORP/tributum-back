@@ -6,7 +6,7 @@ import json
 import logging
 import os
 import sys
-from typing import Any, Final, Protocol
+from typing import Any, Final, Protocol, cast
 
 from loguru import logger
 
@@ -61,6 +61,195 @@ DEFAULT_LOG_FORMAT: Final[str] = (
     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
     "{message}"
 )
+CORRELATION_ID_DISPLAY_LENGTH: Final[int] = 8
+MAX_FIELD_VALUE_LENGTH: Final[int] = 100
+
+
+def _format_priority_field(field: str, value: object) -> str | None:
+    """Format a priority field for display.
+
+    Args:
+        field: The field name.
+        value: The field value.
+
+    Returns:
+        str | None: Formatted value or None if formatting fails.
+    """
+    try:
+        if (
+            field == "correlation_id"
+            and value
+            and len(str(value)) > CORRELATION_ID_DISPLAY_LENGTH
+        ):
+            # Shorten correlation ID for readability
+            value = str(value)[:CORRELATION_ID_DISPLAY_LENGTH]
+        elif field == "duration_ms":
+            value = f"{value}ms"
+        elif field == "status_code":
+            # Color code status codes
+            status_str = str(value)
+            if status_str.startswith("2"):
+                value = f"<green>{value}</green>"
+            elif status_str.startswith("3"):
+                value = f"<yellow>{value}</yellow>"
+            elif status_str.startswith("4"):
+                value = f"<red>{value}</red>"
+            elif status_str.startswith("5"):
+                value = f"<red><bold>{value}</bold></red>"
+        # Escape braces to prevent format string errors
+        return str(value).replace("{", "{{").replace("}", "}}")
+    except (AttributeError, TypeError, ValueError) as e:
+        logger.trace(f"Failed to format priority field {field}: {e}")
+        return None
+
+
+def _format_extra_field(key: str, value: object) -> str | None:
+    """Format an extra field for display.
+
+    Args:
+        key: The field name.
+        value: The field value.
+
+    Returns:
+        str | None: Formatted field or None if formatting fails.
+    """
+    try:
+        # Limit length of field values to prevent huge logs
+        str_value = str(value)
+        if len(str_value) > MAX_FIELD_VALUE_LENGTH:
+            str_value = str_value[: MAX_FIELD_VALUE_LENGTH - 3] + "..."
+        # Escape braces to prevent format string errors
+        str_value = str_value.replace("{", "{{").replace("}", "}}")
+        safe_key = str(key).replace("{", "{{").replace("}", "}}")
+    except (AttributeError, TypeError, ValueError) as e:
+        logger.trace(f"Failed to format extra field {key}: {e}")
+        return None
+    else:
+        return f"{safe_key}={str_value}"
+
+
+def _format_timestamp(record: dict[str, Any]) -> str:
+    """Format timestamp from record.
+
+    Args:
+        record: Loguru record.
+
+    Returns:
+        str: Formatted timestamp string.
+    """
+    timestamp = record.get("time")
+    if timestamp:
+        return str(timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")[:-3])
+    return "unknown"
+
+
+def _format_level(record: dict[str, Any]) -> str:
+    """Format log level from record.
+
+    Args:
+        record: Loguru record.
+
+    Returns:
+        str: Formatted level name.
+    """
+    level = record.get("level", {})
+    if hasattr(level, "name"):
+        return getattr(level, "name", "INFO")
+    return str(level)
+
+
+def _format_context_fields(extra: dict[str, Any]) -> list[str]:
+    """Format all context fields from extra data.
+
+    Args:
+        extra: Extra fields from the log record.
+
+    Returns:
+        list[str]: List of formatted context parts.
+    """
+    context_parts = []
+
+    # Priority fields that should appear first
+    priority_fields = [
+        "correlation_id",
+        "request_id",
+        "method",
+        "path",
+        "status_code",
+        "duration_ms",
+        "client_host",
+        "user_agent",
+    ]
+
+    # Add priority fields if present
+    for field in priority_fields:
+        if field in extra and extra[field] is not None:
+            formatted = _format_priority_field(field, extra[field])
+            if formatted:
+                context_parts.append(f"<yellow>{formatted}</yellow>")
+
+    # Add any other fields not in priority list
+    for key, value in extra.items():
+        if key not in priority_fields and not key.startswith("_") and value is not None:
+            formatted = _format_extra_field(key, value)
+            if formatted:
+                context_parts.append(f"<dim>{formatted}</dim>")
+
+    return context_parts
+
+
+def format_console_with_context(record: dict[str, Any]) -> str:
+    """Format log record for console with all context fields visible.
+
+    This formatter displays all extra fields in a readable inline format,
+    making development logging comprehensive and useful.
+
+    Args:
+        record: Loguru record to format.
+
+    Returns:
+        str: Formatted log string with context.
+    """
+    try:
+        # Format basic parts
+        time_str = _format_timestamp(record)
+        level_name = _format_level(record)
+
+        parts = [
+            f"<green>{time_str}</green>",
+            f"<level>{level_name: <8}</level>",
+        ]
+
+        # Add logger location
+        name = record.get("name", "")
+        function = record.get("function", "")
+        line = record.get("line", "")
+        location = f"{name}:{function}:{line}"
+        parts.append(f"<cyan>{location}</cyan>")
+
+        # Extract and format context fields
+        extra = record.get("extra", {})
+        context_parts = _format_context_fields(extra)
+
+        # Combine context parts
+        if context_parts:
+            context_str = " ".join(f"[{part}]" for part in context_parts)
+            parts.append(context_str)
+
+        # Add the message and escape braces
+        message = str(record.get("message", "")).replace("{", "{{").replace("}", "}}")
+        parts.append(message)
+
+        # Add exception if present
+        if record.get("exception"):
+            parts.append("\n{{exception}}")
+
+        # Join all parts with pipe separator and add newline
+        return " | ".join(parts) + "\n"
+    except (AttributeError, TypeError, ValueError, KeyError) as e:
+        # Fallback to default format if anything goes wrong
+        logger.trace(f"Failed to format log record: {e}")
+        return DEFAULT_LOG_FORMAT + "\n"
 
 
 class InterceptHandler(logging.Handler):
@@ -90,7 +279,57 @@ class InterceptHandler(logging.Handler):
             # _getframe can fail if there aren't enough frames
             depth = 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(
+        # Extract extra context from LogRecord if available
+        extra = {}
+
+        # Map uvicorn access log fields to our standard fields
+        if record.name == "uvicorn.access" and hasattr(record, "scope"):
+            scope = record.scope
+            extra["method"] = scope.get("method", "")
+            extra["path"] = scope.get("path", "")
+            extra["client_host"] = scope.get("client", ["unknown"])[0]
+
+            # Try to get correlation ID from scope headers
+            headers = dict(scope.get("headers", []))
+            correlation_id = headers.get(b"x-correlation-id", b"").decode("utf-8")
+            if correlation_id:
+                extra["correlation_id"] = correlation_id
+
+        # Pass along any extra fields from the record
+        skip_fields = {
+            "name",
+            "msg",
+            "args",
+            "created",
+            "msecs",
+            "relativeCreated",
+            "thread",
+            "threadName",
+            "processName",
+            "process",
+            "pathname",
+            "filename",
+            "module",
+            "lineno",
+            "funcName",
+            "stack_info",
+            "exc_text",
+            "color_message",
+            "taskName",
+        }
+        # Use dictionary comprehension as suggested by PERF403
+        additional_fields = {
+            key: value
+            for key, value in record.__dict__.items()
+            if (
+                key not in logging.LogRecord.__dict__
+                and not key.startswith("_")
+                and key not in skip_fields
+            )
+        }
+        extra.update(additional_fields)
+
+        logger.opt(depth=depth, exception=record.exc_info).bind(**extra).log(
             record.levelname, record.getMessage()
         )
 
@@ -304,10 +543,10 @@ def setup_logging(settings: SettingsProtocol) -> None:
     formatter = LOG_FORMATTERS.get(formatter_type)
 
     if formatter_type == "console" or formatter is None:
-        # Human-readable console format for development
+        # Human-readable console format for development with full context
         logger.add(
             sys.stdout,
-            format=DEFAULT_LOG_FORMAT,
+            format=cast("Any", format_console_with_context),
             level=settings.log_config.log_level,
             enqueue=True,
             colorize=True,
@@ -335,8 +574,17 @@ def setup_logging(settings: SettingsProtocol) -> None:
     # Configure standard library logging to use Loguru
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
 
-    # Disable noisy loggers
-    for logger_name in ["uvicorn.access", "urllib3.connectionpool"]:
+    # Intercept all uvicorn loggers - they're already configured by main.py
+    # Just ensure they're not disabled
+    for logger_name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
+        uvicorn_logger = logging.getLogger(logger_name)
+        if not uvicorn_logger.handlers:
+            uvicorn_logger.handlers = [InterceptHandler()]
+            uvicorn_logger.setLevel(logging.INFO)
+            uvicorn_logger.propagate = False
+
+    # Only disable truly noisy loggers
+    for logger_name in ["urllib3.connectionpool"]:
         logging.getLogger(logger_name).disabled = True
 
     # Log the formatter being used

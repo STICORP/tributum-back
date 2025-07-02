@@ -9,7 +9,7 @@ from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from src.core.config import LogConfig
+from src.core.config import LogConfig, get_settings
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -30,6 +30,48 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.log_config = log_config
         self.excluded_paths = set(log_config.excluded_paths)
+        self.settings = get_settings()
+
+    def _get_client_ip(self, request: Request) -> str:
+        """Extract real client IP considering proxy headers.
+
+        Args:
+            request: The incoming request.
+
+        Returns:
+            str: The client IP address.
+        """
+        # Only trust proxy headers in production environments
+        if self.settings.environment == "production":
+            # Try X-Forwarded-For first (standard proxy header)
+            forwarded_for = request.headers.get("x-forwarded-for")
+            if forwarded_for:
+                # Take the first IP (original client)
+                ips = forwarded_for.split(",")
+                return ips[0].strip()
+
+            # Try X-Real-IP (nginx)
+            real_ip = request.headers.get("x-real-ip")
+            if real_ip:
+                return real_ip.strip()
+
+        # Fall back to direct connection
+        if request.client:
+            return request.client.host
+        return "unknown"
+
+    def _get_user_agent(self, request: Request) -> str:
+        """Extract and sanitize user agent.
+
+        Args:
+            request: The incoming request.
+
+        Returns:
+            str: The user agent string, truncated if necessary.
+        """
+        ua = request.headers.get("user-agent", "")
+        # Truncate extremely long user agents to prevent log pollution
+        return ua[:200] if ua else "unknown"
 
     async def dispatch(
         self,
@@ -56,12 +98,19 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Generate or extract request ID
         request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
 
+        # Extract request metadata
+        client_ip = self._get_client_ip(request)
+        user_agent = self._get_user_agent(request)
+        request_size = int(request.headers.get("content-length", 0))
+
         # Bind request context for this request
         with logger.contextualize(
             request_id=request_id,
             method=request.method,
             path=request.url.path,
-            client_host=request.client.host if request.client else None,
+            client_host=client_ip,
+            user_agent=user_agent,
+            request_size=request_size,
         ):
             # Log request start
             logger.info(
@@ -96,11 +145,17 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 # Calculate duration
                 duration_ms = (time.perf_counter() - start_time) * 1000
 
+                # Try to get response size
+                response_size = 0
+                if "content-length" in response.headers:
+                    response_size = int(response.headers["content-length"])
+
                 # Log completion with metrics
                 logger.info(
                     "Request completed",
                     status_code=response.status_code,
                     duration_ms=round(duration_ms, 2),
+                    response_size=response_size,
                 )
 
                 # Add request ID to response

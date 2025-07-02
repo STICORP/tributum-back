@@ -7,9 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- Consolidated module-specific constants directly into their respective modules for better cohesion
-
 ### Added
 - Automatic environment detection for log formatters and trace exporters based on deployment platform
 - Configurable sensitive field detection for error context sanitization
@@ -60,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task analysis and review commands for improved planning
 
 ### Changed
+- Consolidated module-specific constants directly into their respective modules for better cohesion
+- Enhanced request logging with proxy-aware client IP extraction and comprehensive request metadata
+- Improved console logging format to display all context fields inline for better development experience
+- Integrated uvicorn logging with Loguru for unified log formatting and correlation
 - Simplified observability configuration with intelligent auto-detection based on deployment environment
 - Enhanced .env.example with clearer organization and environment-specific examples
 - Database session now uses sanitized SQL parameter logging for improved security

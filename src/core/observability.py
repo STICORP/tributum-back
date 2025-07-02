@@ -70,6 +70,10 @@ class LoguruSpanExporter(SpanExporter):
             if span.end_time and span.start_time:
                 duration_ms = (span.end_time - span.start_time) // 1_000_000
 
+            # Skip noisy internal spans in development
+            if span.name in ["connect", "http send", "http receive", "cursor.execute"]:
+                continue
+
             # Create a structured log entry for the span
             logger.bind(
                 trace_id=f"0x{span_context.trace_id:032x}",
