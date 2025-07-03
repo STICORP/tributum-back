@@ -1,4 +1,18 @@
-"""Main FastAPI application module."""
+"""FastAPI application initialization and configuration module.
+
+This module serves as the main entry point for the Tributum API application.
+It handles:
+- Application lifecycle management (startup/shutdown)
+- Middleware registration in the correct order
+- Exception handler registration
+- Health check and monitoring endpoints
+- Database connection verification
+- OpenTelemetry instrumentation
+
+The module follows a layered middleware approach where middleware are
+executed in reverse order of registration, ensuring proper request/response
+processing flow.
+"""
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager

@@ -1,9 +1,25 @@
-"""Observability configuration using OpenTelemetry with pluggable exporters.
+"""Distributed tracing implementation with OpenTelemetry.
 
-This module provides vendor-neutral distributed tracing that works with:
-- Local development (console/file output)
-- Cloud providers (GCP Cloud Trace, AWS X-Ray)
-- Self-hosted (Jaeger, Zipkin via OTLP)
+This module provides a vendor-agnostic observability layer using OpenTelemetry,
+enabling distributed tracing across services and cloud providers without
+vendor lock-in.
+
+Supported backends:
+- **Console**: Development logging via Loguru integration
+- **GCP Cloud Trace**: Native Google Cloud integration
+- **AWS X-Ray**: AWS distributed tracing via OTLP
+- **OTLP**: Generic protocol for Jaeger, Zipkin, etc.
+
+Key features:
+- **Auto-instrumentation**: FastAPI and SQLAlchemy instrumentation
+- **Correlation propagation**: Links traces with logs via correlation IDs
+- **Dynamic loading**: Cloud exporters loaded only when needed
+- **Sampling control**: Configurable trace sampling for cost management
+- **Context enrichment**: Automatic span attributes from request context
+
+The implementation follows OpenTelemetry best practices with proper
+resource attribution, span naming, and attribute conventions for
+maximum compatibility across observability platforms.
 """
 
 from __future__ import annotations

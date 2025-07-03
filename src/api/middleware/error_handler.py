@@ -1,7 +1,20 @@
-"""Global exception handlers for the FastAPI application.
+"""Centralized exception handling for consistent API error responses.
 
-This module provides centralized exception handling for all API endpoints,
-ensuring consistent error responses and proper logging of exceptions.
+This module implements global exception handlers that ensure all errors
+are caught, logged, and returned to clients in a standardized format.
+It provides:
+
+- **Type-specific handlers**: Custom handling for different exception types
+- **Sanitized responses**: Sensitive data removal before client responses
+- **Structured logging**: Comprehensive error logging with correlation IDs
+- **Environment awareness**: Debug info in development, safe messages in production
+- **HTTP status mapping**: Automatic mapping of exceptions to appropriate HTTP codes
+
+The handlers follow a hierarchy:
+1. TributumError and subclasses (business logic errors)
+2. FastAPI validation errors (request/response validation)
+3. Starlette HTTP exceptions (standard HTTP errors)
+4. Generic exceptions (unexpected errors)
 """
 
 import traceback

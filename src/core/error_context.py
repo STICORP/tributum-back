@@ -1,8 +1,25 @@
-"""Error context management with basic sensitive data sanitization.
+"""Sensitive data sanitization for secure error logging and responses.
 
-This simplified module provides basic protection against logging
-sensitive data. For compliance-critical applications, use cloud
-provider DLP APIs (GCP DLP, AWS Macie, Azure Purview).
+This module implements a comprehensive sanitization system that prevents
+sensitive information from being exposed in logs, error messages, or API
+responses. It provides automatic detection and redaction of sensitive fields
+based on patterns and configuration.
+
+Key features:
+- **Pattern matching**: Regex-based detection of sensitive field names
+- **Configurable fields**: Additional sensitive fields via configuration
+- **Deep sanitization**: Recursive handling of nested data structures
+- **Header protection**: Special handling for sensitive HTTP headers
+- **SQL parameter safety**: Sanitization of database query parameters
+
+Security considerations:
+- This provides basic protection suitable for most applications
+- For regulatory compliance (PCI, HIPAA), consider cloud DLP services
+- Sanitization is applied at logging time, not storage time
+- Original data remains unchanged, only logged copies are sanitized
+
+The module is designed to be performant with caching and early returns,
+suitable for high-throughput production environments.
 """
 
 from __future__ import annotations

@@ -1,7 +1,22 @@
-"""Base model and declarative base for SQLAlchemy ORM.
+"""SQLAlchemy declarative base and common model fields.
 
-This module provides the foundation for all database models in the Tributum
-application, including a base model with common fields and naming conventions.
+This module establishes the foundation for all database models in the
+application, providing consistent structure and behavior across entities.
+
+Key components:
+- **Naming conventions**: Standardized constraint names for migrations
+- **Base class**: Configured declarative base with metadata
+- **BaseModel**: Abstract model with common fields (id, timestamps)
+- **Type mapping**: Modern SQLAlchemy 2.0+ mapped column syntax
+
+The BaseModel provides:
+- **BigInteger ID**: Scalable primary keys for large datasets
+- **Timezone-aware timestamps**: UTC timestamps for global systems
+- **Automatic updates**: updated_at field updates on modifications
+- **Consistent repr**: Standard string representation for debugging
+
+All domain models should inherit from BaseModel to ensure consistent
+field naming, behavior, and database constraints across the schema.
 """
 
 from datetime import datetime

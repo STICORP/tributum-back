@@ -1,7 +1,18 @@
-"""Custom response classes for high-performance JSON serialization.
+"""High-performance JSON response classes using orjson serialization.
 
-This module provides FastAPI response classes that use orjson for
-improved JSON serialization performance.
+This module provides optimized FastAPI response classes that leverage
+orjson for significantly faster JSON serialization compared to standard
+Python json module.
+
+Performance benefits:
+- 2-10x faster serialization than standard json
+- Native handling of datetime, UUID, and Decimal types
+- Efficient serialization of Pydantic models
+- Consistent key ordering for predictable output
+
+The ORJSONResponse class is set as the default response class for the
+entire FastAPI application, ensuring all JSON responses benefit from
+these performance improvements.
 """
 
 from typing import Any

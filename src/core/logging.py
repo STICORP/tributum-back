@@ -1,4 +1,27 @@
-"""Logging configuration using Loguru with pluggable formatters."""
+"""Structured logging system with cloud provider integrations.
+
+This module implements a sophisticated logging system using Loguru that
+provides structured, contextual logging with automatic formatting for
+different deployment environments.
+
+Features:
+- **Structured logging**: JSON output with consistent schema
+- **Context propagation**: Automatic inclusion of correlation IDs
+- **Cloud formatters**: Native formats for GCP, AWS, and Azure
+- **Performance optimization**: Async logging with thread-safe queues
+- **Standard library integration**: Captures logs from all Python modules
+- **Rich console output**: Development-friendly formatting with context
+
+Formatter types:
+- **console**: Human-readable with inline context (development)
+- **json**: Generic structured format (self-hosted)
+- **gcp**: Google Cloud Logging format with trace integration
+- **aws**: CloudWatch Logs Insights optimized format
+
+The logging system automatically detects the deployment environment
+and selects the appropriate formatter, ensuring logs are properly
+ingested and indexed by the platform's logging service.
+"""
 
 from __future__ import annotations
 

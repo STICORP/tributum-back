@@ -1,7 +1,20 @@
-"""Base repository pattern implementation for database operations.
+"""Generic repository pattern implementation for database operations.
 
-This module provides a generic repository base class that implements
-common CRUD operations for SQLAlchemy models using async patterns.
+This module provides a type-safe, async repository base class that implements
+standard CRUD operations for any SQLAlchemy model. The repository pattern
+abstracts database access logic, making it easier to test and maintain.
+
+Features:
+- **Type safety**: Full generic typing with TypeVar constraints
+- **Async operations**: All methods are async for non-blocking I/O
+- **Comprehensive logging**: Detailed operation logging with context
+- **Flexible queries**: Support for filtering, pagination, and existence checks
+- **Partial updates**: Update specific fields without full object replacement
+
+The BaseRepository class is designed to be extended for domain-specific
+repositories, allowing additional custom queries while inheriting all
+standard operations. This promotes code reuse and consistency across
+the data access layer.
 """
 
 from collections.abc import Mapping

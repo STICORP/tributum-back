@@ -1,4 +1,19 @@
-"""Request logging middleware with performance tracking."""
+"""HTTP request/response logging with performance monitoring.
+
+This module implements comprehensive request logging middleware that captures
+detailed information about every HTTP transaction for observability and debugging.
+
+Features:
+- **Structured logging**: JSON-formatted logs with consistent fields
+- **Performance tracking**: Request duration and slow request detection
+- **Client identification**: IP extraction with proxy header support
+- **Request/response metrics**: Size tracking for bandwidth monitoring
+- **Exclusion patterns**: Configurable path exclusion (e.g., health checks)
+- **Error handling**: Logs failures while preserving exception propagation
+
+The middleware integrates with the correlation ID system to ensure all logs
+for a single request can be easily aggregated and analyzed.
+"""
 
 import time
 import uuid

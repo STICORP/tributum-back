@@ -1,4 +1,17 @@
-"""Security headers middleware for adding common security headers to responses."""
+"""Security headers middleware for HTTP response hardening.
+
+This module implements a FastAPI middleware that automatically adds
+security-related HTTP headers to all responses, helping protect against
+common web vulnerabilities:
+
+- **X-Content-Type-Options**: Prevents MIME type sniffing attacks
+- **X-Frame-Options**: Protects against clickjacking attacks
+- **X-XSS-Protection**: Enables browser XSS filtering (legacy browsers)
+- **Strict-Transport-Security**: Forces HTTPS connections (HSTS)
+
+The middleware is configurable to support different security requirements
+across development, staging, and production environments.
+"""
 
 from collections.abc import Awaitable, Callable
 

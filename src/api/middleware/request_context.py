@@ -1,4 +1,18 @@
-"""Request context middleware for correlation ID management."""
+"""Request context middleware for distributed tracing and correlation.
+
+This module implements middleware that manages request correlation IDs,
+enabling distributed tracing across service boundaries and consistent
+log correlation throughout the request lifecycle.
+
+Key features:
+- **Correlation ID propagation**: Extracts or generates unique IDs per request
+- **Context variables**: Uses Python contextvars for thread-safe propagation
+- **Loguru integration**: Automatically binds correlation IDs to all logs
+- **Response headers**: Includes correlation ID in responses for client tracing
+
+The correlation ID follows the request through all layers of the application,
+making it easier to trace issues across logs, metrics, and distributed systems.
+"""
 
 import uuid
 

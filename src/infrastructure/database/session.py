@@ -1,7 +1,26 @@
-"""Database session management for async SQLAlchemy.
+"""Async database engine and session lifecycle management.
 
-This module provides the async engine and session factory configuration
-for the Tributum application, with proper connection pooling and cleanup.
+This module implements comprehensive database connection management using
+SQLAlchemy's async capabilities, providing efficient connection pooling,
+session lifecycle handling, and observability features.
+
+Core functionality:
+- **Connection pooling**: Configurable pool with overflow and recycling
+- **Session factory**: Async session creation with proper cleanup
+- **Health checks**: Database connectivity validation for monitoring
+- **Query monitoring**: Performance tracking and slow query detection
+- **Event listeners**: Custom hooks for query execution metrics
+
+Advanced features:
+- **Pool pre-ping**: Validates connections before use
+- **Connection recycling**: Prevents stale connections (1-hour default)
+- **Command timeout**: Prevents hanging queries (60-second default)
+- **Weak references**: Memory-efficient query timing storage
+- **Sanitized logging**: Secure parameter logging for debugging
+
+The module uses a singleton pattern through _DatabaseManager to ensure
+a single engine instance across the application lifecycle, maximizing
+connection pool efficiency.
 """
 
 import time

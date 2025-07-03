@@ -1,8 +1,16 @@
-"""Type aliases for common dynamic types used across the application.
+"""Type aliases for dynamic data structures throughout the application.
 
-This module provides type aliases for cases where dynamic typing is necessary,
-such as JSON data, logging contexts, and error details. These aliases improve
-code clarity by explicitly documenting the expected structure and constraints.
+This module centralizes type definitions for data that cannot be statically
+typed, providing clear semantic meaning and documentation for these types.
+
+The type aliases serve several purposes:
+- **Documentation**: Clear intent about what kind of data is expected
+- **Type safety**: Enable static type checkers to catch misuse
+- **Maintainability**: Single source of truth for type definitions
+- **IDE support**: Better autocomplete and type hints
+
+All types defined here should be JSON-serializable to support logging,
+API responses, and persistence layers.
 """
 
 from typing import Any

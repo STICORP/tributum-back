@@ -1,7 +1,22 @@
-"""Error response models for API error handling.
+"""Standardized error response schemas for consistent API error handling.
 
-This module defines the standardized error response format used across
-all API endpoints to ensure consistent error communication to clients.
+This module defines Pydantic models that structure all error responses
+returned by the API, ensuring clients receive predictable, well-documented
+error information regardless of the error type.
+
+Key models:
+- **ErrorResponse**: Main error response with all metadata fields
+- **ServiceInfo**: Service identification for multi-service debugging
+
+The error schema supports:
+- Machine-readable error codes for programmatic handling
+- Human-readable messages for user display
+- Correlation IDs for distributed tracing
+- Debug information in development environments
+- Field-level validation error details
+
+All timestamp fields include timezone information for proper
+internationalization support.
 """
 
 from datetime import UTC, datetime

@@ -1,4 +1,19 @@
-"""Request context management utilities for correlation IDs and request tracking."""
+"""Request context management for distributed tracing and correlation.
+
+This module provides thread-safe and async-safe context management using
+Python's contextvars, enabling request-scoped data to flow through all
+layers of the application without explicit parameter passing.
+
+Key features:
+- **Async-safe**: Works correctly with asyncio's concurrent execution
+- **Thread-safe**: Each thread maintains its own context
+- **Automatic cleanup**: Context is cleared between requests
+- **Integration ready**: Used by logging, tracing, and error handling
+
+The primary use case is correlation ID propagation for distributed tracing,
+but the pattern can be extended for other request-scoped data like user
+context, feature flags, or request metadata.
+"""
 
 import uuid
 from contextvars import ContextVar

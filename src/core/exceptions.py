@@ -1,7 +1,24 @@
-"""Base exception classes and error codes for the Tributum application.
+"""Structured exception hierarchy for consistent error handling.
 
-This module provides the foundation for consistent error handling across
-the application, with structured error codes and exception hierarchy.
+This module defines the complete exception system for the Tributum application,
+providing a rich error model that supports debugging, monitoring, and client
+communication.
+
+Key components:
+- **ErrorCode enum**: Standardized error identifiers for programmatic handling
+- **Severity enum**: Error classification for monitoring and alerting
+- **TributumError**: Base exception with rich context and fingerprinting
+- **Specialized exceptions**: Type-specific errors (validation, auth, etc.)
+
+Features:
+- **Error fingerprinting**: Automatic grouping of similar errors
+- **Stack trace capture**: Full context at error creation time
+- **Exception chaining**: Preserves original cause for debugging
+- **Rich context**: Structured data for comprehensive error analysis
+- **Severity levels**: Enables appropriate alerting and response
+
+The exception hierarchy enables both specific error handling where needed
+and generic handling at API boundaries for consistent client responses.
 """
 
 import hashlib

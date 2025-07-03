@@ -1,7 +1,22 @@
-"""Configuration management module for Tributum application.
+"""Centralized configuration management with environment-aware defaults.
 
-This module provides a centralized configuration management system using
-Pydantic Settings. It supports environment variables and .env files.
+This module implements a comprehensive configuration system using Pydantic
+Settings, providing type-safe configuration with validation, environment
+variable support, and cloud provider auto-detection.
+
+Features:
+- **Type safety**: All configuration values are validated and typed
+- **Environment variables**: Supports .env files and environment overrides
+- **Nested configuration**: Uses __ delimiter for complex config structures
+- **Auto-detection**: Automatically detects cloud environments (GCP, AWS)
+- **Validation**: Built-in constraints and custom validators
+- **Caching**: Configuration is cached for performance
+
+Configuration sources (in order of precedence):
+1. Environment variables
+2. .env file in project root
+3. Default values in model definitions
+4. Environment-based defaults (production vs development)
 """
 
 import os
