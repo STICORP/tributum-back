@@ -214,7 +214,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Core utilities for configuration, exceptions, and logging
 - Development environment setup
 
-[Unreleased]: https://github.com/daniel-jorge/tributum-back/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/daniel-jorge/tributum-back/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/daniel-jorge/tributum-back/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/daniel-jorge/tributum-back/releases/tag/v0.1.0
+[Unreleased]: https://github.com/STICORP/tributum-back/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/STICORP/tributum-back/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/STICORP/tributum-back/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/STICORP/tributum-back/releases/tag/v0.1.0
