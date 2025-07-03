@@ -5,11 +5,14 @@ from collections.abc import AsyncGenerator, Generator
 import pytest
 from httpx import ASGITransport, AsyncClient
 from loguru import logger
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from src.api.main import app, create_app
 from src.core.config import get_settings
 from src.core.context import RequestContext
+from src.core.logging import _state
 from src.infrastructure.database.dependencies import get_db
 from src.infrastructure.database.session import _db_manager, close_database
 
@@ -87,6 +90,66 @@ def clean_request_context() -> Generator[None]:
 
     # Clear after test
     RequestContext.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_logging_and_tracing_state() -> Generator[None]:
+    """Automatically reset logging and tracing state before and after each test.
+
+    This ensures that each test can configure logging and tracing independently
+    and prevents configuration from leaking between tests. This fixes:
+    - Flaky coverage issues where console formatter code is only covered when
+    tests run in certain orders
+    - OpenTelemetry warnings about "Overriding of current TracerProvider"
+    - "Attempting to instrument while already instrumented" errors
+    """
+    # Reset logging state before test
+    _state.configured = False
+
+    # Remove all existing logger handlers to ensure clean state
+    logger.remove()
+
+    # Clear the settings cache to ensure fresh settings for each test
+    # This is crucial because settings determine which formatter is used
+    get_settings.cache_clear()
+
+    # Uninstrument OpenTelemetry to prevent "already instrumented" warnings
+    try:
+        if FastAPIInstrumentor().is_instrumented_by_opentelemetry:
+            FastAPIInstrumentor().uninstrument()
+    except (AttributeError, RuntimeError) as e:
+        # Log at trace level - expected during test setup
+        logger.trace(f"FastAPI uninstrumentation skipped: {e}")
+
+    try:
+        if SQLAlchemyInstrumentor().is_instrumented_by_opentelemetry:
+            SQLAlchemyInstrumentor().uninstrument()
+    except (AttributeError, RuntimeError) as e:
+        # Log at trace level - expected during test setup
+        logger.trace(f"SQLAlchemy uninstrumentation skipped: {e}")
+
+    yield
+
+    # Reset logging state after test
+    _state.configured = False
+
+    # Remove all handlers again to ensure clean state for next test
+    logger.remove()
+
+    # Uninstrument again after test to ensure clean state
+    try:
+        if FastAPIInstrumentor().is_instrumented_by_opentelemetry:
+            FastAPIInstrumentor().uninstrument()
+    except (AttributeError, RuntimeError) as e:
+        # Log at trace level - expected during test cleanup
+        logger.trace(f"FastAPI uninstrumentation skipped during cleanup: {e}")
+
+    try:
+        if SQLAlchemyInstrumentor().is_instrumented_by_opentelemetry:
+            SQLAlchemyInstrumentor().uninstrument()
+    except (AttributeError, RuntimeError) as e:
+        # Log at trace level - expected during test cleanup
+        logger.trace(f"SQLAlchemy uninstrumentation skipped during cleanup: {e}")
 
 
 @pytest.fixture(autouse=True)
