@@ -37,21 +37,6 @@ jobs:
       matrix:
         python-version: ["3.13"]
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: tributum
-          POSTGRES_PASSWORD: tributum_pass
-          POSTGRES_DB: tributum_db
-        options: >-
-          --health-cmd "pg_isready -U tributum -d tributum_db"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
     - uses: actions/checkout@v4
 
@@ -67,27 +52,5 @@ jobs:
     - name: Install dependencies
       run: make install
 
-    - name: Install PostgreSQL client
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y postgresql-client
-
-    - name: Setup test database
-      run: |
-        # Wait for PostgreSQL to be ready
-        for i in {1..30}; do
-          if PGPASSWORD=tributum_pass psql -h localhost -U tributum -d tributum_db -c '\q' 2>/dev/null; then
-            echo "PostgreSQL is ready"
-            break
-          fi
-          echo "Waiting for PostgreSQL..."
-          sleep 1
-        done
-
-        # Run the init script to set up test database and permissions
-        PGPASSWORD=tributum_pass psql -h localhost -U tributum -d tributum_db < docker/postgres/init.sql
-
     - name: Run tests with coverage
-      env:
-        DATABASE_CONFIG__DATABASE_URL: postgresql+asyncpg://tributum:tributum_pass@localhost:5432/tributum_test
       run: make test-ci
