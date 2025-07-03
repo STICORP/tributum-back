@@ -7,6 +7,8 @@ from opentelemetry.trace import TracerProvider
 class SQLAlchemyInstrumentor:
     """Type stub for SQLAlchemyInstrumentor."""
 
+    is_instrumented_by_opentelemetry: bool
+
     def instrument(
         self,
         engine: object | None = None,

@@ -9,6 +9,8 @@ from opentelemetry.trace import TracerProvider
 class FastAPIInstrumentor:
     """Type stub for FastAPIInstrumentor."""
 
+    is_instrumented_by_opentelemetry: bool
+
     @staticmethod
     def instrument_app(
         app: FastAPI,
@@ -29,3 +31,5 @@ class FastAPIInstrumentor:
         excluded_urls: str | None = None,
     ) -> None: ...
     def uninstrument(self) -> None: ...
+    @staticmethod
+    def uninstrument_app(app: FastAPI) -> None: ...
