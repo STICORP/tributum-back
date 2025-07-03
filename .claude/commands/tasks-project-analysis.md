@@ -1,22 +1,32 @@
 # /tasks-project-analysis
 
+## Tasks
+
 Execute these analyses in parallel:
 
 ```
-- Fully Read pyproject.toml to understand the project configuration
-- Fully Read .pre-commit-config.yaml to understand the expected coding standards that will be validated
-- Fully read .env.example
-- Fully read Makefile
-- Fully read main.py
+- Fully Read and understand pyproject.toml
+- Fully Read and understand .pre-commit-config.yaml
+- Fully read and understand .env.example
+- Fully read and understand Makefile
+- Fully read and understand main.py
+- Fully read and understand /src/core/config.py
+- Fully read and understand /src/api/main.py
 - Understand existing functionality and patterns in src/core/
 - Understand existing functionality and patterns in src/api/
 - Understand existing functionality and patterns in src/infrastructure/
-- Understand project settings framework
-- Understand project configuration framework
-- Understand project error handling framework
-- Understand project logging framework
-- Understand project observability framework
-- Understand project context framework
-- Understand project database framework
-- Understand project containerization in docker/
+- Understand the functionality and how to use the config/settings framework
+- Understand the functionality and how to use the error handling framework
+- Understand the functionality and how to use the logging framework
+- Understand the functionality and how to use the observability framework
+- Understand the functionality and how to use the database framework
+- Understand how the project do containerization by investigating docker/
+- Understand how we test the project by investigating tests/
+- Understand the general architecture and integration points of the project
+- Understand the coding standards and patterns
+- Understand the strictness of the quality checks, including linting, docstrings and how we handle types
 ```
+
+## Output
+
+- A point-by-point analysis of your findings
