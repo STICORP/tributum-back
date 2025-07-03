@@ -143,16 +143,6 @@ repos:
         pass_filenames: false
         types: [shell]
 
-  # Run all tests to catch breaking changes
-  - repo: local
-    hooks:
-      - id: pytest
-        name: pytest
-        entry: make test-precommit
-        language: system
-        pass_filenames: false  # Run all tests
-        always_run: true  # Run even if no test files changed
-
 ci:
   autofix_commit_msg: "style: auto fixes from pre-commit.com hooks"
   autofix_prs: true

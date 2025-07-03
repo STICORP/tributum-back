@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Comprehensive test job in GitHub Actions workflow with PostgreSQL service integration
 - Simplified CI/CD workflow with consolidated pre-commit checks
 - Auto-fix command for applying all safe code improvements
 - Comprehensive edge case tests for logging formatters, request middleware, and observability components
@@ -60,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Task analysis and review commands for improved planning
 
 ### Changed
+- Removed pytest from pre-commit hooks to prevent test execution during commits
 - Enhanced module docstrings across all layers with comprehensive architectural context and implementation details
 - Consolidated module-specific constants directly into their respective modules for better cohesion
 - Enhanced request logging with proxy-aware client IP extraction and comprehensive request metadata
