@@ -202,7 +202,7 @@ class UserRepository(BaseRepository[User]):
 
 ```bash
 # Clone the repository
-git clone https://github.com/daniel-jorge/tributum-back.git
+git clone https://github.com/STICORP/tributum-back.git
 cd tributum-back
 
 # Install dependencies and setup pre-commit

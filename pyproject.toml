@@ -54,10 +54,10 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/daniel-jorge/tributum-back"
-"Repository" = "https://github.com/daniel-jorge/tributum-back"
-"Bug Tracker" = "https://github.com/daniel-jorge/tributum-back/issues"
-"Changelog" = "https://github.com/daniel-jorge/tributum-back/blob/main/CHANGELOG.md"
+"Homepage" = "https://github.com/STICORP/tributum-back"
+"Repository" = "https://github.com/STICORP/tributum-back"
+"Bug Tracker" = "https://github.com/STICORP/tributum-back/issues"
+"Changelog" = "https://github.com/STICORP/tributum-back/blob/main/CHANGELOG.md"
 
 # ===========================
 # Development Dependencies
