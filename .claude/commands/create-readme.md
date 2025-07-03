@@ -29,6 +29,7 @@ Generate or update a comprehensive, developer-focused README.md with intelligent
 ## Execution Mode: Initial Generation vs Incremental Update
 
 ### Mode Detection
+
 ```bash
 # FIRST: Determine which mode to use
 if [ ! -f README.md ] || [ $(wc -c < README.md) -lt 100 ]; then
@@ -40,7 +41,8 @@ else
 fi
 ```
 
-### Two Distinct Modes:
+### Two Distinct Modes
+
 1. **Initial Generation Mode** - Comprehensive discovery and full README creation
 2. **Incremental Update Mode** - Commit-based updates to existing README
 
@@ -65,6 +67,7 @@ cat README.md
 ### Iterative Update Process for Multiple Commits
 
 When updating after many commits:
+
 1. **Read entire README** (mandatory)
 2. **Check commit count** since last update
 3. **Process in batches** of 10 commits max
@@ -83,6 +86,7 @@ When creating a README from scratch, perform comprehensive discovery BEFORE writ
 ### Discovery Checklist
 
 #### 1. **Project Configuration Analysis**
+
 ```bash
 # Read entire pyproject.toml
 cat pyproject.toml
@@ -96,6 +100,7 @@ cat pyproject.toml
 ```
 
 #### 2. **Development Tools Discovery**
+
 ```bash
 # Check for slash commands
 ls -la .claude/commands/
@@ -111,6 +116,7 @@ grep -E '^[a-zA-Z_-]+:.*?##' Makefile | sort
 ```
 
 #### 3. **CI/CD Pipeline Analysis**
+
 ```bash
 # Check GitHub Actions workflows
 ls -la .github/workflows/
@@ -124,6 +130,7 @@ cat .github/workflows/*.yml
 ```
 
 #### 4. **Project Structure Mapping**
+
 ```bash
 # Map source structure
 find src -type d | head -20
@@ -136,6 +143,7 @@ ls -la terraform/ 2>/dev/null || echo "No terraform found"
 ```
 
 #### 5. **Version Management**
+
 ```bash
 # Check for version management
 grep -A5 "bump-my-version" pyproject.toml
@@ -164,6 +172,7 @@ Based on discovery, ensure these sections exist if applicable:
    - Security Architecture (if security tools configured)
 
 3. **Feature-Specific Sections**:
+
    ```python
    DISCOVERY_MAPPINGS = {
        'has_claude_commands': 'Developer Tools & Automation',
@@ -178,6 +187,7 @@ Based on discovery, ensure these sections exist if applicable:
    ```
 
 ### CRITICAL: Current State Only
+
 - Document ONLY what is implemented and working
 - NO planned features or future roadmaps
 - NO "coming soon" or "in progress" items
@@ -192,7 +202,8 @@ Based on discovery, ensure these sections exist if applicable:
 4. **Include discovered tools, commands, and workflows**
 5. **Set initial metadata with first commit**
 
-### DO NOT:
+### DO NOT
+
 - Skip any discovery steps
 - Rely on commit history for initial generation
 - Assume standard features exist without checking
@@ -203,7 +214,8 @@ Based on discovery, ensure these sections exist if applicable:
 
 ## 🚨 CRITICAL: ABSOLUTELY FORBIDDEN CONTENT 🚨
 
-### NEVER Include These Sections or Words:
+### NEVER Include These Sections or Words
+
 1. **Technical Roadmap** - FORBIDDEN
 2. **Future Considerations** - FORBIDDEN
 3. **Coming Soon** - FORBIDDEN
@@ -215,7 +227,8 @@ Based on discovery, ensure these sections exist if applicable:
 9. **Will be implemented** - FORBIDDEN
 10. **Under development** (unless describing current active state) - FORBIDDEN
 
-### Examples of FORBIDDEN Content:
+### Examples of FORBIDDEN Content
+
 ```markdown
 ❌ WRONG: "Authentication system (planned)"
 ❌ WRONG: "- [ ] Implement caching layer"
@@ -225,7 +238,8 @@ Based on discovery, ensure these sections exist if applicable:
 ❌ WRONG: "TODO: Add rate limiting"
 ```
 
-### Examples of CORRECT Content:
+### Examples of CORRECT Content
+
 ```markdown
 ✅ CORRECT: "Authentication system with JWT tokens"
 ✅ CORRECT: "✅ Caching layer with Redis"
@@ -237,7 +251,9 @@ Based on discovery, ensure these sections exist if applicable:
 ## Instructions
 
 ### CRITICAL: CURRENT STATE ONLY - NO FUTURE FEATURES
+
 **The README must reflect the EXACT CURRENT state of the project. DO NOT include:**
+
 - Future roadmaps or planned features
 - "Coming soon" or "in progress" items
 - TODO lists or technical debt
@@ -310,7 +326,9 @@ else:
 ### 0. **Emoji Safety & Character Encoding**
 
 #### Safe Emoji Strategy
+
 Use these UTF-8 safe emojis with ASCII fallbacks:
+
 ```python
 SAFE_EMOJIS = {
     'rocket': ('🚀', '[=>]'),      # Project launch
@@ -336,7 +354,9 @@ SAFE_EMOJIS = {
 ```
 
 #### Encoding Check & Safe Writing
+
 Before writing README:
+
 ```bash
 # Test emoji rendering
 echo -e "Test: 🚀 ⚙️ ✅" > .emoji_test
@@ -349,7 +369,9 @@ rm .emoji_test
 ```
 
 #### Safe UTF-8 Writing
+
 When writing the README:
+
 ```bash
 # Ensure UTF-8 encoding
 export LANG=en_US.UTF-8
@@ -368,6 +390,7 @@ with codecs.open('README.md', 'w', encoding='utf-8') as f:
 ```
 
 #### Emoji Writing Best Practices
+
 1. **Always use Python or explicit UTF-8 encoding** when writing files with emojis
 2. **Test emoji rendering** before including them
 3. **Use fallback ASCII** if encoding issues detected
@@ -388,6 +411,7 @@ with codecs.open('README.md', 'w', encoding='utf-8') as f:
 ```
 
 **MANDATORY**: When writing README.md, you MUST:
+
 1. Use the `Write` tool exclusively
 2. Never use bash echo/cat commands
 3. This prevents encoding errors with emojis
@@ -395,6 +419,7 @@ with codecs.open('README.md', 'w', encoding='utf-8') as f:
 ### 1. **Enhanced Update Strategy: Semantic Diff Analysis**
 
 #### Metadata Structure
+
 ```markdown
 <!-- README-METADATA
 Last Updated: 2024-12-06T10:30:00Z
@@ -409,12 +434,14 @@ Sections: {
 ```
 
 #### Intelligent Section Management
+
 1. **Section Hashing**: Track content hash for each section
 2. **Manual Edit Detection**: Flag sections modified by humans
 3. **Semantic Diff Analysis**: Understand what changed, not just which files
 4. **Dependency Graph**: Update related sections together
 
 #### Update Decision Tree
+
 ```mermaid
 graph TD
     A[Check Commits] --> B{Core Changes?}
@@ -429,6 +456,7 @@ graph TD
 ### 2. **Developer-Focused README Structure**
 
 #### 🚀 Header Section
+
 ```markdown
 # Tributum [STAGE] 🚀
 
@@ -445,20 +473,24 @@ graph TD
 ```
 
 **CRITICAL Badge Rules:**
+
 - ✅ Include coverage badge ONLY if coverage reports exist
 - ✅ Include performance badges ONLY if benchmark results exist
 - ❌ NEVER include aspirational metrics or targets
 
 #### 📚 Table of Contents
+
 Auto-generated with emoji indicators for section types
 
 #### 🎯 Project Overview
+
 - **Purpose**: Technical problem statement
 - **Architecture Philosophy**: Design principles (DDD, clean architecture)
 - **Current Performance**: Measured metrics (ONLY if benchmark files exist)
 - **Current Scale**: Actual tested load capacity (ONLY if load tests exist)
 
 **CRITICAL**: For performance metrics:
+
 - ✅ CORRECT: "Based on benchmarks/api_test.py: 15ms p99 latency"
 - ❌ WRONG: "Target: <50ms p99 latency" (no target/goals)
 - ❌ WRONG: "Handles 10k RPS" (unless proven by actual tests)
@@ -466,6 +498,7 @@ Auto-generated with emoji indicators for section types
 #### 🏗️ Architecture Deep Dive
 
 ##### System Design
+
 ```mermaid
 graph TB
     subgraph "API Layer"
@@ -494,6 +527,7 @@ graph TB
 ```
 
 ##### Request Flow
+
 ```mermaid
 sequenceDiagram
     participant C as Client
@@ -516,6 +550,7 @@ sequenceDiagram
 ```
 
 ##### Key Architectural Decisions (ADRs)
+
 1. **Correlation IDs**: UUID4-based request tracking
 2. **Structured Logging**: JSON logs with orjson
 3. **Exception Hierarchy**: Severity-based error handling
@@ -525,6 +560,7 @@ sequenceDiagram
 #### ⚙️ Internal Frameworks Explained
 
 ##### Exception Framework
+
 ```python
 # Severity-based exception hierarchy
 TributumError (base)
@@ -542,6 +578,7 @@ raise ValidationError(
 ```
 
 ##### Logging Framework
+
 ```python
 # Structured logging with automatic context
 logger = get_logger()
@@ -554,6 +591,7 @@ with log_context(user_id=123, action="payment"):
 ```
 
 ##### Request Context Management
+
 ```python
 # Correlation ID propagation via contextvars
 correlation_id = RequestContext.get_correlation_id()
@@ -565,6 +603,7 @@ correlation_id = RequestContext.get_correlation_id()
 **ONLY include this section if benchmark files exist!**
 
 ##### Benchmarks
+
 ```markdown
 # ONLY if you find actual benchmark results:
 | Endpoint | p50 | p95 | p99 | RPS |
@@ -576,7 +615,9 @@ correlation_id = RequestContext.get_correlation_id()
 ```
 
 ##### Optimization Strategies
+
 **Document ONLY implemented optimizations:**
+
 - ✅ "Uses orjson for JSON serialization" (if orjson in dependencies)
 - ✅ "Implements connection pooling" (if pool config exists)
 - ❌ "Targets sub-50ms latency" (no targets!)
@@ -585,6 +626,7 @@ correlation_id = RequestContext.get_correlation_id()
 #### 🛡️ Security Architecture
 
 ##### Security Layers
+
 1. **Input Validation**: Pydantic models with strict mode
 2. **Sanitization**: Automatic PII removal in logs
 3. **Rate Limiting**: Per-user and global limits
@@ -592,6 +634,7 @@ correlation_id = RequestContext.get_correlation_id()
 5. **Authorization**: Role-based with resource permissions
 
 ##### Sensitive Data Handling
+
 ```python
 SENSITIVE_PATTERNS = [
     "password", "token", "secret", "key",
@@ -603,6 +646,7 @@ SENSITIVE_PATTERNS = [
 #### 🧪 Testing Philosophy
 
 ##### Test Structure
+
 ```
 tests/
 ├── unit/           # Fast, isolated tests
@@ -612,6 +656,7 @@ tests/
 ```
 
 ##### Testing Standards
+
 - 100% coverage requirement for core modules
 - Property-based testing for critical paths
 - Mutation testing for quality assurance
@@ -620,6 +665,7 @@ tests/
 #### 🚀 Development Workflow
 
 ##### Quick Start
+
 ```bash
 # Clone and setup
 git clone <repo>
@@ -636,6 +682,7 @@ make test-coverage
 ```
 
 ##### Code Quality Pipeline
+
 ```mermaid
 graph LR
     A[Write Code] --> B[Pre-commit Hooks]
@@ -650,11 +697,13 @@ graph LR
 #### 📊 Monitoring & Observability
 
 ##### Metrics Collected
+
 - Request rate, error rate, duration (RED)
 - Business metrics (payments processed, etc.)
 - System metrics (CPU, memory, connections)
 
 ##### Log Aggregation
+
 ```json
 {
   "timestamp": "2024-12-06T10:30:00Z",
@@ -671,6 +720,7 @@ graph LR
 #### 🔧 Configuration Management
 
 ##### Environment Variables
+
 ```bash
 # Core Settings
 APP_NAME=tributum
@@ -691,11 +741,13 @@ FEATURE__ENHANCED_LOGGING=false
 ```
 
 ##### Configuration Validation
+
 All configs validated at startup with clear error messages
 
 #### 🎯 Troubleshooting Guide
 
 ##### Common Issues
+
 1. **Import Errors**
    - Check Python 3.13 is active
    - Run `uv sync` to update dependencies
@@ -712,6 +764,7 @@ All configs validated at startup with clear error messages
 #### 📊 Current Implementation Status
 
 ##### What's Implemented
+
 - ✅ FastAPI application with /info endpoint
 - ✅ Exception framework with severity levels
 - ✅ Structured logging with correlation IDs
@@ -720,13 +773,16 @@ All configs validated at startup with clear error messages
 - ✅ Development tooling and pre-commit hooks
 
 ##### Architecture Components
+
 Describe ONLY what exists in the codebase:
+
 - Implemented middleware stack
 - Existing API endpoints
 - Current domain models (if src/domain/ has actual code)
 - Active integrations
 
 **Example of handling empty directories:**
+
 - ✅ CORRECT: "Domain layer structure prepared" (if dir exists but empty)
 - ❌ WRONG: "Domain layer with user management (planned)"
 - ❌ WRONG: "DDD implementation in progress"
@@ -738,18 +794,21 @@ Describe ONLY what exists in the codebase:
 **CRITICAL**: The implementation differs completely based on the mode:
 
 ##### Initial Generation Mode (No Existing README)
+
 1. Perform comprehensive discovery first
 2. Generate all applicable sections
 3. Create complete, well-structured README
 4. Set metadata with current commit
 
 ##### Incremental Update Mode (Existing README)
+
 1. Always read the ENTIRE README first
 2. Analyze commits since last update
 3. Update only changed sections
 4. Preserve manual edits
 
 #### Update Process
+
 ```python
 def update_readme(force=False):
     # 1. FIRST: Determine mode
@@ -785,6 +844,7 @@ def generate_readme_from_scratch():
 ```
 
 #### Iterative Batch Processing
+
 ```python
 def iterative_update(start_commit, end_commit, total_commits):
     """Process commits in manageable batches"""
@@ -823,6 +883,7 @@ def iterative_update(start_commit, end_commit, total_commits):
 #### Step-by-Step Update Workflow
 
 1. **Initial README Read**
+
    ```bash
    # MANDATORY: Read entire README first
    cat README.md
@@ -832,6 +893,7 @@ def iterative_update(start_commit, end_commit, total_commits):
    ```
 
 2. **Commit Analysis in Batches**
+
    ```bash
    # Get total commit count
    LAST_COMMIT=$(grep "Last Commit:" README.md | cut -d' ' -f3)
@@ -853,6 +915,7 @@ def iterative_update(start_commit, end_commit, total_commits):
    - Preserve manual edits throughout iterations
 
 #### Section Analyzers
+
 ```python
 SECTION_ANALYZERS = {
     'architecture': ArchitectureAnalyzer(),  # Looks for src/ changes
@@ -866,6 +929,7 @@ SECTION_ANALYZERS = {
 ### 4. **Detailed Update Process Instructions**
 
 #### MANDATORY First Step: Full README Read
+
 ```bash
 # ALWAYS start by reading the ENTIRE current README
 cat README.md
@@ -880,6 +944,7 @@ cat README.md
 #### Commit Batch Analysis Process
 
 ##### Example: 50 Commits to Process
+
 ```bash
 # Step 1: Check how many commits need processing
 LAST_COMMIT=$(grep "Last Commit:" README.md | cut -d' ' -f3)
@@ -905,6 +970,7 @@ git log --oneline $NEW_LAST..HEAD | tail -10
 ```
 
 ##### Commit Type to Section Mapping
+
 ```python
 COMMIT_PATTERNS = {
     # File patterns
@@ -928,7 +994,9 @@ COMMIT_PATTERNS = {
 #### Generation Examples
 
 ##### First Generation
+
 Creates comprehensive README with all sections, focusing on:
+
 - Technical depth for developers
 - Performance metrics (if benchmarks exist)
 - Security considerations (current implementation only)
@@ -937,6 +1005,7 @@ Creates comprehensive README with all sections, focusing on:
 - NO future plans or roadmaps
 
 ##### Incremental Updates (Iterative Process)
+
 ```bash
 # Iteration 1: Commits 1-10 (New API endpoints)
 Analyzed commits:
@@ -975,6 +1044,7 @@ Updated sections:
 ```
 
 #### Conflict Resolution
+
 ```markdown
 <!-- CONFLICT DETECTED -->
 <!-- MANUAL: Your custom content below -->
@@ -989,12 +1059,14 @@ This is what the generator wants to add...
 #### Context Window Management
 
 ##### Signs You Need to Start New Iteration
+
 1. Processing more than 10 commits
 2. Analyzing files larger than 500 lines
 3. Multiple major feature additions
 4. Significant architectural changes
 
 ##### Best Practices
+
 1. **Always re-read README between iterations**
 2. **Update metadata after each batch**
 3. **Preserve manual edits throughout**
@@ -1022,6 +1094,7 @@ if not all(before_writing_checklist.values()):
 ```
 
 #### Content Validation Process
+
 1. **Search for forbidden terms** in your generated content
 2. **Remove ANY future references** - even subtle ones
 3. **Convert future tense to present** where applicable
@@ -1032,6 +1105,7 @@ if not all(before_writing_checklist.values()):
 ### 6. **Quality Assurance**
 
 #### Pre-write Checks
+
 1. Validate all code examples compile
 2. Verify all commands work
 3. Check all links are valid
@@ -1040,6 +1114,7 @@ if not all(before_writing_checklist.values()):
 6. **RUN FORBIDDEN CONTENT CHECK**
 
 #### Post-write Validation
+
 ```bash
 # Check encoding
 file -b README.md  # Should be "UTF-8 Unicode text"

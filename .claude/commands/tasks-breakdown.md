@@ -17,6 +17,7 @@ Write a detailed implementation plan that can be followed by an LLM. This plan s
 
 **YOU MUST** when create the tasks specifically for this project, its architecture and code patterns. **NO GUESSING**, **NO HALLUCINATIONS**
 **YOU MUST** discover and analyse:
+
 1. The code architecture
 2. Code patterns
 3. Design decisions

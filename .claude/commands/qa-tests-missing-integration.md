@@ -3,6 +3,7 @@
 ## EXECUTION PROTOCOL - MANDATORY READING
 
 **YOU MUST:**
+
 1. Execute EVERY instruction in this command IN ORDER
 2. After EACH instruction, provide a REPORT: section showing what you found
 3. After EACH instruction, if we have an ACTION section, execute the ACTION if the REPORT tells you to.
@@ -22,6 +23,7 @@ REPORT: [State that you are thinking harder about the implementation]
 ## Understand the project
 
 [ ] Execute these analyses in parallel:
+
 ```
 - Fully read pyproject.toml
 - Fully read Makefile
@@ -31,6 +33,7 @@ REPORT: [State that you are thinking harder about the implementation]
 - Fully read /src/core/config.py
 - Fully read /src/api/main.py
 ```
+
 REPORT: [Confirm all 6 files were read and provide key insights from each]
 
 ---
@@ -88,6 +91,7 @@ REPORT: [Final confirmation that all tasks are complete]
 ## COMPLETION REQUIREMENTS
 
 Before marking this command as complete:
+
 1. Count all checkboxes: there should be 12 checkboxes total
 2. Verify ALL 12 checkboxes are marked with [x]
 3. Verify each checkbox has a REPORT: section with actual findings

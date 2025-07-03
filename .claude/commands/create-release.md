@@ -61,18 +61,22 @@ Manage semantic versioning and changelog updates for the Tributum project.
 
 6. **Push and Create GitHub Release**
    - Push the changes and tags:
+
      ```bash
      git push origin master
      git push origin --tags
      ```
+
    - Extract the changelog content for this version from CHANGELOG.md
    - Create GitHub release using `gh release create`:
+
      ```bash
      gh release create vX.Y.Z \
        --title "Release vX.Y.Z" \
        --notes "changelog content for this version" \
        --target master
      ```
+
    - Show the release URL from the command output
 
 7. **Post-Release Summary**
@@ -94,6 +98,7 @@ Manage semantic versioning and changelog updates for the Tributum project.
 ## Example Analysis
 
 When analyzing changes, look for:
+
 - **API changes**: Modified endpoints, request/response formats
 - **Configuration changes**: New required env vars, changed settings structure
 - **Core module changes**: Exceptions, logging, context handling
@@ -104,12 +109,14 @@ When analyzing changes, look for:
 ## Rollback Instructions (If Needed)
 
 If something goes wrong after version bump but before pushing:
+
 1. **Reset the version commit**: `git reset --hard HEAD~1`
 2. **Delete the local tag**: `git tag -d vX.Y.Z`
 3. **Restore CHANGELOG.md**: `git checkout HEAD -- CHANGELOG.md`
 4. **Fix the issue and retry the release process**
 
 If already pushed:
+
 1. **DO NOT force push to rewrite history**
 2. **Create a new patch release to fix the issue**
 3. **Document the problem in the new release notes**

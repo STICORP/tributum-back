@@ -17,12 +17,14 @@
 ### 1. Import Changes
 
 **Remove these imports:**
+
 ```python
 from unittest.mock import MagicMock, Mock, AsyncMock, patch, call
 from typing import TYPE_CHECKING, cast, Any  # FORBIDDEN - remove all of these
 ```
 
 **Add/keep these imports:**
+
 ```python
 from pytest_mock import MockerFixture
 # Import the actual types being mocked - REQUIRED for proper typing
@@ -33,6 +35,7 @@ from some.module import ConcreteType  # Always import the real types, never use 
 ### 2. Type Annotation Changes (CRITICAL for mypy compliance)
 
 **FORBIDDEN - Using mock types or Any:**
+
 ```python
 def test_something(mock_obj: MagicMock) -> None:  # WRONG - mypy will fail
 def test_something(mock_obj: Any) -> None:  # FORBIDDEN - never use Any
@@ -40,6 +43,7 @@ def test_something(mock_obj) -> None:  # WRONG - missing type annotation
 ```
 
 **REQUIRED - Use the actual interface type:**
+
 ```python
 def test_something(mock_obj: AsyncSession) -> None:  # CORRECT - proper concrete type
 def test_something(mock_obj: UserRepository) -> None:  # CORRECT - actual class type
@@ -48,6 +52,7 @@ def test_something(mock_obj: UserRepository) -> None:  # CORRECT - actual class 
 ### 3. Creating Mocks (with proper typing)
 
 **FORBIDDEN - Untyped or cast usage:**
+
 ```python
 mock = MagicMock(spec=SomeClass)  # WRONG - no type annotation
 mock = cast("SomeClass", mock)  # FORBIDDEN - never use cast
@@ -55,6 +60,7 @@ mock: Any = mocker.MagicMock()  # FORBIDDEN - never use Any
 ```
 
 **REQUIRED - Properly typed mock creation:**
+
 ```python
 # Always include type annotation with concrete type
 mock: SomeClass = mocker.MagicMock(spec=SomeClass)
@@ -69,6 +75,7 @@ mock: UserService = mocker.MagicMock(spec=UserService)
 The main mypy issue is that when you patch methods on a mock, mypy doesn't know about assertion methods like `assert_called_once()`.
 
 **Instead of:**
+
 ```python
 mocker.patch.object(mock_session, "execute", mocker.AsyncMock(return_value=result))
 # ...
@@ -76,6 +83,7 @@ mock_session.execute.assert_called_once()  # mypy error: no attribute "assert_ca
 ```
 
 **Use:**
+
 ```python
 # Keep a reference to the patched method
 mock_execute = mocker.patch.object(mock_session, "execute", mocker.AsyncMock(return_value=result))
@@ -86,6 +94,7 @@ mock_execute.assert_called_once()  # No mypy error!
 ### 5. Common Patterns
 
 #### Pattern 1: Fixture that returns a mock
+
 ```python
 @pytest.fixture
 def mock_session(mocker: MockerFixture) -> AsyncSession:
@@ -95,6 +104,7 @@ def mock_session(mocker: MockerFixture) -> AsyncSession:
 ```
 
 #### Pattern 2: Multiple patches with assertions
+
 ```python
 # Always keep references when you need to assert
 mock_add = mocker.patch.object(session, "add", mocker.MagicMock())
@@ -108,6 +118,7 @@ mock_refresh.assert_called_once()
 ```
 
 #### Pattern 3: Mocking with side effects
+
 ```python
 def side_effect_func(obj: MyType) -> None:
     obj.id = 42
@@ -122,11 +133,13 @@ mock_method = mocker.patch.object(
 ### 6. Removing cast() calls
 
 **Never do:**
+
 ```python
 repo = BaseRepository(cast("AsyncSession", mock_session), Model)
 ```
 
 **Instead:**
+
 ```python
 repo = BaseRepository(mock_session, Model)  # mock_session is already typed as AsyncSession
 ```
@@ -134,6 +147,7 @@ repo = BaseRepository(mock_session, Model)  # mock_session is already typed as A
 ### 7. Complete Example Transformation
 
 **Before (unittest.mock with FORBIDDEN practices):**
+
 ```python
 from typing import TYPE_CHECKING, cast, Any  # FORBIDDEN imports
 from unittest.mock import MagicMock
@@ -154,6 +168,7 @@ async def test_example(mock_session: MagicMock) -> None:  # WRONG type
 ```
 
 **After (pytest-mock with PROPER typing):**
+
 ```python
 # Only necessary imports - no TYPE_CHECKING, cast, or Any
 from pytest_mock import MockerFixture
@@ -182,6 +197,7 @@ async def test_example(mock_session: AsyncSession, mocker: MockerFixture) -> Non
 ### 8. Debugging Tips
 
 1. **"overloaded function has no attribute"** - You're asserting on the mock directly. Keep a reference to the patch:
+
    ```python
    # WRONG
    mock_session.execute.assert_called_once()
@@ -192,6 +208,7 @@ async def test_example(mock_session: AsyncSession, mocker: MockerFixture) -> Non
    ```
 
 2. **"Incompatible type 'Any'"** - Never use Any. Research the actual type:
+
    ```python
    # WRONG
    result: Any = mocker.MagicMock()
@@ -201,6 +218,7 @@ async def test_example(mock_session: AsyncSession, mocker: MockerFixture) -> Non
    ```
 
 3. **"Argument has incompatible type MagicMock"** - Use the interface type:
+
    ```python
    # WRONG
    def helper(session: MagicMock) -> None:

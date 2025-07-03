@@ -7,6 +7,7 @@
 ## Understand the project
 
 Execute these analyses in parallel:
+
 ```
 - Fully read pyproject.toml
 - Fully read Makefile

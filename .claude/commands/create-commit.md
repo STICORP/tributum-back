@@ -6,19 +6,22 @@ Analyze project changes and create logical commits using conventional commit mes
 
 **You MUST NEVER include ANY of the following in commit messages:**
 
-### Prohibited Patterns:
+### Prohibited Patterns
+
 - `🤖` emoji or any AI-related emojis
 - `Generated with [Claude Code]` or similar attribution
 - `Co-Authored-By: Claude` or any AI co-author lines
 - References to being "AI-generated", "AI-assisted", "automated"
 - Any mention of Anthropic, Claude (except when legitimately part of the change description, e.g., "update CLAUDE.md")
 
-### Why This Matters:
+### Why This Matters
+
 - Commit history should reflect human decisions and reasoning
 - AI attribution is not relevant to the change itself
 - Professional repositories don't include tool attribution in commits
 
-### Self-Check Before Committing:
+### Self-Check Before Committing
+
 After composing a commit message, you MUST ask yourself:
 "Does this message contain ANY attribution to AI tools?"
 If yes, remove it before proceeding.
@@ -35,6 +38,7 @@ When analyzing changes:
    - Don't mix unrelated changes in one commit
 
 3. **Use conventional commit format**:
+
    ```
    <type>(<scope>): <subject>
 
@@ -71,6 +75,7 @@ When analyzing changes:
    - Stage files selectively using `git add <file>`
 
 7. **Example commit message**:
+
    ```
    feat(auth): implement JWT authentication system
 
@@ -127,6 +132,7 @@ Before committing, check if CHANGELOG.md needs updating:
    - Changes to CHANGELOG.md itself
 
 6. **Changelog entry examples**:
+
    ```
    Commit: feat(auth): implement JWT authentication
    Entry:  - JWT authentication for API endpoints
@@ -158,12 +164,15 @@ Before executing ANY git commit command, you MUST:
 4. **Only proceed** with git commit after this verification
 
 Example validation:
+
 ```
 Planned commit message:
 ```
+
 feat(auth): implement JWT authentication
 
 Added JWT-based authentication...
+
 ```
 
 Verified: No AI attribution in commit message ✓
@@ -172,6 +181,7 @@ Verified: No AI attribution in commit message ✓
 ## Usage
 
 When I ask you to commit changes, follow these steps:
+
 1. Analyze all uncommitted changes
 2. Group them logically
 3. Determine if CHANGELOG.md needs updating based on commit type

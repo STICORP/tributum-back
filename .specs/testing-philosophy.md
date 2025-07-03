@@ -21,6 +21,7 @@ We are currently building the foundation - cross-cutting concerns, middleware, l
 ### Current Testing Examples
 
 **Infrastructure Test with Mocks (Appropriate)**:
+
 ```python
 async def test_request_logging_middleware(mocker: MockerFixture) -> None:
     """Test that middleware logs requests correctly."""
@@ -40,6 +41,7 @@ async def test_request_logging_middleware(mocker: MockerFixture) -> None:
 ```
 
 **Repository Test with Mocks (Appropriate for base class)**:
+
 ```python
 async def test_base_repository_create(mock_session: MagicMock) -> None:
     """Test that base repository correctly implements create."""
@@ -88,6 +90,7 @@ E2E Tests (5%):
 ### Future Testing Examples
 
 **Domain Logic Test (No Mocks)**:
+
 ```python
 def test_tax_calculation():
     """Test tax calculation business logic."""
@@ -105,6 +108,7 @@ def test_tax_calculation():
 ```
 
 **Domain Entity Test (No Mocks)**:
+
 ```python
 def test_payment_state_transitions():
     """Test payment entity state machine."""
@@ -124,6 +128,7 @@ def test_payment_state_transitions():
 ```
 
 **Service Layer Test (Minimal Mocks)**:
+
 ```python
 async def test_payment_service_with_real_components(db_session: AsyncSession):
     """Test payment service with real database."""
@@ -151,6 +156,7 @@ async def test_payment_service_with_real_components(db_session: AsyncSession):
 ```
 
 **In-Memory Test Double (Alternative to Mocks)**:
+
 ```python
 class InMemoryPaymentRepository(PaymentRepositoryInterface):
     """In-memory implementation for testing."""
@@ -174,12 +180,14 @@ class InMemoryPaymentRepository(PaymentRepositoryInterface):
 ### When to Use Mocks
 
 ✅ **Use mocks for**:
+
 - External services (payment gateways, tax APIs)
 - Infrastructure behavior verification
 - Error simulation
 - Time-dependent operations
 
 ❌ **Don't mock**:
+
 - Business logic
 - Domain entities
 - Value objects
@@ -215,21 +223,25 @@ def test_payment_creates_audit_trail():
 ## Migration Strategy
 
 ### Phase 1: Current State (Infrastructure Only)
+
 - Continue with mock-heavy tests for infrastructure
 - Maintain high coverage for technical components
 - Keep integration tests for database operations
 
 ### Phase 2: Early Domain Implementation
+
 - Start with pure domain logic (no infrastructure dependencies)
 - Write tests with zero mocks for business rules
 - Create interfaces for repositories
 
 ### Phase 3: Service Layer Development
+
 - Use in-memory implementations for repositories in tests
 - Mock only external services
 - Add integration tests with real database
 
 ### Phase 4: Full System
+
 - Maintain infrastructure tests as-is
 - Balance testing pyramid (40% unit, 40% integration)
 - Add contract tests for external integrations
@@ -248,6 +260,7 @@ For a payment/tax system, prioritize:
 ## Examples of What to Test at Each Layer
 
 ### Infrastructure Layer (Current)
+
 - Middleware behavior
 - Logging output format
 - Error transformation
@@ -255,6 +268,7 @@ For a payment/tax system, prioritize:
 - Database connection pooling
 
 ### Domain Layer (Future)
+
 - Tax calculations
 - Payment state machines
 - Business rule validation
@@ -262,12 +276,14 @@ For a payment/tax system, prioritize:
 - Value object equality
 
 ### Application Layer (Future)
+
 - Service orchestration
 - Transaction boundaries
 - Event publishing
 - Workflow completion
 
 ### API Layer
+
 - Request validation
 - Response formatting
 - Authentication/authorization

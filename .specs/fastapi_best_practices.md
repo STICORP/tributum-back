@@ -5,11 +5,14 @@ This document provides a comprehensive checklist and instructions for validating
 ## 1. Project Structure Validation
 
 ### ✅ Check: Domain-Driven Design Structure
+
 - **Requirement**: All domain directories must be inside `src/` folder
 - **Validation**: Verify that the project root contains a `src/` directory with all application code
 
 ### ✅ Check: Package Organization
+
 Each package/module should contain these files when applicable:
+
 - `router.py` - API endpoints
 - `schemas.py` - Pydantic models for request/response
 - `models.py` - SQLAlchemy ORM models
@@ -21,6 +24,7 @@ Each package/module should contain these files when applicable:
 - `exceptions.py` - Custom exceptions
 
 **Example Structure**:
+
 ```
 src/
 ├── auth/
@@ -41,9 +45,11 @@ src/
 ## 2. Async/Await Pattern Validation
 
 ### ✅ Check: Proper Async Route Usage
+
 - **Rule**: Routes performing I/O operations MUST be async
 - **Anti-pattern**: Using synchronous routes for database queries, API calls, or file I/O
 - **Correct Pattern**:
+
 ```python
 # ✅ CORRECT
 @router.get("/users/{user_id}")
@@ -59,6 +65,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 ```
 
 ### ✅ Check: No Blocking Operations in Async Routes
+
 - **Rule**: Never use blocking I/O in async functions
 - **Common Violations**:
   - Using `time.sleep()` instead of `asyncio.sleep()`
@@ -66,8 +73,10 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
   - Using synchronous HTTP libraries (requests) instead of httpx/aiohttp
 
 ### ✅ Check: CPU-Intensive Task Handling
+
 - **Rule**: CPU-intensive operations should not block the event loop
 - **Solution**: Use `ProcessPoolExecutor` or background tasks
+
 ```python
 # ✅ CORRECT
 from concurrent.futures import ProcessPoolExecutor
@@ -85,6 +94,7 @@ async def process_heavy_task(data: HeavyData):
 ## 3. Pydantic Model Validation
 
 ### ✅ Check: Comprehensive Field Validation
+
 - **Rule**: Use Pydantic's validation features extensively
 - **Required Validations**:
   - Field constraints (min/max values, regex patterns)
@@ -108,7 +118,9 @@ class UserCreate(BaseModel):
 ```
 
 ### ✅ Check: Custom Base Model Implementation
+
 - **Rule**: Create a custom base model for shared configurations
+
 ```python
 # ✅ CORRECT
 from pydantic import BaseModel, ConfigDict
@@ -132,8 +144,10 @@ class UserSchema(CustomBaseModel):
 ```
 
 ### ✅ Check: BaseSettings Decoupling
+
 - **Rule**: Don't create a single BaseSettings for the entire application
 - **Best Practice**: Create separate settings per module
+
 ```python
 # ✅ CORRECT - auth/config.py
 from pydantic_settings import BaseSettings
@@ -158,8 +172,10 @@ class DatabaseSettings(BaseSettings):
 ## 4. Dependency Injection Validation
 
 ### ✅ Check: Complex Logic in Dependencies
+
 - **Rule**: Use dependencies for reusable validation and complex logic
 - **Anti-pattern**: Repeating validation logic in routes
+
 ```python
 # ✅ CORRECT
 async def get_current_user(
@@ -190,7 +206,9 @@ async def read_users_me(current_user: User = Depends(get_current_user)):
 ```
 
 ### ✅ Check: Dependency Chaining
+
 - **Rule**: Chain dependencies to avoid code duplication
+
 ```python
 # ✅ CORRECT
 async def get_current_active_user(
@@ -209,8 +227,10 @@ async def get_current_admin_user(
 ```
 
 ### ✅ Check: Dependency Performance
+
 - **Rule**: Dependencies are cached per request automatically
 - **Best Practice**: Expensive operations should be in dependencies
+
 ```python
 # ✅ CORRECT - Settings loaded once per request
 def get_settings() -> Settings:
@@ -224,6 +244,7 @@ async def get_config(settings: Settings = Depends(get_settings)):
 ## 5. REST API Design Validation
 
 ### ✅ Check: RESTful Route Naming
+
 - **Rules**:
   - Use plural nouns for resources
   - Use HTTP methods correctly
@@ -245,7 +266,9 @@ async def get_config(settings: Settings = Depends(get_settings)):
 ```
 
 ### ✅ Check: HTTP Status Codes
+
 - **Rule**: Use appropriate status codes
+
 ```python
 # ✅ CORRECT
 @router.post("/users", status_code=201)  # Created
@@ -256,7 +279,9 @@ async def get_config(settings: Settings = Depends(get_settings)):
 ## 6. Database and ORM Validation
 
 ### ✅ Check: Consistent Naming Convention
+
 - **Rule**: Use a single naming convention across the database
+
 ```python
 # ✅ CORRECT
 from sqlalchemy import MetaData
@@ -273,8 +298,10 @@ metadata = MetaData(naming_convention=POSTGRES_INDEXES_NAMING_CONVENTION)
 ```
 
 ### ✅ Check: SQL-First Approach for Complex Queries
+
 - **Rule**: Use raw SQL for complex data processing
 - **When to use**: Aggregations, complex joins, window functions
+
 ```python
 # ✅ CORRECT for complex aggregations
 from sqlalchemy import text
@@ -299,7 +326,9 @@ async def get_user_statistics(db: AsyncSession, user_id: int):
 ## 7. Testing Validation
 
 ### ✅ Check: Async Test Client Usage
+
 - **Rule**: Use `httpx.AsyncClient` for testing async endpoints
+
 ```python
 # ✅ CORRECT
 import pytest
@@ -318,7 +347,9 @@ async def test_create_user(client: AsyncClient):
 ## 8. Error Handling Validation
 
 ### ✅ Check: ValueError to ValidationError Conversion
+
 - **Rule**: Convert ValueErrors to Pydantic ValidationErrors for proper API responses
+
 ```python
 # ✅ CORRECT
 from pydantic import ValidationError
@@ -338,7 +369,9 @@ async def process_data(data: ProcessRequest):
 ## 9. Performance Validation
 
 ### ✅ Check: Thread Pool for Sync Operations
+
 - **Rule**: Use thread pool for synchronous third-party SDKs
+
 ```python
 # ✅ CORRECT
 import asyncio
@@ -359,7 +392,9 @@ async def send_email(email_data: EmailSchema):
 ```
 
 ### ✅ Check: Response Model Usage
+
 - **Rule**: Always use response_model for automatic serialization and validation
+
 ```python
 # ✅ CORRECT
 @router.get("/users/{user_id}", response_model=UserResponse)
@@ -373,7 +408,9 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
 ## 10. Documentation Validation
 
 ### ✅ Check: API Documentation Customization
+
 - **Rule**: Provide comprehensive API documentation
+
 ```python
 # ✅ CORRECT
 @router.post(
@@ -402,8 +439,10 @@ async def create_user(user: UserCreate, db: AsyncSession = Depends(get_db)):
 ## 11. Code Quality Validation
 
 ### ✅ Check: Linting Configuration
+
 - **Rule**: Use Ruff for Python linting
 - **Required Configuration**:
+
 ```toml
 # pyproject.toml
 [tool.ruff]

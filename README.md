@@ -38,12 +38,14 @@
 **Purpose**: High-performance financial/tax/payment system designed for enterprise-scale operations with a focus on reliability, observability, and security.
 
 **Architecture Philosophy**:
+
 - Domain-Driven Design (DDD) for clear business logic separation
 - Clean Architecture principles for testability and maintainability
 - Event-driven patterns for scalability
 - Infrastructure as Code with Terraform
 
 **Core Principles**:
+
 - **Type Safety**: 100% strict type checking with mypy and Pyright
 - **Security First**: Multi-layered security scanning and input validation
 - **Observable**: Structured logging with correlation IDs and distributed tracing
@@ -53,6 +55,7 @@
 ## ⚙️ Tech Stack
 
 ### Core Framework
+
 - **Python 3.13**: Latest Python with performance improvements
 - **FastAPI 0.115+**: Modern async web framework
 - **Pydantic v2**: Data validation with 50% performance boost
@@ -60,12 +63,14 @@
 - **ORJSON**: High-performance JSON serialization
 
 ### Database Stack
+
 - **SQLAlchemy 2.0+**: Modern ORM with async support
 - **asyncpg**: High-performance PostgreSQL async driver
 - **Alembic**: Database migration management
 - **PostgreSQL**: Primary database with connection pooling
 
 ### Observability Stack
+
 - **OpenTelemetry**: Vendor-neutral instrumentation framework
 - **OpenTelemetry FastAPI**: Automatic HTTP request tracing
 - **OpenTelemetry SQLAlchemy**: Database query tracing
@@ -73,6 +78,7 @@
 - **Correlation IDs**: Request tracking across all layers
 
 ### Development Tools
+
 - **UV**: Fast Python package manager (10x faster than pip)
 - **Ruff**: Lightning-fast Python linter and formatter with ALL rules enabled by default
 - **MyPy**: Static type checker with strict mode
@@ -87,12 +93,14 @@
 - **Docker**: Containerization for development and production
 
 ### Security Tools
+
 - **Bandit**: AST-based security scanner
 - **Safety**: Dependency vulnerability scanner
 - **Pip-audit**: Package audit tool
 - **Semgrep**: Static analysis with custom rules
 
 ### Infrastructure
+
 - **Terraform**: Infrastructure as Code
 - **Google Cloud Platform**: Cloud provider (Cloud Run support)
 - **GitHub Actions**: CI/CD pipeline
@@ -322,6 +330,7 @@ raise ValidationError(
 ```
 
 **Features**:
+
 - Automatic stack trace capture
 - Severity levels (LOW, MEDIUM, HIGH, CRITICAL)
 - Error fingerprinting for deduplication
@@ -342,6 +351,7 @@ with log_context(user_id=123, action="payment"):
 ```
 
 **Features**:
+
 - Automatic correlation ID injection
 - Context preservation across async boundaries
 - Sensitive field redaction
@@ -385,6 +395,7 @@ correlation_id = RequestContext.get_correlation_id()
 ```
 
 **Features**:
+
 - Thread-safe context storage
 - Automatic propagation in async code
 - X-Correlation-ID header support
@@ -434,6 +445,7 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
 ```
 
 **Features**:
+
 - Async session management with connection pooling
 - Generic repository pattern for consistent data access
 - Automatic timestamps on all models
@@ -485,6 +497,7 @@ with tracer.start_as_current_span("payment_processing") as span:
 ```
 
 **Features**:
+
 - Automatic span creation for HTTP requests
 - Database query tracing with SQLAlchemy instrumentation
 - Correlation ID propagation to spans
@@ -523,6 +536,7 @@ This separation ensures each layer only contains constants relevant to its respo
 The application implements comprehensive distributed tracing using OpenTelemetry:
 
 #### Automatic Instrumentation
+
 - Every HTTP request automatically creates a span
 - Database queries traced with SQLAlchemy instrumentation
 - Correlation IDs are propagated to all spans
@@ -530,6 +544,7 @@ The application implements comprehensive distributed tracing using OpenTelemetry
 - Response times measured automatically
 
 #### Manual Instrumentation
+
 ```python
 # Create custom spans for business operations
 tracer = get_tracer(__name__)
@@ -541,6 +556,7 @@ with tracer.start_as_current_span("calculate_tax") as span:
 ```
 
 #### Error Tracking
+
 - TributumError exceptions automatically enrich spans
 - Severity levels mapped to span status codes
 - Error context preserved in span attributes
@@ -549,6 +565,7 @@ with tracer.start_as_current_span("calculate_tax") as span:
 ### GCP Cloud Trace Integration
 
 When enabled, traces are exported to GCP Cloud Trace for:
+
 - Distributed trace visualization
 - Latency analysis
 - Service dependency mapping
@@ -661,6 +678,7 @@ tests/
 ### Advanced Testing Features
 
 #### Parallel Test Execution
+
 The project now supports fully parallel test execution with proper database isolation:
 
 ```bash
@@ -674,6 +692,7 @@ make test-fast
 ```
 
 #### Database Test Fixtures
+
 Enhanced database fixtures provide isolated test environments:
 
 ```python
@@ -692,6 +711,7 @@ async def test_with_transactional_db(transactional_db_session):
 ```
 
 #### End-to-End Integration Tests
+
 Comprehensive integration tests verify the full application stack:
 
 ```python
@@ -708,6 +728,7 @@ async def test_full_stack_request(client_with_db):
 ```
 
 #### Docker Integration Testing
+
 Comprehensive Docker testing infrastructure:
 
 ```python
@@ -719,6 +740,7 @@ def test_postgres_container(postgres_container):
 ```
 
 #### Test Randomization
+
 Tests are automatically randomized by pytest-randomly to detect hidden dependencies:
 
 ```bash
@@ -733,6 +755,7 @@ make test-no-random
 ```
 
 #### Soft Assertions
+
 For tests with multiple related assertions, use pytest-check:
 
 ```python
@@ -754,6 +777,7 @@ def test_api_response():
 Tests are now organized into focused modules for better maintainability:
 
 #### Unit Test Organization
+
 ```
 tests/unit/
 ├── api/
@@ -773,6 +797,7 @@ tests/unit/
 ```
 
 #### Integration Test Organization
+
 ```
 tests/integration/
 └── api/
@@ -801,6 +826,7 @@ def test_production_behavior(production_env):
 ```
 
 Available environment fixtures:
+
 - `production_env` - Production environment settings
 - `development_env` - Development environment settings
 - `staging_env` - Staging environment settings
@@ -891,6 +917,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 **File**: `.github/workflows/checks.yml`
 
 **Jobs**:
+
 1. **quality-checks**: Comprehensive code quality validation
    - Format and lint checking with ALL Ruff rules
    - Type checking with MyPy
@@ -904,6 +931,7 @@ Configuration in `pyproject.toml` under `[tool.isolated-tools]`.
 2. **pre-commit**: Runs all pre-commit hooks with diff output
 
 **Features**:
+
 - Python 3.13 environment
 - UV package manager with caching
 - Parallel job execution
@@ -1031,6 +1059,7 @@ git push && git push --tags  # Push release
 ```
 
 Version bump decided by changelog content:
+
 - **PATCH**: Bug fixes, security updates
 - **MINOR**: New features (any "Added" entries)
 - **MAJOR**: Breaking changes, removals
@@ -1082,6 +1111,7 @@ The application is optimized for Google Cloud Run deployment:
 - **Database Migrations**: Run as separate Cloud Build step
 
 Example Cloud Build configuration:
+
 ```yaml
 steps:
   # Run migrations
@@ -1129,6 +1159,7 @@ docker/
 ### Production Docker Image
 
 Multi-stage build optimized for Cloud Run:
+
 - **Base**: Python 3.13-slim
 - **Size**: ~306MB final image
 - **Security**: Non-root user (appuser)
@@ -1141,6 +1172,7 @@ Multi-stage build optimized for Cloud Run:
 ### Development Docker Image
 
 Optimized for local development:
+
 - **Hot Reload**: Volume-mounted source code
 - **Debug Tools**: Full development dependencies
 - **Database**: Auto-configured PostgreSQL
@@ -1153,6 +1185,7 @@ Optimized for local development:
 ### Docker Compose Configuration
 
 #### Production Mode (`docker-compose.yml`)
+
 ```yaml
 services:
   api:
@@ -1172,6 +1205,7 @@ services:
 ```
 
 #### Development Mode (`docker-compose.dev.yml`)
+
 ```yaml
 services:
   api:
@@ -1275,6 +1309,7 @@ DATABASE_CONFIG__ECHO=false
 The project uses Alembic for database schema management with async support:
 
 #### Migration Commands
+
 ```bash
 # Create a new migration
 make migrate-create MSG="add users table"
@@ -1296,6 +1331,7 @@ make migrate-current
 ```
 
 #### Migration Configuration
+
 - **Location**: `src/infrastructure/database/migrations/`
 - **Async Support**: Configured for asyncpg driver
 - **Auto-generation**: Detects model changes automatically
@@ -1303,6 +1339,7 @@ make migrate-current
 - **Initial Migration**: Empty migration created as starting point
 
 #### Docker Migration Support
+
 ```bash
 # Run migrations in Docker container
 make docker-migrate
@@ -1382,6 +1419,7 @@ PORT=8000  # Automatically respected when set
 ### Configuration Validation
 
 All configs validated at startup using Pydantic Settings v2:
+
 - Type validation
 - Required field checking
 - Nested configuration support
@@ -1391,6 +1429,7 @@ All configs validated at startup using Pydantic Settings v2:
 ### Docker Configuration
 
 The application uses standard environment variables without Docker-specific settings:
+
 - **No SKIP_DB_WAIT**: Database availability handled by `pool_pre_ping`
 - **No RUN_MIGRATIONS**: Migrations run as separate container/job
 - **PORT Support**: Automatically uses PORT env var for Cloud Run
@@ -1473,6 +1512,7 @@ docker/
 ### Common Issues
 
 #### Import Errors
+
 ```bash
 # Ensure Python 3.13 is active
 python --version
@@ -1482,6 +1522,7 @@ uv sync --all-extras --dev
 ```
 
 #### Type Errors
+
 ```bash
 # Clear MyPy cache
 rm -rf .mypy_cache
@@ -1494,6 +1535,7 @@ uv run pyright --version
 ```
 
 #### Pre-commit Failures
+
 ```bash
 # Update hooks
 uv run pre-commit clean
@@ -1504,6 +1546,7 @@ make pre-commit
 ```
 
 #### Test Failures
+
 ```bash
 # Run specific test
 uv run pytest tests/unit/core/test_config.py -v
@@ -1519,6 +1562,7 @@ uv run pytest -n 1  # Run single-threaded
 ```
 
 #### Database Connection Issues
+
 ```bash
 # Verify PostgreSQL is running
 pg_isready -h localhost -p 5432
@@ -1534,6 +1578,7 @@ psql -U postgres -c "\l" | grep tributum_test_gw
 ```
 
 #### Docker Issues
+
 ```bash
 # Check Docker daemon
 docker info
@@ -1553,6 +1598,7 @@ make docker-build
 ```
 
 #### Migration Issues
+
 ```bash
 # Check current revision
 make migrate-current
@@ -1570,6 +1616,7 @@ alembic downgrade -1
 ```
 
 #### Parallel Test Issues
+
 ```bash
 # Check if running with xdist
 uv run pytest --collect-only | grep "gw"
@@ -1585,6 +1632,7 @@ psql -U tributum -d tributum_test -c "SELECT 1;"
 ```
 
 #### Tracing Issues
+
 ```bash
 # Enable debug logging for OpenTelemetry
 export OTEL_LOG_LEVEL=debug
@@ -1597,6 +1645,7 @@ gcloud auth application-default login
 ### Debug Mode
 
 Enable debug logging:
+
 ```bash
 export DEBUG=true
 export LOG_CONFIG__LOG_LEVEL=DEBUG
@@ -1612,6 +1661,7 @@ make dev
 Returns the health status of the application and its dependencies.
 
 #### Response Format
+
 ```json
 {
   "status": "healthy",
@@ -1620,10 +1670,12 @@ Returns the health status of the application and its dependencies.
 ```
 
 #### Status Codes
+
 - **200 OK**: Application is healthy
 - **503 Service Unavailable**: Application is unhealthy (database unavailable)
 
 #### Features
+
 - Database connectivity check with fallback
 - OpenTelemetry span creation for monitoring
 - Correlation ID propagation
@@ -1634,6 +1686,7 @@ Returns the health status of the application and its dependencies.
   - Load balancer health checks
 
 #### Example Usage
+
 ```bash
 # Check health
 curl http://localhost:8000/health
@@ -1650,6 +1703,7 @@ curl -H "X-Correlation-ID: 123e4567-e89b-12d3-a456-426614174000" \
 Returns application metadata and configuration information.
 
 #### Response Format
+
 ```json
 {
   "app_name": "tributum",
@@ -1664,6 +1718,7 @@ Returns application metadata and configuration information.
 ### API Documentation
 
 Interactive API documentation is available at:
+
 - **Swagger UI**: `/docs`
 - **ReDoc**: `/redoc`
 - **OpenAPI Schema**: `/openapi.json`
@@ -1675,6 +1730,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 ### Implemented Features
 
 #### Core Infrastructure
+
 - FastAPI application with automatic OpenAPI documentation
 - Pydantic Settings v2 configuration with nested support
 - Domain-driven design directory structure
@@ -1684,6 +1740,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Cloud Run compatibility with PORT environment variable**
 
 #### Database Infrastructure
+
 - **Database configuration system** with async PostgreSQL support
 - **Connection pooling** with configurable pool size and overflow
 - **Health checks** with pre-ping connection testing
@@ -1699,6 +1756,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Database lifecycle management** in FastAPI lifespan context
 
 #### Exception & Error Handling
+
 - Comprehensive exception hierarchy with severity levels
 - Global exception handlers for all error types
 - Standardized error responses with correlation IDs
@@ -1707,6 +1765,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - Integration with OpenTelemetry span error tracking
 
 #### Logging & Observability
+
 - Structured logging with structlog (exc_info formatting configured)
 - Automatic correlation ID propagation
 - Request/response body logging with sanitization
@@ -1722,6 +1781,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Advanced context management** with bind/unbind operations
 
 #### Middleware Stack
+
 - **SecurityHeadersMiddleware** for security headers
 - **RequestContextMiddleware** for correlation IDs
 - **RequestLoggingMiddleware** for observability
@@ -1730,6 +1790,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Pure ASGI implementation** for performance
 
 #### Docker Infrastructure
+
 - **Production Docker image** with multi-stage build (~306MB)
 - **Development Docker image** with hot-reload support
 - **Docker Compose** for local development and testing
@@ -1739,6 +1800,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Comprehensive Makefile commands** for Docker operations
 
 #### Testing Infrastructure
+
 - **Parallel test execution** with pytest-xdist
 - **Database test fixtures** with transaction isolation
 - **Docker container fixtures** for integration testing
@@ -1753,6 +1815,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Modular test organization** for better maintainability
 
 #### Development Experience
+
 - Comprehensive pre-commit hooks with ALL Ruff rules enabled
 - McCabe cyclomatic complexity checking (max 10)
 - Strict code quality enforcement (Ruff, MyPy, Pyright)
@@ -1768,6 +1831,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Pyright type checking** for enhanced IDE support
 
 #### CI/CD & Infrastructure
+
 - GitHub Actions workflow for quality checks with Pyright
 - Terraform infrastructure for GCP
 - Multi-environment support (dev/staging/prod)
@@ -1779,6 +1843,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 ### Architecture Components
 
 #### API Layer (`src/api/`)
+
 - Main FastAPI application with ORJSONResponse
 - **Lifespan management** for startup/shutdown
 - **Integrated middleware stack**
@@ -1788,6 +1853,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Layer-specific constants** for HTTP codes, limits, and content types
 
 #### Core Layer (`src/core/`)
+
 - Configuration management with **enhanced LogConfig**, **ObservabilityConfig**, and **DatabaseConfig**
 - Exception definitions with span integration
 - Logging setup with exc_info formatting and **advanced context management**
@@ -1797,10 +1863,12 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **OpenTelemetry tracing utilities**
 
 #### Domain Layer (`src/domain/`)
+
 - Directory structure prepared for DDD implementation
 - Ready for business logic modules
 
 #### Infrastructure Layer (`src/infrastructure/`)
+
 - **Database infrastructure** with async PostgreSQL support
 - **Base model** with timestamps and naming conventions
 - **Extended generic repository pattern** with filtering
@@ -1810,6 +1878,7 @@ Documentation can be disabled by setting environment variables to empty strings.
 - **Layer-specific constants** for database settings
 
 #### Test Suite (`tests/`)
+
 - Unit tests with 100% coverage achieved
 - Integration tests for API endpoints
 - **Integration tests for distributed tracing**
