@@ -25,13 +25,14 @@ REPORT: [State that you are thinking harder about the implementation]
 [ ] Execute these analyses in parallel:
 
 ```
-- Fully read pyproject.toml
-- Fully read Makefile
-- Fully read .pre-commit-config.yaml
-- Fully read .env.example
-- Fully read main.py
-- Fully read /src/core/config.py
-- Fully read /src/api/main.py
+- Fully read and understand pyproject.toml
+- Fully read and understand .pre-commit-config.yaml
+- Fully read and understand .env.example
+- Fully read and understand Makefile
+- Fully read and understand main.py
+- Fully read and understand /src/core/config.py
+- Fully read and understand /src/api/main.py
+- Fully read and understand /tests/conftest.py
 ```
 
 REPORT: [Confirm all 6 files were read and provide key insights from each]
