@@ -1,4 +1,4 @@
-.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check shellcheck shellcheck-fix all-checks docker-build docker-up docker-up-dev docker-down docker-clean docker-logs docker-shell docker-psql docker-test docker-migrate docker-build-production docker-build-dev test-random test-seed test-no-random
+.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check shellcheck shellcheck-fix all-checks all-fixes mock-check markers-check docker-build docker-up docker-up-dev docker-down docker-clean docker-logs docker-shell docker-psql docker-test docker-migrate docker-build-production docker-build-dev test-random test-seed test-no-random
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -195,7 +195,9 @@ shellcheck-fix:  ## Run shellcheck with auto-fix suggestions
 	@echo "Running shellcheck with fix suggestions..."
 	@find . -type f \( -name "*.sh" -o -name "*.bash" \) -not -path "./.venv/*" -not -path "./venv/*" -not -path "./.git/*" -exec uv run shellcheck -f diff {} \; | patch -p1
 
-all-checks: format lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck mock-check markers-check  ## Run all checks including dead code, docstring quality, and shell scripts
+all-checks: format lint type-check pyright complexity-check security dead-code docstring-check pylint-check shellcheck mock-check markers-check  ## Run all quality checks before committing
+
+all-fixes: format lint-fix ## Run all safe auto-fixes
 
 # Docker commands
 docker-build:  ## Build all Docker images

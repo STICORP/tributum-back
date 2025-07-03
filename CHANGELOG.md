@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Simplified CI/CD workflow with consolidated pre-commit checks
+- Auto-fix command for applying all safe code improvements
 - Comprehensive edge case tests for logging formatters, request middleware, and observability components
 - Automatic environment detection for log formatters and trace exporters based on deployment platform
 - Configurable sensitive field detection for error context sanitization

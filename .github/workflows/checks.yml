@@ -7,7 +7,7 @@ on:
     branches: [ main, master, develop ]
 
 jobs:
-  quality-checks:
+  code-quality:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,63 +28,5 @@ jobs:
     - name: Install dependencies
       run: make install
 
-    - name: Format
-      run: make format
-
-    - name: Lint check
-      run: make lint
-
-    - name: Type check
-      run: make type-check
-
-    - name: Pyright check
-      run: make pyright
-
-    - name: Complexity check
-      run: make complexity-check
-
-    - name: Security - Bandit
-      run: make security-bandit
-
-    - name: Security - Safety
-      run: make security-safety
-      continue-on-error: true  # Safety sometimes has issues with private packages
-
-    - name: Security - pip-audit
-      run: make security-pip-audit
-
-    - name: Static Analysis - Semgrep
-      run: make security-semgrep
-      continue-on-error: true  # Don't fail build on semgrep issues initially
-
-    - name: Dead Code Check
-      run: make dead-code
-
-    - name: Docstring Quality
-      run: make docstring-quality
-
-    - name: Shellcheck
-      run: make shellcheck
-
-    - name: Run tests
-      run: make test-ci
-
-  pre-commit:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        enable-cache: true
-        cache-dependency-glob: "uv.lock"
-
-    - name: Set up Python
-      run: uv python install
-
-    - name: Install dependencies
-      run: make install
-
-    - name: Run pre-commit
+    - name: Run pre-commit checks
       run: make pre-commit-ci

@@ -1,13 +1,13 @@
 repos:
-  # Format check using Makefile
+  # Apply all safe fixes using Makefile
   - repo: local
     hooks:
-      - id: format
-        name: ruff format
-        entry: make format
+      - id: all-fixes
+        name: apply all safe fixes
+        entry: make all-fixes
         language: system
         pass_filenames: false
-        types: [python]
+        always_run: true
 
   # Then run general pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
