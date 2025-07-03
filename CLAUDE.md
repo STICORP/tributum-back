@@ -11,6 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Overview
 
 Tributum is a high-performance financial/tax/payment system built with:
+
 - Python 3.13+ with FastAPI 0.115+
 - PostgreSQL with async SQLAlchemy 2.0+
 - Clean Architecture (DDD-ready) with clear separation of concerns
@@ -19,6 +20,7 @@ Tributum is a high-performance financial/tax/payment system built with:
 ## Essential Commands
 
 ### Development
+
 ```bash
 make install        # Install dependencies and pre-commit hooks
 make dev           # Run FastAPI with hot-reload (http://localhost:8000)
@@ -27,6 +29,7 @@ make all-checks    # Run ALL quality checks before committing
 ```
 
 ### Testing
+
 ```bash
 make test          # Run all tests with coverage
 make test-unit     # Unit tests only
@@ -35,6 +38,7 @@ pytest tests/unit/test_specific.py::test_function  # Run single test
 ```
 
 ### Code Quality (ALL must pass)
+
 ```bash
 make format        # Auto-format code with Ruff
 make lint          # Linting checks
@@ -44,6 +48,7 @@ make security      # Security scans (bandit, safety, pip-audit, semgrep)
 ```
 
 ### Database
+
 ```bash
 make migrate-create MSG="add_user_table"  # Create migration
 make migrate-up                           # Apply migrations
@@ -51,6 +56,7 @@ make migrate-down                         # Rollback last migration
 ```
 
 ### Docker Development
+
 ```bash
 make docker-up-dev    # Start with hot-reload
 make docker-test      # Run tests in Docker
@@ -60,6 +66,7 @@ make docker-migrate   # Run migrations in Docker
 ## Architecture
 
 ### Directory Structure
+
 ```
 src/
 ├── api/           # HTTP endpoints and request/response models
@@ -69,6 +76,7 @@ src/
 ```
 
 ### Request Flow
+
 1. **SecurityHeadersMiddleware** - Adds security headers
 2. **RequestContextMiddleware** - Generates correlation ID
 3. **RequestLoggingMiddleware** - Logs requests/responses
@@ -78,6 +86,7 @@ src/
 ### Key Patterns
 
 **Dependency Injection**:
+
 ```python
 @router.get("/users/{user_id}")
 async def get_user(
@@ -88,6 +97,7 @@ async def get_user(
 ```
 
 **Repository Pattern**:
+
 ```python
 class UserRepository(BaseRepository[User]):
     async def get_by_email(self, email: str) -> User | None:
@@ -95,6 +105,7 @@ class UserRepository(BaseRepository[User]):
 ```
 
 **Configuration (Nested with __ delimiter)**:
+
 ```bash
 DATABASE_CONFIG__POOL_SIZE=10
 DATABASE_CONFIG__POOL_TIMEOUT=30
@@ -129,6 +140,7 @@ DATABASE_CONFIG__POOL_TIMEOUT=30
 ## Before Committing
 
 Always run `make all-checks` to ensure:
+
 - Code is formatted (Ruff)
 - All linting rules pass
 - Type checking passes (MyPy + Pyright)
