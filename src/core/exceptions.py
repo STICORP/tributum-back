@@ -143,6 +143,31 @@ class TributumError(Exception):
         # Generate hash
         return hashlib.sha256(fingerprint_data.encode()).hexdigest()[:16]
 
+    @property
+    def is_expected(self) -> bool:
+        """Determine if this is an expected error based on severity.
+
+        Expected errors are those that occur during normal operation due to
+        user input, business rules, or other predictable conditions. These
+        should be logged at a lower level and not trigger alerts.
+
+        Returns:
+            bool: True if the error is expected (LOW or MEDIUM severity)
+        """
+        return self.severity in (Severity.LOW, Severity.MEDIUM)
+
+    @property
+    def should_alert(self) -> bool:
+        """Determine if this error should trigger alerts.
+
+        High severity errors indicate problems that need immediate attention,
+        such as security issues, data integrity problems, or system failures.
+
+        Returns:
+            bool: True if the error should trigger alerts (HIGH or CRITICAL severity)
+        """
+        return self.severity in (Severity.HIGH, Severity.CRITICAL)
+
     def __str__(self) -> str:
         """Return a string representation of the exception.
 

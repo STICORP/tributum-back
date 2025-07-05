@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- OpenTelemetry integration in error handlers for distributed tracing and error reporting
+- Error expectedness detection based on severity levels for intelligent alerting
+- Enhanced GCP logging format with Error Reporting integration and service context
+- Security-focused error response sanitization to prevent sensitive data exposure
 - Comprehensive test job in GitHub Actions workflow with PostgreSQL service integration
 - Simplified CI/CD workflow with consolidated pre-commit checks
 - Auto-fix command for applying all safe code improvements

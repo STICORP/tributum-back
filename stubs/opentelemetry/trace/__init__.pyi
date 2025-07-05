@@ -35,6 +35,11 @@ class StatusCode(IntEnum):
 class Status:
     """Type stub for Status."""
 
+    def __init__(
+        self,
+        status_code: StatusCode = StatusCode.UNSET,
+        description: str | None = None,
+    ) -> None: ...
     @property
     def status_code(self) -> StatusCode: ...
     @property

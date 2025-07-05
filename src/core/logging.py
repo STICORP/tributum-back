@@ -33,6 +33,8 @@ from typing import Any, Final, Protocol, cast
 
 from loguru import logger
 
+from src.core.config import get_settings
+
 # Type aliases for clarity
 type LogLevel = str
 type CorrelationID = str
@@ -425,6 +427,13 @@ def serialize_for_gcp(record: dict[str, Any]) -> str:
         "timestamp": record["time"].isoformat(),
     }
 
+    # Add service context for better filtering in Error Reporting
+    settings = get_settings()
+    log_entry["serviceContext"] = {
+        "service": settings.app_name,
+        "version": settings.app_version,
+    }
+
     # Add labels for GCP
     labels = {
         "function": record["function"],
@@ -441,6 +450,10 @@ def serialize_for_gcp(record: dict[str, Any]) -> str:
         if request_id := extra.get("request_id"):
             labels["request_id"] = request_id
 
+        # Add error fingerprint to labels for grouping (truncated for GCP label limits)
+        if fingerprint := extra.get("fingerprint"):
+            labels["error_fingerprint"] = fingerprint[:8]
+
         # Add other fields to jsonPayload
         json_payload = {
             k: v
@@ -453,14 +466,31 @@ def serialize_for_gcp(record: dict[str, Any]) -> str:
     labels_dict: dict[str, str] = labels
     log_entry["logging.googleapis.com/labels"] = labels_dict
 
-    # Add source location for error reporting
-    if record.get("exception"):
+    # Add source location and Error Reporting fields for errors
+    if record.get("exception") or record["level"].name in ["ERROR", "CRITICAL"]:
         source_location = {
             "file": record["file"].path,
             "line": str(record["line"]),
             "function": record["function"],
         }
         log_entry["logging.googleapis.com/sourceLocation"] = source_location
+
+        # Add Error Reporting type for better integration
+        log_entry["@type"] = (
+            "type.googleapis.com/google.devtools.clouderrorreporting.v1beta1.ReportedErrorEvent"
+        )
+
+        # Add context for Error Reporting
+        if extra and "stack_trace" in extra:
+            log_entry["context"] = {
+                "reportLocation": {
+                    "filePath": record["file"].path,
+                    "lineNumber": record["line"],
+                    "functionName": record["function"],
+                }
+            }
+            # Include the custom stack trace
+            log_entry["stack_trace"] = extra["stack_trace"]
 
     return json.dumps(log_entry, default=str) + "\n"
 

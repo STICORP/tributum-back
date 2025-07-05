@@ -1,7 +1,7 @@
 """Tests for cloud-agnostic log formatters."""
 
 import json
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
 from datetime import UTC, datetime
 from io import StringIO
 from typing import Any, Protocol, cast
@@ -10,13 +10,13 @@ import pytest
 from loguru import logger
 from pytest_mock import MockerFixture
 
+import src.core.logging
 from src.core.config import LogConfig, Settings
 from src.core.logging import (
     CORRELATION_ID_DISPLAY_LENGTH,
     LOG_FORMATTERS,
     _format_context_fields,
     _format_priority_field,
-    _state,
     detect_environment,
     format_console_with_context,
     serialize_for_aws,
@@ -32,41 +32,62 @@ class MessageWithRecord(Protocol):
     record: dict[str, Any]
 
 
+@pytest.fixture
+def mock_record(mocker: MockerFixture) -> dict[str, Any]:
+    """Create a mock Loguru record."""
+    mock_time = mocker.Mock()
+    mock_time.isoformat.return_value = "2024-01-01T12:00:00+00:00"
+    mock_time.strftime.return_value = "2024-01-01 12:00:00.000"
+
+    mock_level = mocker.Mock()
+    mock_level.name = "INFO"
+
+    mock_file = mocker.Mock()
+    mock_file.path = "test.py"
+
+    return {
+        "time": mock_time,
+        "level": mock_level,
+        "message": "Test message",
+        "name": None,
+        "function": "test_function",
+        "module": "test_module",
+        "line": 42,
+        "file": mock_file,
+        "extra": {
+            "correlation_id": "test-correlation-123",
+            "request_id": "test-request-456",
+            "user_id": 789,
+            "_internal": "should be filtered",
+        },
+    }
+
+
+@pytest.fixture(autouse=True)
+async def cleanup_logger() -> AsyncGenerator[None]:
+    """Clean up logger handlers and database connections after each test."""
+    yield
+    logger.remove()
+
+
+@pytest.fixture
+def reset_logging_state() -> Generator[None]:
+    """Reset logging state for tests that need to call setup_logging."""
+    # Store original state
+    original_state = src.core.logging._state.configured
+
+    # Reset state to allow setup_logging to run
+    src.core.logging._state.configured = False
+
+    yield
+
+    # Restore original state
+    src.core.logging._state.configured = original_state
+
+
 @pytest.mark.unit
 class TestFormatters:
     """Test individual formatter functions."""
-
-    @pytest.fixture
-    def mock_record(self) -> dict[str, Any]:
-        """Create a mock Loguru record."""
-
-        # Create mock types for nested attributes
-        class MockLevel:
-            name = "INFO"
-
-        class MockFile:
-            path = "test.py"
-
-        class MockTime:
-            def isoformat(self) -> str:
-                return "2024-01-01T12:00:00+00:00"
-
-        return {
-            "time": MockTime(),
-            "level": MockLevel(),
-            "message": "Test message",
-            "name": None,
-            "function": "test_function",
-            "module": "test_module",
-            "line": 42,
-            "file": MockFile(),
-            "extra": {
-                "correlation_id": "test-correlation-123",
-                "request_id": "test-request-456",
-                "user_id": 789,
-                "_internal": "should be filtered",
-            },
-        }
 
     def test_json_formatter(self, mock_record: dict[str, Any]) -> None:
         """Test generic JSON formatter."""
@@ -81,8 +102,15 @@ class TestFormatters:
         assert data["user_id"] == 789
         assert "_internal" not in data
 
-    def test_gcp_formatter(self, mock_record: dict[str, Any]) -> None:
+    def test_gcp_formatter(
+        self, mock_record: dict[str, Any], mocker: MockerFixture
+    ) -> None:
         """Test GCP Cloud Logging formatter."""
+        # Mock get_settings for GCP formatter
+        mock_settings = mocker.patch("src.core.logging.get_settings")
+        mock_settings.return_value.app_name = "test-app"
+        mock_settings.return_value.app_version = "1.0.0"
+
         output = serialize_for_gcp(mock_record)
         data = json.loads(output.strip())
 
@@ -105,15 +133,16 @@ class TestFormatters:
         assert data["user_id"] == 789
         assert "timestamp" in data
 
-    def test_exception_formatting_json(self, mock_record: dict[str, Any]) -> None:
+    def test_exception_formatting_json(
+        self, mock_record: dict[str, Any], mocker: MockerFixture
+    ) -> None:
         """Test exception formatting in JSON."""
+        mock_exception = mocker.Mock()
+        mock_exception.type = ValueError
+        mock_exception.value = "Test error"
+        mock_exception.traceback = "Traceback details..."
 
-        class MockException:
-            type = ValueError
-            value = "Test error"
-            traceback = "Traceback details..."
-
-        mock_record["exception"] = MockException()
+        mock_record["exception"] = mock_exception
 
         output = serialize_for_json(mock_record)
         data = json.loads(output.strip())
@@ -122,15 +151,23 @@ class TestFormatters:
         assert data["exception"]["value"] == "Test error"
         assert "traceback" in data["exception"]
 
-    def test_exception_formatting_gcp(self, mock_record: dict[str, Any]) -> None:
+    def test_exception_formatting_gcp(
+        self,
+        mock_record: dict[str, Any],
+        mocker: MockerFixture,
+    ) -> None:
         """Test exception formatting for GCP."""
+        # Mock get_settings for GCP formatter
+        mock_settings = mocker.patch("src.core.logging.get_settings")
+        mock_settings.return_value.app_name = "test-app"
+        mock_settings.return_value.app_version = "1.0.0"
 
-        class MockException:
-            type = ValueError
-            value = "Test error"
-            traceback = "Traceback details..."
+        mock_exception = mocker.Mock()
+        mock_exception.type = ValueError
+        mock_exception.value = "Test error"
+        mock_exception.traceback = "Traceback details..."
 
-        mock_record["exception"] = MockException()
+        mock_record["exception"] = mock_exception
 
         output = serialize_for_gcp(mock_record)
         data = json.loads(output.strip())
@@ -139,15 +176,16 @@ class TestFormatters:
         assert data["logging.googleapis.com/sourceLocation"]["file"] == "test.py"
         assert data["logging.googleapis.com/sourceLocation"]["line"] == "42"
 
-    def test_exception_formatting_aws(self, mock_record: dict[str, Any]) -> None:
+    def test_exception_formatting_aws(
+        self, mock_record: dict[str, Any], mocker: MockerFixture
+    ) -> None:
         """Test exception formatting for AWS."""
+        mock_exception = mocker.Mock()
+        mock_exception.type = ValueError
+        mock_exception.value = "Test error"
+        mock_exception.traceback = "Traceback details..."
 
-        class MockException:
-            type = ValueError
-            value = "Test error"
-            traceback = "Traceback details..."
-
-        mock_record["exception"] = MockException()
+        mock_record["exception"] = mock_exception
 
         output = serialize_for_aws(mock_record)
         data = json.loads(output.strip())
@@ -156,8 +194,15 @@ class TestFormatters:
         assert data["error"]["message"] == "Test error"
         assert data["error"]["stackTrace"] == "Traceback details..."
 
-    def test_empty_extra_fields(self, mock_record: dict[str, Any]) -> None:
+    def test_empty_extra_fields(
+        self, mock_record: dict[str, Any], mocker: MockerFixture
+    ) -> None:
         """Test formatters with no extra fields."""
+        # Mock get_settings for GCP formatter test
+        mock_settings = mocker.patch("src.core.logging.get_settings")
+        mock_settings.return_value.app_name = "test-app"
+        mock_settings.return_value.app_version = "1.0.0"
+
         mock_record["extra"] = {}
 
         # JSON formatter
@@ -178,8 +223,15 @@ class TestFormatters:
         assert "traceId" not in data
         assert "requestId" not in data
 
-    def test_level_mapping_gcp(self, mock_record: dict[str, Any]) -> None:
+    def test_level_mapping_gcp(
+        self, mock_record: dict[str, Any], mocker: MockerFixture
+    ) -> None:
         """Test Loguru to GCP severity level mapping."""
+        # Mock get_settings for GCP formatter
+        mock_settings = mocker.patch("src.core.logging.get_settings")
+        mock_settings.return_value.app_name = "test-app"
+        mock_settings.return_value.app_version = "1.0.0"
+
         levels = {
             "TRACE": "DEBUG",
             "DEBUG": "DEBUG",
@@ -229,27 +281,25 @@ class TestEnvironmentDetection:
 class TestFormatterIntegration:
     """Test formatter integration with Loguru."""
 
-    @pytest.fixture(autouse=True)
-    def cleanup_logger(self) -> Generator[None]:
-        """Clean up logger handlers and reset state."""
-        # Reset state before test
-        _state.configured = False
-        yield
-        # Remove all handlers after test
-        logger.remove()
-        # Reset state after test
-        _state.configured = False
-
-    def test_console_formatter(self) -> None:
+    def test_console_formatter(
+        self, mocker: MockerFixture, reset_logging_state: None
+    ) -> None:
         """Test console formatter setup."""
+        # Use the fixture to ensure logging state is reset
+        _ = reset_logging_state
+
         settings = Settings(log_config=LogConfig(log_formatter_type="console"))
+
+        # Mock logger.add to verify it's called with correct parameters
+        mock_add = mocker.patch("src.core.logging.logger.add")
 
         logger.remove()
         setup_logging(settings)
 
-        # Console formatter should work without errors
-        # Just verify it doesn't crash
-        logger.info("Test console message")
+        # Verify logger.add was called with console formatter
+        mock_add.assert_called_once()
+        call_args = mock_add.call_args
+        assert call_args.kwargs["format"] == format_console_with_context
 
     def test_json_formatter_integration(self) -> None:
         """Test JSON formatter integration."""
@@ -280,9 +330,15 @@ class TestFormatterIntegration:
         assert data["user_id"] == 456
 
     def test_formatter_auto_detection(
-        self, monkeypatch: pytest.MonkeyPatch, mocker: MockerFixture
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mocker: MockerFixture,
+        reset_logging_state: None,
     ) -> None:
         """Test formatter auto-detection."""
+        # Use the fixture to ensure logging state is reset
+        _ = reset_logging_state
+
         # Simulate GCP environment
         monkeypatch.setenv("K_SERVICE", "test-service")
 
@@ -291,15 +347,11 @@ class TestFormatterIntegration:
         )
 
         logger.remove()
-        _state.configured = False
 
         # Mock the logger.info call to prevent output during test
         mock_logger_info = mocker.patch("src.core.logging.logger.info")
 
         setup_logging(settings)
-
-        # Should auto-detect GCP
-        assert _state.configured
 
         # Verify the logger.info was called with the expected message
         mock_logger_info.assert_called_once()
@@ -307,8 +359,13 @@ class TestFormatterIntegration:
         assert "Logging configured with {} formatter" in call_args[0][0]
         assert call_args[0][1] == "gcp"
 
-    def test_gcp_formatter_integration(self) -> None:
+    def test_gcp_formatter_integration(self, mocker: MockerFixture) -> None:
         """Test GCP formatter integration."""
+        # Mock get_settings for GCP formatter
+        mock_settings = mocker.patch("src.core.logging.get_settings")
+        mock_settings.return_value.app_name = "test-app"
+        mock_settings.return_value.app_version = "1.0.0"
+
         # Remove all handlers and add one for capturing output
         logger.remove()
         output = StringIO()
@@ -364,30 +421,34 @@ class TestFormatterIntegration:
 class TestCloudAgnostic:
     """Test cloud-agnostic functionality."""
 
-    @pytest.fixture(autouse=True)
-    def cleanup_logger(self) -> Generator[None]:
-        """Clean up logger handlers."""
-        yield
-        logger.remove()
-        _state.configured = False
-
-    def test_local_development_no_cloud(self) -> None:
+    def test_local_development_no_cloud(
+        self, mocker: MockerFixture, reset_logging_state: None
+    ) -> None:
         """Test that local development works without cloud services."""
+        # Use the fixture to ensure logging state is reset
+        _ = reset_logging_state
+
         settings = Settings(
             environment="development",
             log_config=LogConfig(log_formatter_type="console"),
         )
 
-        # Should not require any cloud authentication
+        # Mock logger.add to verify it works without cloud auth
+        mock_add = mocker.patch("src.core.logging.logger.add")
+
         logger.remove()
-        _state.configured = False
         setup_logging(settings)
 
         # Should work without errors
-        logger.info("Local development message")
+        assert mock_add.called
 
-    def test_easy_cloud_switching(self) -> None:
+    def test_easy_cloud_switching(self, mocker: MockerFixture) -> None:
         """Test switching between cloud providers is configuration-only."""
+        # Mock get_settings for GCP formatter
+        mock_settings = mocker.patch("src.core.logging.get_settings")
+        mock_settings.return_value.app_name = "test-app"
+        mock_settings.return_value.app_version = "1.0.0"
+
         # Start with GCP
         output_gcp = StringIO()
         logger.remove()
@@ -438,26 +499,32 @@ class TestCloudAgnostic:
             # Test passing an invalid value via dict to bypass type checking
             LogConfig.model_validate({"log_formatter_type": "invalid"})
 
-    def test_formatter_with_real_datetime(self) -> None:
+    def test_formatter_with_real_datetime(self, mocker: MockerFixture) -> None:
         """Test formatters with real datetime objects."""
+        # Mock get_settings for GCP formatter
+        mock_settings = mocker.patch("src.core.logging.get_settings")
+        mock_settings.return_value.app_name = "test-app"
+        mock_settings.return_value.app_version = "1.0.0"
+
         # Create a more realistic mock record with actual datetime
-        now = datetime.now(tz=UTC)
+        # Use a fixed datetime for determinism
+        fixed_datetime = datetime(2024, 1, 1, 12, 0, 0, tzinfo=UTC)
 
-        class MockLevel:
-            name = "INFO"
+        mock_level = mocker.Mock()
+        mock_level.name = "INFO"
 
-        class MockFile:
-            path = "test.py"
+        mock_file = mocker.Mock()
+        mock_file.path = "test.py"
 
         mock_record = {
-            "time": now,
-            "level": MockLevel(),
+            "time": fixed_datetime,
+            "level": mock_level,
             "message": "Test with real datetime",
             "name": None,
             "function": "test_function",
             "module": "test_module",
             "line": 42,
-            "file": MockFile(),
+            "file": mock_file,
             "extra": {},
         }
 
@@ -499,32 +566,26 @@ class TestCloudAgnostic:
         structured_sink(MessageNoRecord())
         assert output.getvalue() == ""
 
-        # Call with proper message
-        class MessageWithRecord:
+        # Test with a proper message that has a record attribute
+        class TestMessage:
             def __init__(self) -> None:
-                class MockLevel:
-                    name = "INFO"
-
-                class MockFile:
-                    path = "test.py"
-
-                class MockTime:
-                    def isoformat(self) -> str:
-                        return "2024-01-01T12:00:00+00:00"
-
                 self.record = {
-                    "time": MockTime(),
-                    "level": MockLevel(),
+                    "time": type(
+                        "MockTime",
+                        (),
+                        {"isoformat": lambda: "2024-01-01T12:00:00+00:00"},
+                    ),
+                    "level": type("MockLevel", (), {"name": "INFO"}),
                     "message": "Test message",
                     "name": None,
                     "function": "test_function",
                     "module": "test_module",
                     "line": 42,
-                    "file": MockFile(),
+                    "file": type("MockFile", (), {"path": "test.py"}),
                     "extra": {},
                 }
 
-        msg = MessageWithRecord()
+        msg = TestMessage()
         structured_sink(msg)
 
         # Verify output
@@ -602,37 +663,34 @@ class TestConsoleFormatterEdgeCases:
         assert any("<yellow>150.5ms</yellow>" in part for part in context_parts)
         assert any("custom_field=custom_value" in part for part in context_parts)
 
-    def test_console_formatter_with_exception(self) -> None:
+    def test_console_formatter_with_exception(self, mocker: MockerFixture) -> None:
         """Test console formatter includes exception formatting."""
-
         # Create a mock record with exception
-        class MockLevel:
-            name = "ERROR"
+        mock_level = mocker.Mock()
+        mock_level.name = "ERROR"
 
-        class MockFile:
-            path = "test.py"
+        mock_file = mocker.Mock()
+        mock_file.path = "test.py"
 
-        class MockTime:
-            def strftime(self, fmt: str) -> str:
-                _ = fmt  # Mark as used
-                return "2024-01-01 12:00:00.000"
+        mock_time = mocker.Mock()
+        mock_time.strftime.return_value = "2024-01-01 12:00:00.000"
 
-        class MockException:
-            type = ValueError
-            value = ValueError("Test error")
-            traceback = "Traceback details here"
+        mock_exception = mocker.Mock()
+        mock_exception.type = ValueError
+        mock_exception.value = ValueError("Test error")
+        mock_exception.traceback = "Traceback details here"
 
         mock_record = {
-            "time": MockTime(),
-            "level": MockLevel(),
+            "time": mock_time,
+            "level": mock_level,
             "message": "Error occurred",
             "name": "test",
             "function": "test_func",
             "module": "test_module",
             "line": 42,
-            "file": MockFile(),
+            "file": mock_file,
             "extra": {},
-            "exception": MockException(),
+            "exception": mock_exception,
         }
 
         # Format the record

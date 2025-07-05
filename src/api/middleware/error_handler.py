@@ -23,17 +23,20 @@ from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import Response
 from loguru import logger
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 from starlette.exceptions import HTTPException
 
 from src.api.schemas.errors import ErrorResponse, ServiceInfo
 from src.api.utils.responses import ORJSONResponse
 from src.core.config import Settings, get_settings
 from src.core.context import RequestContext, generate_request_id
-from src.core.error_context import sanitize_error_context
+from src.core.error_context import sanitize_dict, sanitize_error_context
 from src.core.exceptions import (
     BusinessRuleError,
     ErrorCode,
     NotFoundError,
+    Severity,
     TributumError,
     UnauthorizedError,
     ValidationError,
@@ -91,14 +94,34 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
         },
     )
 
-    # Log the exception with sanitized context
-    logger.error(
-        "Handling {exception_type}: {message}",
-        exception_type=type(exc).__name__,
-        message=exc.message,
-        correlation_id=correlation_id,
-        **error_context,
-    )
+    # Record exception in OpenTelemetry span if available
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_status(Status(status_code=StatusCode.ERROR, description=str(exc)))
+        # Add error details as span attributes
+        span.set_attribute("error.code", exc.error_code)
+        span.set_attribute("error.severity", exc.severity.value)
+        span.set_attribute("error.fingerprint", exc.fingerprint)
+
+    # Log based on error expectedness
+    if exc.is_expected:
+        logger.warning(
+            "Handling expected error {exception_type}: {message}",
+            exception_type=type(exc).__name__,
+            message=exc.message,
+            correlation_id=correlation_id,
+            **error_context,
+            extra={"alert": False},
+        )
+    else:
+        logger.error(
+            "Handling unexpected error {exception_type}: {message}",
+            exception_type=type(exc).__name__,
+            message=exc.message,
+            correlation_id=correlation_id,
+            **error_context,
+            extra={"alert": True, "notify_oncall": exc.severity == Severity.CRITICAL},
+        )
 
     # Map exception types to HTTP status codes
     status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -111,15 +134,15 @@ async def tributum_error_handler(request: Request, exc: Exception) -> Response:
     elif isinstance(exc, BusinessRuleError):
         status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
 
-    # Prepare error details
-    details = exc.context if exc.context else None
+    # Prepare error details - sanitize to prevent exposing sensitive data
+    details = sanitize_dict(exc.context) if exc.context else None
 
     # Prepare debug info for development environments
     debug_info = None
     if settings.environment == "development":
         debug_info = {
             "stack_trace": exc.stack_trace,
-            "error_context": exc.context if exc.context else {},
+            "error_context": sanitize_dict(exc.context) if exc.context else {},
             "exception_type": type(exc).__name__,
         }
         # Add cause information if available
@@ -197,6 +220,18 @@ async def validation_error_handler(request: Request, exc: Exception) -> Response
         },
     )
 
+    # Record validation error in OpenTelemetry span if available
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_status(
+            Status(
+                status_code=StatusCode.ERROR,
+                description="Request validation failed",
+            )
+        )
+        span.set_attribute("error.type", "ValidationError")
+        span.set_attribute("error.validation_count", len(field_errors))
+
     # Log the validation error with sanitized context
     logger.warning(
         "Request validation failed",
@@ -271,6 +306,18 @@ async def http_exception_handler(request: Request, exc: Exception) -> Response:
         },
     )
 
+    # Record HTTP exception in OpenTelemetry span if available
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_status(
+            Status(
+                status_code=StatusCode.ERROR,
+                description=f"HTTP {exc.status_code}: {exc.detail}",
+            )
+        )
+        span.set_attribute("http.status_code", exc.status_code)
+        span.set_attribute("error.type", "HTTPException")
+
     # Log the exception with sanitized context
     logger.warning(
         "HTTP exception",
@@ -319,12 +366,27 @@ async def generic_exception_handler(request: Request, exc: Exception) -> Respons
         },
     )
 
+    # Record exception in OpenTelemetry span if available
+    span = trace.get_current_span()
+    if span.is_recording():
+        span.set_status(
+            Status(
+                status_code=StatusCode.ERROR,
+                description=f"Unhandled exception: {type(exc).__name__}",
+            )
+        )
+        # Add error details as span attributes
+        span.set_attribute("error.type", type(exc).__name__)
+        span.set_attribute("error.unexpected", "true")
+
     # Log the full exception with stack trace and sanitized context
+    # These are always unexpected errors that should trigger alerts
     logger.exception(
         "Unhandled exception: {exception_type}",
         exception_type=type(exc).__name__,
         correlation_id=correlation_id,
         **error_context,
+        extra={"alert": True, "is_expected": False, "error_category": "system_error"},
     )
 
     # In production, hide internal error details

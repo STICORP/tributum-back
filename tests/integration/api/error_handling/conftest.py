@@ -66,6 +66,42 @@ def _add_tributum_error_endpoints(app: FastAPI) -> None:
                 cause=e,  # Pass the cause explicitly to the constructor
             ) from e
 
+    @app.get("/test/sensitive-context")
+    async def raise_error_with_sensitive_context() -> None:
+        """Endpoint that raises an error with sensitive data in context."""
+        raise ValidationError(
+            "Authentication failed",
+            context={
+                "password": "secret123",
+                "api_key": "sk-12345-abcdef",
+                "token": "jwt.token.here",
+                "username": "john_doe",  # Not sensitive
+                "error": "Invalid credentials",  # Not sensitive
+            },
+        )
+
+    @app.get("/test/nested-sensitive-context")
+    async def raise_error_with_nested_sensitive() -> None:
+        """Endpoint that raises an error with nested sensitive data."""
+        raise BusinessRuleError(
+            "Payment processing failed",
+            context={
+                "user": {
+                    "id": 123,
+                    "email": "test@example.com",
+                    "password": "hashed_password_here",
+                    "api_key": "user_api_key_123",
+                },
+                "payment": {
+                    "amount": 100.50,
+                    "card_number": "4111111111111111",
+                    "cvv": "123",
+                    "currency": "USD",
+                },
+                "merchant": {"id": "merchant_123", "secret_key": "merchant_secret_key"},
+            },
+        )
+
 
 def _add_http_exception_endpoints(app: FastAPI) -> None:
     """Add HTTP exception test endpoints."""
@@ -172,5 +208,22 @@ def client(app_with_handlers: FastAPI) -> TestClient:
 async def async_client(app_with_handlers: FastAPI) -> AsyncGenerator[AsyncClient]:
     """Create an async test client with test endpoints."""
     transport = ASGITransport(app=app_with_handlers)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+
+
+@pytest.fixture
+async def async_client_production(production_env: None) -> AsyncGenerator[AsyncClient]:
+    """Create an async test client with production settings and test endpoints."""
+    _ = production_env  # Ensure production environment is set
+    app = create_app()  # Create app with production settings
+
+    # Add test endpoints
+    _add_tributum_error_endpoints(app)
+    _add_http_exception_endpoints(app)
+    _add_generic_error_endpoints(app)
+    _add_validation_test_endpoints(app)
+
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
