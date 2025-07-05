@@ -198,3 +198,18 @@ class TestSettings:
         settings = Settings()
         assert settings.environment == "development"
         assert settings.log_config.log_formatter_type == "console"
+
+    def test_observability_empty_string_to_none(
+        self, empty_observability_env: None
+    ) -> None:
+        """Test that empty strings for observability fields are converted to None.
+
+        Uses the empty_observability_env fixture to set empty string values.
+        This ensures the empty_str_to_none validator is covered.
+        """
+        _ = empty_observability_env  # Fixture sets up environment
+        settings = Settings()
+
+        # Verify empty strings are converted to None
+        assert settings.observability_config.exporter_endpoint is None
+        assert settings.observability_config.gcp_project_id is None

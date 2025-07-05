@@ -351,6 +351,29 @@ def high_sampling_env(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     get_settings.cache_clear()
 
 
+@pytest.fixture
+def empty_observability_env(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
+    """Set observability configuration fields to empty strings for conversion testing.
+
+    This fixture specifically tests the empty string to None conversion
+    functionality for observability configuration fields.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture for environment manipulation.
+    """
+    # Clear cache before modifying environment
+    get_settings.cache_clear()
+
+    # Set observability fields to empty strings
+    monkeypatch.setenv("OBSERVABILITY_CONFIG__EXPORTER_ENDPOINT", "")
+    monkeypatch.setenv("OBSERVABILITY_CONFIG__GCP_PROJECT_ID", "")
+
+    yield
+
+    # Clear cache after test to ensure clean state
+    get_settings.cache_clear()
+
+
 class DynamicConfigHelper:
     """Helper class for dynamic configuration switching with proper cache management."""
 
