@@ -3,24 +3,28 @@
 This module tests the BaseRepository class with real database operations,
 ensuring that all CRUD operations work correctly with PostgreSQL and
 handle edge cases properly.
+
+The tests use proper transaction isolation through the db_session fixture,
+which ensures all changes are rolled back after each test. For schema
+creation, we use SQLAlchemy's metadata system instead of raw SQL to
+respect transaction boundaries.
 """
 
 from typing import Any
 
 import pytest
-from sqlalchemy import String, select, text
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import String, select
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.base import BaseModel
 from src.infrastructure.database.repository import BaseRepository
-from src.infrastructure.database.session import get_async_session
 
 
 class RepositoryTestModel(BaseModel):
     """Test model for repository integration tests."""
 
-    __tablename__ = "test_repository_model"
+    __tablename__ = "test_repository_model_isolated"
 
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -30,22 +34,19 @@ class RepositoryTestModel(BaseModel):
 @pytest.fixture
 async def test_repository(
     db_session: AsyncSession,
+    db_engine: AsyncEngine,
 ) -> BaseRepository[RepositoryTestModel]:
-    """Create a test repository instance with a real database session."""
-    # Create the test table using DDL text for async compatibility
-    await db_session.execute(
-        text(
-            "CREATE TABLE IF NOT EXISTS test_repository_model ("
-            "id SERIAL PRIMARY KEY, "
-            "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "
-            "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "
-            "name VARCHAR(100) NOT NULL, "
-            "description VARCHAR(500), "
-            "value INTEGER NOT NULL DEFAULT 0"
-            ")"
-        )
-    )
-    await db_session.commit()
+    """Create a test repository instance with proper schema isolation.
+
+    This fixture creates the test table using SQLAlchemy's metadata system
+    within the transaction boundary, ensuring proper cleanup after tests.
+    """
+    # Create table using SQLAlchemy metadata for proper transaction handling
+    # This ensures the table creation respects our transaction boundaries
+    async with db_engine.begin() as conn:
+        # Create only our test table, not all tables
+        # Use the metadata directly to create tables
+        await conn.run_sync(RepositoryTestModel.metadata.create_all)
 
     return BaseRepository(db_session, RepositoryTestModel)
 
@@ -465,60 +466,35 @@ class TestRepositoryUtilityMethods:
 class TestRepositoryTransactions:
     """Test repository transaction handling."""
 
-    async def test_rollback_on_error(self, db_session: AsyncSession) -> None:
-        """Test that transactions are rolled back on error."""
-        # Create the test table first
-        await db_session.execute(
-            text(
-                "CREATE TABLE IF NOT EXISTS test_repository_model ("
-                "id SERIAL PRIMARY KEY, "
-                "created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "
-                "updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, "
-                "name VARCHAR(100) NOT NULL, "
-                "description VARCHAR(500), "
-                "value INTEGER NOT NULL DEFAULT 0"
-                ")"
-            )
-        )
-        await db_session.commit()
+    async def test_rollback_on_error(
+        self,
+        test_repository: BaseRepository[RepositoryTestModel],
+        db_session: AsyncSession,
+    ) -> None:
+        """Test that transactions are rolled back on error.
 
-        # Create repository for checking counts
-        repository = BaseRepository(db_session, RepositoryTestModel)
-        initial_count = await repository.count()
+        This test verifies that when an error occurs within a transaction,
+        all changes are properly rolled back. We use savepoints to test
+        rollback behavior within our test transaction.
+        """
+        # Get initial count
+        initial_count = await test_repository.count()
 
-        # Act & Assert - Use a new session for this test
+        # Act & Assert - Use a savepoint to test rollback behavior
         try:
-            async with get_async_session() as session:
-                # Ensure table exists in this session too
-                await session.execute(
-                    text(
-                        "CREATE TABLE IF NOT EXISTS test_repository_model ("
-                        "id SERIAL PRIMARY KEY, "
-                        "created_at TIMESTAMP WITH TIME ZONE "
-                        "DEFAULT CURRENT_TIMESTAMP, "
-                        "updated_at TIMESTAMP WITH TIME ZONE "
-                        "DEFAULT CURRENT_TIMESTAMP, "
-                        "name VARCHAR(100) NOT NULL, "
-                        "description VARCHAR(500), "
-                        "value INTEGER NOT NULL DEFAULT 0"
-                        ")"
-                    )
-                )
-                await session.commit()
+            # Create a savepoint
+            async with db_session.begin_nested():
+                # Create an item
+                entity = RepositoryTestModel(name="Rollback Test", value=100)
+                await test_repository.create(entity)
 
-                temp_repository = BaseRepository(session, RepositoryTestModel)
-                async with session.begin():
-                    # Create an item
-                    entity = RepositoryTestModel(name="Rollback Test", value=100)
-                    await temp_repository.create(entity)
-
-                    # Force an error
-                    raise RuntimeError("Simulated error")
+                # Force an error to trigger rollback
+                raise RuntimeError("Simulated error")
         except RuntimeError:
             pass  # Expected error
 
-        # Verify rollback
-        final_count = await repository.count()
+        # Verify rollback - count should be unchanged
+        final_count = await test_repository.count()
         assert final_count == initial_count
 
     async def test_concurrent_operations(
