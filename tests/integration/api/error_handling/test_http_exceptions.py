@@ -1,8 +1,7 @@
 """Integration tests for HTTP exception handling."""
 
 import pytest
-from fastapi import FastAPI, HTTPException, status
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from src.core.exceptions import ErrorCode
 
@@ -11,9 +10,9 @@ from src.core.exceptions import ErrorCode
 class TestHTTPException:
     """Test handling of Starlette HTTPException."""
 
-    def test_http_exception(self, client: TestClient) -> None:
+    async def test_http_exception(self, async_client: AsyncClient) -> None:
         """Test HTTPException is converted to our error format."""
-        response = client.get("/test/http-exception")
+        response = await async_client.get("/test/http-exception")
 
         assert response.status_code == 403
 
@@ -24,17 +23,9 @@ class TestHTTPException:
         assert "timestamp" in data
         assert "service_info" in data
 
-    def test_http_400_bad_request(self, app_with_handlers: FastAPI) -> None:
+    async def test_http_400_bad_request(self, async_client: AsyncClient) -> None:
         """Test HTTPException with 400 status maps to VALIDATION_ERROR."""
-
-        @app_with_handlers.get("/test/http-400")
-        async def raise_http_400() -> None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="Bad request data"
-            )
-
-        client = TestClient(app_with_handlers)
-        response = client.get("/test/http-400")
+        response = await async_client.get("/test/http-400")
 
         assert response.status_code == 400
 
@@ -43,18 +34,9 @@ class TestHTTPException:
         assert data["message"] == "Bad request data"
         assert data["severity"] == "LOW"
 
-    def test_http_401_unauthorized(self, app_with_handlers: FastAPI) -> None:
+    async def test_http_401_unauthorized(self, async_client: AsyncClient) -> None:
         """Test HTTPException with 401 status maps to UNAUTHORIZED."""
-
-        @app_with_handlers.get("/test/http-401")
-        async def raise_http_401() -> None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Authentication required",
-            )
-
-        client = TestClient(app_with_handlers)
-        response = client.get("/test/http-401")
+        response = await async_client.get("/test/http-401")
 
         assert response.status_code == 401
 
@@ -63,17 +45,9 @@ class TestHTTPException:
         assert data["message"] == "Authentication required"
         assert data["severity"] == "HIGH"
 
-    def test_http_404_not_found(self, app_with_handlers: FastAPI) -> None:
+    async def test_http_404_not_found(self, async_client: AsyncClient) -> None:
         """Test HTTPException with 404 status maps to NOT_FOUND."""
-
-        @app_with_handlers.get("/test/http-404")
-        async def raise_http_404() -> None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Resource not found"
-            )
-
-        client = TestClient(app_with_handlers)
-        response = client.get("/test/http-404")
+        response = await async_client.get("/test/http-404")
 
         assert response.status_code == 404
 
@@ -82,18 +56,9 @@ class TestHTTPException:
         assert data["message"] == "Resource not found"
         assert data["severity"] == "LOW"
 
-    def test_http_500_server_error(self, app_with_handlers: FastAPI) -> None:
+    async def test_http_500_server_error(self, async_client: AsyncClient) -> None:
         """Test HTTPException with 500+ status has HIGH severity."""
-
-        @app_with_handlers.get("/test/http-500")
-        async def raise_http_500() -> None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Server error occurred",
-            )
-
-        client = TestClient(app_with_handlers)
-        response = client.get("/test/http-500")
+        response = await async_client.get("/test/http-500")
 
         assert response.status_code == 500
 
@@ -102,18 +67,11 @@ class TestHTTPException:
         assert data["message"] == "Server error occurred"
         assert data["severity"] == "HIGH"
 
-    def test_http_503_service_unavailable(self, app_with_handlers: FastAPI) -> None:
+    async def test_http_503_service_unavailable(
+        self, async_client: AsyncClient
+    ) -> None:
         """Test HTTPException with 503 status (5xx) has HIGH severity."""
-
-        @app_with_handlers.get("/test/http-503")
-        async def raise_http_503() -> None:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Service temporarily unavailable",
-            )
-
-        client = TestClient(app_with_handlers)
-        response = client.get("/test/http-503")
+        response = await async_client.get("/test/http-503")
 
         assert response.status_code == 503
 

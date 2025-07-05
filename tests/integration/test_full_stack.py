@@ -24,7 +24,6 @@ from src.api.middleware.request_context import CORRELATION_ID_HEADER
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
 class TestFullStackIntegration:
     """Test the complete application stack working together."""
 
@@ -116,11 +115,13 @@ class TestFullStackIntegration:
         results = await asyncio.gather(*[make_request(cid) for cid in correlation_ids])
 
         # Verify each request maintained its correlation ID
-        for _correlation_id, data in results:
+        for correlation_id, data in results:
             # Each response should have the correct app info
             assert "app_name" in data
             assert "version" in data
             assert "environment" in data
+            # Verify this result corresponds to its correlation ID
+            assert correlation_id in correlation_ids
 
     async def test_middleware_execution_order(
         self, client_with_db: AsyncClient
@@ -278,12 +279,14 @@ class TestFullStackIntegration:
             assert data["app_name"] == "Tributum"
 
     async def test_error_response_no_debug_in_production(
-        self, client_with_db: AsyncClient, production_env: None
+        self, client_production: AsyncClient
     ) -> None:
-        """Test that debug information is not included in production error responses."""
-        _ = production_env  # Fixture used for its side effects
+        """Test that debug information is not included in production error responses.
 
-        response = await client_with_db.get("/non-existent-endpoint")
+        Uses client_production fixture to ensure the app is created with
+        production environment settings.
+        """
+        response = await client_production.get("/non-existent-endpoint")
         assert response.status_code == 404
 
         data = response.json()

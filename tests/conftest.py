@@ -28,27 +28,51 @@ from tests.fixtures.test_docker_fixtures import ensure_postgres_container
 
 # Import environment fixtures to make them available to all tests
 from tests.fixtures.test_env_fixtures import (
+    aws_formatter_env,
+    console_exporter_env,
+    console_formatter_env,
     custom_app_env,
+    custom_logging_env,
+    debug_disabled_env,
     development_env,
+    dynamic_config_env,
+    empty_docs_env,
+    gcp_exporter_env,
+    high_sampling_env,
+    json_formatter_env,
+    low_sampling_env,
     no_docs_env,
+    otlp_exporter_env,
     production_env,
     staging_env,
 )
 
 # Re-export fixtures for pytest discovery
 __all__ = [
+    "aws_formatter_env",
     "clean_request_context",
     "clear_settings_cache",
     "client",
     "client_with_db",
+    "console_exporter_env",
+    "console_formatter_env",
     "custom_app_env",
+    "custom_logging_env",
     "database_url",
     "database_url_base",
     "db_engine",
     "db_session",
+    "debug_disabled_env",
     "development_env",
+    "dynamic_config_env",
+    "empty_docs_env",
     "ensure_postgres_container",
+    "gcp_exporter_env",
+    "high_sampling_env",
+    "json_formatter_env",
+    "low_sampling_env",
     "no_docs_env",
+    "otlp_exporter_env",
     "production_env",
     "setup_worker_database",
     "staging_env",
@@ -102,16 +126,18 @@ def reset_logging_and_tracing_state() -> Generator[None]:
     tests run in certain orders
     - OpenTelemetry warnings about "Overriding of current TracerProvider"
     - "Attempting to instrument while already instrumented" errors
+    - Log output leaking to stdout during tests
     """
-    # Reset logging state before test
-    _state.configured = False
-
     # Remove all existing logger handlers to ensure clean state
     logger.remove()
 
     # Clear the settings cache to ensure fresh settings for each test
     # This is crucial because settings determine which formatter is used
     get_settings.cache_clear()
+
+    # CRITICAL: Keep logging marked as configured during tests
+    # This prevents app creation from calling setup_logging() and adding stdout handlers
+    _state.configured = True
 
     # Uninstrument OpenTelemetry to prevent "already instrumented" warnings
     try:
@@ -130,8 +156,8 @@ def reset_logging_and_tracing_state() -> Generator[None]:
 
     yield
 
-    # Reset logging state after test
-    _state.configured = False
+    # Keep logging state as configured to prevent re-initialization
+    _state.configured = True
 
     # Remove all handlers again to ensure clean state for next test
     logger.remove()

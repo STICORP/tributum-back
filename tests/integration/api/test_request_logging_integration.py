@@ -3,18 +3,19 @@
 import time
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 
-from src.api.main import app
 from src.api.middleware.request_context import CORRELATION_ID_HEADER
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
-async def test_request_logging_middleware_integration() -> None:
-    """Test that RequestLoggingMiddleware works with other middleware."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+class TestRequestLoggingIntegration:
+    """Test RequestLoggingMiddleware integration with other middleware."""
+
+    async def test_request_logging_middleware_integration(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that RequestLoggingMiddleware works with other middleware."""
         response = await client.get("/")
 
         assert response.status_code == 200
@@ -29,13 +30,10 @@ async def test_request_logging_middleware_integration() -> None:
         assert len(request_id) == 36
         assert request_id.count("-") == 4
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_request_id_generation_and_preservation() -> None:
-    """Test that request IDs are generated or preserved correctly."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async def test_request_id_generation_and_preservation(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that request IDs are generated or preserved correctly."""
         # Test 1: No request ID provided - should generate one
         response1 = await client.get("/")
         assert "X-Request-ID" in response1.headers
@@ -54,17 +52,14 @@ async def test_request_id_generation_and_preservation() -> None:
         assert CORRELATION_ID_HEADER in response1.headers
         assert CORRELATION_ID_HEADER in response2.headers
 
+    async def test_health_endpoint_with_request_logging(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that health endpoint works with request logging.
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_health_endpoint_with_request_logging() -> None:
-    """Test that health endpoint works with request logging.
-
-    The health endpoint should still get request IDs even though
-    it's excluded from logging.
-    """
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        The health endpoint should still get request IDs even though
+        it's excluded from logging.
+        """
         response = await client.get("/health")
 
         assert response.status_code == 200
@@ -81,13 +76,10 @@ async def test_health_endpoint_with_request_logging() -> None:
         assert "status" in data
         assert "database" in data
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_error_handling_with_request_logging() -> None:
-    """Test that errors are handled correctly with request logging active."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async def test_error_handling_with_request_logging(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that errors are handled correctly with request logging active."""
         # Request non-existent endpoint
         response = await client.get("/this-does-not-exist")
 
@@ -106,13 +98,10 @@ async def test_error_handling_with_request_logging() -> None:
         # The correlation ID in the error should match the header
         assert error_data["correlation_id"] == response.headers[CORRELATION_ID_HEADER]
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_request_id_differs_from_correlation_id() -> None:
-    """Test that request IDs and correlation IDs are different."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async def test_request_id_differs_from_correlation_id(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that request IDs and correlation IDs are different."""
         response = await client.get("/")
 
         request_id = response.headers["X-Request-ID"]
@@ -144,14 +133,12 @@ async def test_request_id_differs_from_correlation_id() -> None:
         correlation_ids = [r["correlation_id"] for r in responses]
         assert len(set(correlation_ids)) == 3
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_multiple_endpoints_with_request_logging() -> None:
-    """Test multiple endpoints all work with request logging."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Test different endpoints (excluding /health which is excluded from logging)
+    async def test_multiple_endpoints_with_request_logging(
+        self, client: AsyncClient
+    ) -> None:
+        """Test multiple endpoints all work with request logging."""
+        # Test different endpoints
+        # (excluding /health which is excluded from logging)
         endpoints_with_logging = ["/", "/info"]
 
         for endpoint in endpoints_with_logging:
@@ -176,16 +163,11 @@ async def test_multiple_endpoints_with_request_logging() -> None:
         assert CORRELATION_ID_HEADER in health_response.headers
         assert "X-Request-ID" not in health_response.headers  # Excluded from logging
 
+    async def test_request_logging_performance(self, client: AsyncClient) -> None:
+        """Test that request logging doesn't significantly impact performance.
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_request_logging_performance() -> None:
-    """Test that request logging doesn't significantly impact performance.
-
-    This is a basic test to ensure middleware doesn't cause timeouts.
-    """
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        This is a basic test to ensure middleware doesn't cause timeouts.
+        """
         # Send multiple rapid requests
         start_time = time.time()
 
@@ -206,13 +188,8 @@ async def test_request_logging_performance() -> None:
         # Should complete reasonably quickly (10 requests in under 2 seconds)
         assert total_time < 2.0, f"Requests took too long: {total_time:.2f}s"
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_request_id_format_validation() -> None:
-    """Test various request ID formats are handled correctly."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async def test_request_id_format_validation(self, client: AsyncClient) -> None:
+        """Test various request ID formats are handled correctly."""
         # Test various request ID formats
         test_cases = [
             # (input_id, should_preserve)

@@ -1,18 +1,17 @@
 """Integration tests for middleware execution order and behavior."""
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 
-from src.api.main import app
 from src.api.middleware.request_context import CORRELATION_ID_HEADER
 
 
 @pytest.mark.integration
-@pytest.mark.asyncio
-async def test_all_middleware_active() -> None:
-    """Test that all middleware are active and working together."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+class TestMiddlewareIntegration:
+    """Test middleware execution order and behavior."""
+
+    async def test_all_middleware_active(self, client: AsyncClient) -> None:
+        """Test that all middleware are active and working together."""
         response = await client.get("/")
 
         # Check that security headers are present (from SecurityHeadersMiddleware)
@@ -34,18 +33,14 @@ async def test_all_middleware_active() -> None:
         assert response.status_code == 200
         assert response.json() == {"message": "Hello from Tributum!"}
 
+    async def test_middleware_execution_order(self, client: AsyncClient) -> None:
+        """Test that middleware execute in the correct order.
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_middleware_execution_order() -> None:
-    """Test that middleware execute in the correct order.
-
-    The expected order is:
-    1. SecurityHeadersMiddleware (first to process request, last to process response)
-    2. RequestContextMiddleware (creates or preserves correlation ID)
-    """
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        The expected order is:
+        1. SecurityHeadersMiddleware (first to process request,
+           last to process response)
+        2. RequestContextMiddleware (creates or preserves correlation ID)
+        """
         # Test 1: Send request without correlation ID - should generate one
         response1 = await client.get("/")
         assert CORRELATION_ID_HEADER in response1.headers
@@ -69,13 +64,8 @@ async def test_middleware_execution_order() -> None:
             assert "X-Frame-Options" in response.headers
             assert "X-XSS-Protection" in response.headers
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_middleware_error_handling() -> None:
-    """Test that middleware work correctly even when errors occur."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async def test_middleware_error_handling(self, client: AsyncClient) -> None:
+        """Test that middleware work correctly even when errors occur."""
         # Request a non-existent endpoint
         response = await client.get("/nonexistent")
 
@@ -91,13 +81,10 @@ async def test_middleware_error_handling() -> None:
         assert CORRELATION_ID_HEADER in response.headers
         assert len(response.headers[CORRELATION_ID_HEADER]) == 36
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_multiple_requests_different_correlation_ids() -> None:
-    """Test that each request gets a unique correlation ID."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async def test_multiple_requests_different_correlation_ids(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that each request gets a unique correlation ID."""
         # Send multiple requests
         responses = []
         for _ in range(5):
@@ -116,13 +103,13 @@ async def test_multiple_requests_different_correlation_ids() -> None:
             assert "X-Frame-Options" in response.headers
             assert "X-XSS-Protection" in response.headers
 
+    async def test_health_endpoint_with_middleware(self, client: AsyncClient) -> None:
+        """Test that the health endpoint works with all middleware.
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_health_endpoint_with_middleware() -> None:
-    """Test that the health endpoint works with all middleware."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        Note: This test uses the standard client fixture which connects to the
+        real database configuration, allowing us to test actual database
+        connectivity as the health endpoint would experience in production.
+        """
         response = await client.get("/health")
 
         assert response.status_code == 200
@@ -133,15 +120,11 @@ async def test_health_endpoint_with_middleware() -> None:
         # All middleware should be active
         assert "X-Content-Type-Options" in response.headers
         assert CORRELATION_ID_HEADER in response.headers
-        # Note: X-Request-ID is not present for /health as it's excluded from logging
+        # Note: X-Request-ID is not present for /health
+        # as it's excluded from logging
 
-
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_info_endpoint_with_middleware() -> None:
-    """Test that the info endpoint works with all middleware."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
+    async def test_info_endpoint_with_middleware(self, client: AsyncClient) -> None:
+        """Test that the info endpoint works with all middleware."""
         response = await client.get("/info")
 
         assert response.status_code == 200

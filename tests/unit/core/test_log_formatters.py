@@ -12,9 +12,13 @@ from pytest_mock import MockerFixture
 
 from src.core.config import LogConfig, Settings
 from src.core.logging import (
+    CORRELATION_ID_DISPLAY_LENGTH,
     LOG_FORMATTERS,
+    _format_context_fields,
+    _format_priority_field,
     _state,
     detect_environment,
+    format_console_with_context,
     serialize_for_aws,
     serialize_for_gcp,
     serialize_for_json,
@@ -528,3 +532,112 @@ class TestCloudAgnostic:
         assert output_value
         parsed = json.loads(output_value.strip())
         assert parsed["message"] == "Test message"
+
+
+@pytest.mark.unit
+class TestConsoleFormatterEdgeCases:
+    """Test console formatter edge cases to achieve 100% coverage."""
+
+    def test_console_formatter_long_correlation_id(self) -> None:
+        """Test console formatter truncates long correlation IDs."""
+        # Create a correlation ID longer than display length (8 chars)
+        long_correlation_id = "this-is-a-very-long-correlation-id-12345"
+
+        # Format the field
+        result = _format_priority_field("correlation_id", long_correlation_id)
+
+        # Should be truncated to CORRELATION_ID_DISPLAY_LENGTH
+        assert result == long_correlation_id[:CORRELATION_ID_DISPLAY_LENGTH]
+        assert result is not None
+        assert len(result) == CORRELATION_ID_DISPLAY_LENGTH
+
+    def test_console_formatter_duration_ms(self) -> None:
+        """Test console formatter adds 'ms' suffix to duration_ms field."""
+        # Test with numeric duration
+        result = _format_priority_field("duration_ms", 123.45)
+        assert result == "123.45ms"
+
+        # Test with string duration
+        result = _format_priority_field("duration_ms", "456")
+        assert result == "456ms"
+
+    def test_console_formatter_status_code_4xx(self) -> None:
+        """Test console formatter colors 4xx status codes red."""
+        # Test various 4xx codes
+        for code in [400, 401, 403, 404, 422, 429]:
+            result = _format_priority_field("status_code", code)
+            assert result == f"<red>{code}</red>"
+
+        # Also test string versions
+        result = _format_priority_field("status_code", "404")
+        assert result == "<red>404</red>"
+
+    def test_console_formatter_with_all_priority_fields(self) -> None:
+        """Test console formatter with all priority fields."""
+        # Create extra data with all priority fields
+        extra = {
+            "correlation_id": "test-correlation-id-longer-than-8-chars",
+            "request_id": "req-123",
+            "user_id": 456,
+            "method": "GET",
+            "path": "/api/test",
+            "status_code": 404,
+            "duration_ms": 150.5,
+            "custom_field": "custom_value",
+        }
+
+        # Format context fields
+        context_parts = _format_context_fields(extra)
+
+        # Should have formatted all fields
+        assert len(context_parts) > 0
+
+        # Check specific formatting
+        assert any("test-cor" in part for part in context_parts)  # Truncated to 8 chars
+        assert any("<yellow>req-123</yellow>" in part for part in context_parts)
+        assert any("456" in part for part in context_parts)  # user_id as dim
+        assert any("<yellow>GET</yellow>" in part for part in context_parts)
+        assert any("<yellow>/api/test</yellow>" in part for part in context_parts)
+        assert any("<yellow><red>404</red></yellow>" in part for part in context_parts)
+        assert any("<yellow>150.5ms</yellow>" in part for part in context_parts)
+        assert any("custom_field=custom_value" in part for part in context_parts)
+
+    def test_console_formatter_with_exception(self) -> None:
+        """Test console formatter includes exception formatting."""
+
+        # Create a mock record with exception
+        class MockLevel:
+            name = "ERROR"
+
+        class MockFile:
+            path = "test.py"
+
+        class MockTime:
+            def strftime(self, fmt: str) -> str:
+                _ = fmt  # Mark as used
+                return "2024-01-01 12:00:00.000"
+
+        class MockException:
+            type = ValueError
+            value = ValueError("Test error")
+            traceback = "Traceback details here"
+
+        mock_record = {
+            "time": MockTime(),
+            "level": MockLevel(),
+            "message": "Error occurred",
+            "name": "test",
+            "function": "test_func",
+            "module": "test_module",
+            "line": 42,
+            "file": MockFile(),
+            "extra": {},
+            "exception": MockException(),
+        }
+
+        # Format the record
+        result = format_console_with_context(mock_record)
+
+        # Should include exception placeholder
+        assert "{exception}" in result
+        assert "Error occurred" in result

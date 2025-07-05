@@ -1,20 +1,19 @@
 """Integration tests for TributumError handling."""
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from src.core.config import get_settings
-from src.core.exceptions import ErrorCode, Severity, ValidationError
+from src.core.exceptions import ErrorCode, Severity
 
 
 @pytest.mark.integration
 class TestTributumErrorHandling:
     """Test handling of TributumError and its subclasses."""
 
-    def test_validation_error(self, client: TestClient) -> None:
+    async def test_validation_error(self, async_client: AsyncClient) -> None:
         """Test ValidationError returns 400 with proper format."""
-        response = client.get("/test/validation-error")
+        response = await async_client.get("/test/validation-error")
 
         assert response.status_code == 400
 
@@ -30,9 +29,9 @@ class TestTributumErrorHandling:
         assert "timestamp" in data
         assert "service_info" in data
 
-    def test_not_found_error(self, client: TestClient) -> None:
+    async def test_not_found_error(self, async_client: AsyncClient) -> None:
         """Test NotFoundError returns 404 with proper format."""
-        response = client.get("/test/not-found")
+        response = await async_client.get("/test/not-found")
 
         assert response.status_code == 404
 
@@ -42,9 +41,9 @@ class TestTributumErrorHandling:
         assert data["details"]["user_id"] == 123
         assert data["severity"] == Severity.LOW.value
 
-    def test_unauthorized_error(self, client: TestClient) -> None:
+    async def test_unauthorized_error(self, async_client: AsyncClient) -> None:
         """Test UnauthorizedError returns 401 with proper format."""
-        response = client.get("/test/unauthorized")
+        response = await async_client.get("/test/unauthorized")
 
         assert response.status_code == 401
 
@@ -53,9 +52,9 @@ class TestTributumErrorHandling:
         assert data["message"] == "Invalid API key"
         assert data["severity"] == Severity.HIGH.value
 
-    def test_business_rule_error(self, client: TestClient) -> None:
+    async def test_business_rule_error(self, async_client: AsyncClient) -> None:
         """Test BusinessRuleError returns 422 with proper format."""
-        response = client.get("/test/business-rule")
+        response = await async_client.get("/test/business-rule")
 
         assert response.status_code == 422
 
@@ -71,30 +70,14 @@ class TestTributumErrorHandling:
 class TestTributumErrorWithCause:
     """Test handling of TributumError with a cause."""
 
-    def test_tributum_error_with_cause_in_debug_info(
-        self, app_with_handlers: FastAPI, development_env: None
+    @pytest.mark.usefixtures("development_env")
+    async def test_tributum_error_with_cause_in_debug_info(
+        self, async_client: AsyncClient
     ) -> None:
         """Test that exception cause is included in debug info."""
         # Note: development_env fixture ensures we're in development mode
-        # clear_settings_cache fixture automatically handles cache clearing
-        _ = development_env  # Fixture used for its side effects
-
-        # Add test endpoint that raises an error with a cause
-        @app_with_handlers.get("/test/error-with-cause")
-        async def raise_error_with_cause() -> None:
-            try:
-                # This will raise a ValueError
-                int("not-a-number")
-            except ValueError as e:
-                # Raise a TributumError with the ValueError as cause
-                raise ValidationError(
-                    "Failed to process input",
-                    context={"input": "not-a-number"},
-                    cause=e,  # Pass the cause explicitly to the constructor
-                ) from e
-
-        client = TestClient(app_with_handlers)
-        response = client.get("/test/error-with-cause")
+        # The test endpoint is already defined in conftest.py
+        response = await async_client.get("/test/error-with-cause")
 
         assert response.status_code == 400
 

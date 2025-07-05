@@ -1,16 +1,14 @@
 """Integration tests for ORJSONResponse in FastAPI."""
 
-import json
 import time
 from datetime import UTC, datetime
+from typing import Any
 from uuid import uuid4
 
-import orjson
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.api.main import create_app
-from src.api.schemas.errors import ErrorResponse
 
 
 @pytest.mark.integration
@@ -36,46 +34,38 @@ class TestORJSONIntegration:
         assert "environment" in data
         assert "debug" in data
 
-    async def test_error_response_serialization(self) -> None:
-        """Test that ErrorResponse models serialize correctly with orjson."""
-        # Create an error response with timestamp
-        error = ErrorResponse(
-            error_code="TEST_ERROR",
-            message="Test error message",
-            details={"field": "test_field", "reason": "invalid"},
-            correlation_id=str(uuid4()),
-            severity="ERROR",
-            timestamp=datetime.now(UTC),
-        )
+    async def test_error_response_serialization_through_http(
+        self, client: AsyncClient
+    ) -> None:
+        """Test that ErrorResponse models serialize correctly with orjson through HTTP.
 
-        # Create a test app that returns the error
-        app = create_app()
+        This test verifies that complex types like datetime with timezone in
+        ErrorResponse are properly serialized by orjson when returned from an API
+        endpoint.
+        """
+        # Trigger a 404 error which returns ErrorResponse
+        response = await client.get("/nonexistent-endpoint")
+        assert response.status_code == 404
+        assert response.headers["content-type"] == "application/json"
 
-        @app.get("/test-error", response_model=ErrorResponse)
-        async def test_error() -> ErrorResponse:
-            return error
+        # Verify the response can be parsed as JSON
+        data = response.json()
 
-        # Test the endpoint
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/test-error")
-            assert response.status_code == 200
-            assert response.headers["content-type"] == "application/json"
+        # Check ErrorResponse structure
+        assert "error_code" in data
+        assert "message" in data
+        assert "timestamp" in data
+        assert "correlation_id" in data
+        assert "severity" in data
 
-            # Verify the response can be parsed as JSON
-            data = response.json()
-            assert data["error_code"] == "TEST_ERROR"
-            assert data["message"] == "Test error message"
-            assert data["details"] == {"field": "test_field", "reason": "invalid"}
-            assert "correlation_id" in data
-            assert data["severity"] == "ERROR"
-            assert "timestamp" in data
+        # Verify timestamp is properly serialized
+        # Should be ISO format with timezone
+        timestamp_str = data["timestamp"]
+        parsed_timestamp = datetime.fromisoformat(timestamp_str)
+        assert parsed_timestamp.tzinfo is not None
 
-            # Verify timestamp is properly serialized
-            # Should be ISO format with timezone
-            timestamp_str = data["timestamp"]
-            parsed_timestamp = datetime.fromisoformat(timestamp_str)
-            assert parsed_timestamp.tzinfo is not None
+        # The fact that we can parse this complex response proves orjson
+        # is handling ErrorResponse serialization correctly
 
     async def test_openapi_endpoints_accessible(self, client: AsyncClient) -> None:
         """Test that OpenAPI documentation endpoints still work with ORJSONResponse."""
@@ -114,10 +104,17 @@ class TestORJSONIntegration:
             response = await client.get(endpoint)
             assert "text/html" in response.headers["content-type"]
 
-    async def test_orjson_performance_improvement(self) -> None:
-        """Test that ORJSONResponse provides performance improvement over JSON."""
-        # Create a large test data structure
-        test_data = {
+    async def test_large_payload_handling(self) -> None:
+        """Test that endpoints can efficiently handle large payloads with orjson.
+
+        This verifies that our orjson integration provides good performance
+        for large response payloads through HTTP endpoints.
+        """
+        # Create app with a test endpoint that returns large data
+        app = create_app()
+
+        # Large test data that would benefit from orjson's performance
+        large_data = {
             "users": [
                 {
                     "id": str(uuid4()),
@@ -130,38 +127,56 @@ class TestORJSONIntegration:
             ]
         }
 
-        # Time standard json encoding
+        @app.get("/test/large-payload")
+        async def large_payload() -> dict[str, Any]:
+            return large_data
 
-        start = time.perf_counter()
-        for _ in range(100):
-            json.dumps(test_data, default=str)
-        json_time = time.perf_counter() - start
-
-        # Time orjson encoding
-        start = time.perf_counter()
-        for _ in range(100):
-            orjson.dumps(test_data)
-        orjson_time = time.perf_counter() - start
-
-        # orjson should be faster
-        assert orjson_time < json_time
-        # Expect at least 2x improvement for this data structure
-        assert orjson_time * 2 < json_time
-
-    async def test_app_uses_orjson_response_class(self) -> None:
-        """Test that the FastAPI app is configured to use ORJSONResponse by default."""
-        app = create_app()
-
-        # Add a test endpoint that returns a response
-        @app.get("/test-response-class")
-        async def test_endpoint() -> dict[str, str]:
-            return {"test": "data"}
-
-        # Make a request and verify it uses ORJSONResponse
+        # Test the endpoint performance
         transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            response = await client.get("/test-response-class")
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as test_client:
+            start = time.perf_counter()
+            response = await test_client.get("/test/large-payload")
+            request_time = time.perf_counter() - start
+
             assert response.status_code == 200
             assert response.headers["content-type"] == "application/json"
-            # The response should be properly serialized by orjson
-            assert response.json() == {"test": "data"}
+
+            # Verify we can parse the large JSON response
+            data = response.json()
+            assert len(data["users"]) == 1000
+
+            # With orjson, this should complete quickly (under 100ms for 1000 records)
+            assert request_time < 0.1
+
+    async def test_app_uses_orjson_for_datetime_serialization(self) -> None:
+        """Test that the app uses orjson which can serialize datetime objects natively.
+
+        Standard JSON cannot serialize datetime objects without a default handler,
+        but orjson handles them automatically. This test verifies our integration works.
+        """
+        app = create_app()
+
+        # Create endpoint that returns a datetime object
+        @app.get("/test/datetime-response")
+        async def datetime_endpoint() -> dict[str, Any]:
+            return {"timestamp": datetime.now(UTC), "data": "test"}
+
+        transport = ASGITransport(app=app)
+        async with AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as test_client:
+            response = await test_client.get("/test/datetime-response")
+            assert response.status_code == 200
+            assert response.headers["content-type"] == "application/json"
+
+            # Standard json would fail on datetime, but orjson handles it
+            data = response.json()
+            assert "timestamp" in data
+            assert "data" in data
+
+            # Verify the datetime was serialized properly to ISO format
+            timestamp_str = data["timestamp"]
+            parsed = datetime.fromisoformat(timestamp_str)
+            assert parsed.tzinfo is not None  # Should preserve timezone

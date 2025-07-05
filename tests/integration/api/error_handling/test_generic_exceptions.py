@@ -4,7 +4,7 @@ import json
 
 import pytest
 from fastapi import FastAPI, Request
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from src.api.middleware.error_handler import generic_exception_handler
 from src.core.config import get_settings
@@ -39,7 +39,6 @@ class TestGenericException:
         request = Request(scope)
 
         # Test the handler directly
-
         test_exception = RuntimeError("Something went wrong")
         response = await generic_exception_handler(request, test_exception)
 
@@ -55,12 +54,9 @@ class TestGenericException:
         assert data["details"]["error"] == "Something went wrong"
         assert data["severity"] == "CRITICAL"
 
-    async def test_generic_exception_production(self, production_env: None) -> None:
+    @pytest.mark.usefixtures("production_env")
+    async def test_generic_exception_production(self) -> None:
         """Test generic exception in production hides details."""
-        # Note: production_env fixture sets up production environment
-        # clear_settings_cache fixture automatically handles cache clearing
-        _ = production_env  # Fixture used for its side effects
-
         # Test the handler directly in production mode
 
         # Create a mock request
@@ -98,12 +94,14 @@ class TestGenericException:
 class TestDebugInfoInDevelopment:
     """Test that debug info is included in development mode."""
 
-    def test_tributum_error_includes_debug_info(self, client: TestClient) -> None:
+    async def test_tributum_error_includes_debug_info(
+        self, async_client: AsyncClient
+    ) -> None:
         """Test that TributumError includes debug info in development."""
         # Check current environment
         settings = get_settings()
 
-        response = client.get("/test/validation-error")
+        response = await async_client.get("/test/validation-error")
         data = response.json()
 
         # In development mode, debug_info should be present
@@ -154,7 +152,6 @@ class TestDebugInfoInDevelopment:
         request = Request(scope)
 
         # Test the handler directly
-
         test_exception = RuntimeError("Test error with context")
         response = await generic_exception_handler(request, test_exception)
 
@@ -165,7 +162,6 @@ class TestDebugInfoInDevelopment:
         data = json.loads(body_str)
 
         # Check based on environment
-
         settings = get_settings()
 
         assert "debug_info" in data
@@ -188,12 +184,9 @@ class TestDebugInfoInDevelopment:
             # Should be None in production
             assert data["debug_info"] is None
 
-    async def test_no_debug_info_in_production(self, production_env: None) -> None:
+    @pytest.mark.usefixtures("production_env")
+    async def test_no_debug_info_in_production(self) -> None:
         """Test that debug info is NOT included in production."""
-        # Note: production_env fixture sets up production environment
-        # clear_settings_cache fixture automatically handles cache clearing
-        _ = production_env  # Fixture used for its side effects
-
         # Test the handler directly in production mode
 
         # Create a mock request

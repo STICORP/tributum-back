@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 class TestFixtureIsolation:
     """Test that our integration test fixtures provide proper isolation."""
 
-    @pytest.mark.asyncio
     async def test_db_session_temporary_tables(self, db_session: AsyncSession) -> None:
         """Test using temporary tables for complete isolation."""
         # Create a TEMPORARY table - these are session-specific
@@ -43,7 +42,6 @@ class TestFixtureIsolation:
 
         # Temporary tables are automatically dropped at session end
 
-    @pytest.mark.asyncio
     async def test_client_with_db_isolation(
         self, client_with_db: AsyncClient, db_session: AsyncSession
     ) -> None:
@@ -73,7 +71,6 @@ class TestFixtureIsolation:
         value = result.scalar()
         assert value == "api_test_value"
 
-    @pytest.mark.asyncio
     async def test_multiple_commits_still_rollback(
         self, db_session: AsyncSession
     ) -> None:
@@ -102,7 +99,6 @@ class TestFixtureIsolation:
         count = result.scalar()
         assert count == 3
 
-    @pytest.mark.asyncio
     async def test_async_operations_work_correctly(
         self, db_session: AsyncSession
     ) -> None:
@@ -129,7 +125,6 @@ class TestFixtureIsolation:
         count = result.scalar()
         assert count == 10
 
-    @pytest.mark.asyncio
     async def test_nested_transactions_with_savepoints(
         self, db_session: AsyncSession
     ) -> None:
@@ -186,7 +181,6 @@ class TestFixtureIsolation:
 
         await db_session.commit()
 
-    @pytest.mark.asyncio
     async def test_isolation_with_constraints(self, db_session: AsyncSession) -> None:
         """Test isolation using temporary tables with constraint checking."""
         # Create a temporary table with constraints
@@ -230,7 +224,6 @@ class TestFixtureIsolation:
         count = result.scalar()
         assert count == 2
 
-    @pytest.mark.asyncio
     async def test_transaction_isolation_between_sessions(
         self, db_session: AsyncSession, db_engine: AsyncEngine
     ) -> None:
