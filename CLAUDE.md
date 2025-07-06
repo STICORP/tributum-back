@@ -2,148 +2,131 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Important Directive
-
-- You should **ALWAYS** ignore any markdown file in the project, especially README.md, when you perform any type of code analysis or discovery.
-- You **CANNOT** rely on markdown files because they are absolutely **OUTDATED** and generally just **PLAIN WRONG**.
-- If you read or assimilate any markdown file when coding or performing analysis you will pollute your understanding with **WRONG INFORMATION**.
-
 ## Project Overview
 
-Tributum is a high-performance financial/tax/payment system built with:
-
-- Python 3.13+ with FastAPI 0.115+
-- PostgreSQL with async SQLAlchemy 2.0+
-- Clean Architecture (DDD-ready) with clear separation of concerns
-- 100% test coverage with comprehensive quality checks
+Tributum is a FastAPI-based fiscal intelligence backend using Python 3.13, SQLAlchemy async, PostgreSQL, and UV package manager. The project enforces strict code quality standards with ALL Ruff rules enabled and 100% test coverage requirement.
 
 ## Essential Commands
 
 ### Development
 
 ```bash
-make install        # Install dependencies and pre-commit hooks
-make dev           # Run FastAPI with hot-reload (http://localhost:8000)
-make test-fast     # Run tests in parallel (quick feedback)
-make all-checks    # Run ALL quality checks before committing
+# Install dependencies and setup
+make install
+
+# Run application
+make run          # Production mode
+make dev          # Development with hot-reload
+
+# Run specific test patterns
+uv run pytest tests/unit/api/test_main.py::test_specific_function
+uv run pytest -k "pattern"
 ```
 
-### Testing
+### Code Quality (MUST run before committing)
 
 ```bash
-make test          # Run all tests with coverage
-make test-unit     # Unit tests only
-make test-integration  # Integration tests only
-pytest tests/unit/test_specific.py::test_function  # Run single test
+make all-checks   # Run ALL quality checks
+make all-fixes    # Auto-fix formatting and imports
+make test         # Run all tests with coverage
 ```
 
-### Code Quality (ALL must pass)
+### Database Migrations
 
 ```bash
-make format        # Auto-format code with Ruff
-make lint          # Linting checks
-make type-check    # MyPy strict type checking
-make pyright       # Additional type checking
-make security      # Security scans (bandit, safety, pip-audit, semgrep)
-```
-
-### Database
-
-```bash
-make migrate-create MSG="add_user_table"  # Create migration
-make migrate-up                           # Apply migrations
-make migrate-down                         # Rollback last migration
+make migrate-create MSG="your migration message"  # Create new migration
+make migrate-up                                    # Apply migrations
+make migrate-check                                 # Check for pending model changes
 ```
 
 ### Docker Development
 
 ```bash
-make docker-up-dev    # Start with hot-reload
-make docker-test      # Run tests in Docker
-make docker-migrate   # Run migrations in Docker
+make docker-up-dev     # Start development environment
+make docker-logs       # View logs
+make docker-shell      # Shell into container
+make docker-psql       # Connect to database
 ```
 
-## Architecture
+## Architecture Overview
 
-### Directory Structure
+### Application Structure
 
 ```
-src/
-├── api/           # HTTP endpoints and request/response models
-├── core/          # Shared utilities, exceptions, logging
-├── domain/        # Business entities and rules (DDD preparation)
-└── infrastructure/# Database, external services, implementations
+main.py                    → Uvicorn entry point
+src/api/main.py           → FastAPI app factory (create_app())
+src/core/config.py        → Pydantic settings with cloud auto-detection
+src/core/context.py       → Request correlation ID management via contextvars
+src/infrastructure/database/  → Async SQLAlchemy with repository pattern
 ```
 
 ### Request Flow
 
-1. **SecurityHeadersMiddleware** - Adds security headers
-2. **RequestContextMiddleware** - Generates correlation ID
-3. **RequestLoggingMiddleware** - Logs requests/responses
-4. **OpenTelemetry** - Distributed tracing
-5. **FastAPI Router** → **Service** → **Repository** → **Database**
+1. Request → Security headers → Correlation ID generation → Request logging
+2. FastAPI route → Dependency injection (DB session) → Repository pattern
+3. Response serialization (orjson) → Error handling → OpenTelemetry tracing
 
 ### Key Patterns
 
-**Dependency Injection**:
+**Repository Pattern**: Generic `BaseRepository[T]` provides type-safe CRUD operations for any SQLAlchemy model.
+**Context Propagation**: Uses Python's `contextvars` to flow correlation IDs through all layers automatically, enabling distributed tracing and log correlation.
+**Middleware Pipeline** (executes in reverse order): - SecurityHeadersMiddleware → RequestContextMiddleware → RequestLoggingMiddleware
+**Configuration**: Environment variables use `__` delimiter for nesting (e.g., `DATABASE_CONFIG__POOL_SIZE=20`).
+**Cloud-Native**: Auto-detects GCP/AWS environments and configures logging/tracing accordingly.
+
+## Testing Patterns
+
+### Test Organization
+
+- Mark tests with `@pytest.mark.unit` or `@pytest.mark.integration`
+- Unit tests mock external dependencies; integration tests use real database
+- Each test worker gets its own database for parallel execution
+
+### Database Test Isolation
 
 ```python
-@router.get("/users/{user_id}")
-async def get_user(
-    user_id: int,
-    service: UserService = Depends(get_user_service)
-):
-    return await service.get_by_id(user_id)
+# Integration tests automatically rollback transactions
+async def test_repository_operation(
+    test_repository: BaseRepository[TestModel],
+    db_session: AsyncSession,
+) -> None:
+    entity = await test_repository.create({"name": "test"})
+    # All changes rolled back after test
 ```
 
-**Repository Pattern**:
+### Common Fixtures
 
-```python
-class UserRepository(BaseRepository[User]):
-    async def get_by_email(self, email: str) -> User | None:
-        # Implementation
-```
+- `client`: Basic test client
+- `client_with_db`: Client with database session injection
+- `db_session`: Transactional session with automatic rollback
 
-**Configuration (Nested with __ delimiter)**:
+## Critical Conventions
 
-```bash
-DATABASE_CONFIG__POOL_SIZE=10
-DATABASE_CONFIG__POOL_TIMEOUT=30
-```
+1. **Type Safety**: All functions must have type hints. Use `Annotated` for FastAPI dependencies.
+2. **Error Handling**: Custom exceptions inherit from `TributumException`. Middleware handles consistent error responses.
+3. **Database Models**: Inherit from `Base` (includes id, created_at, updated_at fields).
+4. **Async Everywhere**: All database operations and I/O must be async.
+5. **Logging**: Use `structlog` via core.logging. Correlation IDs are automatically included.
+6. **No Direct Imports**: Import from package roots (e.g., `from src.core import config`, not `from src.core.config import Settings`).
 
-## Testing Requirements
+## Deployment Notes
 
-- **ALWAYS use pytest-mock**, never unittest.mock
-- Tests must maintain 100% coverage
-- Use async fixtures for database operations
-- Tests run in parallel with worker-specific databases
-- Write unit tests in `tests/unit/` and integration tests in `tests/integration/`
+- Migrations run separately from app startup (prevents race conditions)
+- Use entrypoint.sh for proper container initialization
+- Port 8080 for Cloud Run compatibility
+- Non-root user (`tributum`) in production containers
 
-## Critical Development Rules
+## Common Pitfalls
 
-1. **Never bypass checks**: No `# type: ignore`, `# noqa`, or `# pragma: no cover`
-2. **Read files completely**: Always read entire files under 2000 lines
-3. **Follow existing patterns**: Study similar code before implementing
-4. **Test everything**: Write tests for all new features
-5. **Use structured logging**: Always use correlation IDs
-6. **Handle exceptions properly**: Use the exception hierarchy in `src/core/exceptions.py`
+1. **Settings Cache**: Tests automatically clear settings cache. In app code, use `Settings.clear_cache()` if needed.
+2. **Request Context**: Always available in request handlers. Access via `RequestContext.get()`.
+3. **Database URLs**: Use `postgresql+asyncpg://` for async operations.
+4. **Test Isolation**: Never share state between tests. Fixtures handle cleanup automatically.
+5. **Import Organization**: Let Ruff handle import sorting. Run `make lint-fix` to auto-fix.
 
-## Common Pitfalls to Avoid
+## Performance Considerations
 
-- Don't use synchronous database operations (always `async`)
-- Don't forget to add correlation IDs to log messages
-- Don't skip pre-commit hooks or quality checks
-- Don't add dependencies without updating `pyproject.toml`
-- Don't use print() statements - use structured logging
-- Don't commit secrets or hardcoded values
-
-## Before Committing
-
-Always run `make all-checks` to ensure:
-
-- Code is formatted (Ruff)
-- All linting rules pass
-- Type checking passes (MyPy + Pyright)
-- All tests pass with 100% coverage
-- Security scans pass
-- Pre-commit hooks pass
+- orjson for fast JSON serialization
+- Connection pooling with configurable sizes
+- Slow query detection (configurable threshold)
+- OpenTelemetry sampling for cost control
