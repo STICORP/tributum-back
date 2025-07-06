@@ -37,7 +37,7 @@ REPORT: [Confirm understanding and list which files will be validated]
 - Fully read and understand main.py
 - Fully read and understand /src/core/config.py
 - Fully read and understand /src/api/main.py
-- Fully read and understand /tests/conftest.py
+- Fully read and understand any conftest.py file in the tests/
 ```
 
 REPORT: [Confirm all 6 files were read and provide key insights from each]
