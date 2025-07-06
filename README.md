@@ -27,6 +27,7 @@
 - [🐳 Docker Development](#-docker-development)
 - [🚧 Infrastructure as Code](#-infrastructure-as-code)
 - [🎯 Developer Tools & Automation](#-developer-tools--automation)
+- [🚀 CI/CD Pipeline](#-cicd-pipeline)
 - [📋 Command Reference](#-command-reference)
 - [📝 Version Management](#-version-management)
 - [🎯 Troubleshooting Guide](#-troubleshooting-guide)
@@ -304,13 +305,17 @@ tributum-back/
 
 ### Sensitive Data Handling
 
+The system uses regex pattern matching to detect sensitive fields:
+
 ```python
-# Automatically redacted patterns
-SENSITIVE_PATTERNS = [
-    "password", "token", "secret", "key",
-    "authorization", "x-api-key", "cpf", "cnpj"
-]
+# Automatically redacted patterns include:
+# password, passwd, pwd, secret, token, api_key, apikey
+# auth, authorization, credential, private_key, access_key
+# session, ssn, social_security, pin, cvv, cvc, card_number
+# connection_string, and more (case-insensitive)
 ```
+
+Additional sensitive fields can be configured via `LOG_CONFIG__SENSITIVE_FIELDS`.
 
 ### Security Headers Applied
 
@@ -341,6 +346,35 @@ tests/
 - **Async Support**: Full async/await test support
 - **Mocking**: pytest-mock only (unittest.mock forbidden)
 
+### Database Integration Test Patterns
+
+#### Test Isolation with Savepoints
+
+Integration tests use savepoints for complete isolation:
+
+```python
+# Each test runs in its own transaction
+# Changes are automatically rolled back after test completion
+# Parallel test execution supported with per-worker databases
+```
+
+#### Shared Test Models
+
+The test suite includes shared model patterns in `tests/fixtures/` for:
+
+- Common test data factories
+- Database session management
+- Transaction rollback fixtures
+- Worker-specific database isolation
+
+### Test Anti-Pattern Detection
+
+The project includes tools to detect common test anti-patterns:
+
+- `make mock-check`: Enforces pytest-mock usage over unittest.mock
+- `make markers-check`: Validates test markers (unit/integration) are present
+- Anti-patterns are checked in CI via pre-commit hooks
+
 ### Test Execution
 
 ```bash
@@ -370,8 +404,34 @@ All logs include:
 
 - Correlation ID for request tracking
 - Structured context fields
-- Automatic PII sanitization
+- Automatic PII sanitization with deep nested data support
 - Performance metrics
+- Severity-based intelligent alerting flags
+
+### Enhanced Error Handling with OpenTelemetry
+
+#### Intelligent Alerting System
+
+The system implements severity-based error classification:
+
+- **Expected Errors** (no alerts):
+  - `LOW` severity: Validation errors, not found errors
+  - `MEDIUM` severity: Business rule violations
+- **Unexpected Errors** (trigger alerts):
+  - `HIGH` severity: Authorization failures, system errors
+  - `CRITICAL` severity: System failures requiring immediate attention
+
+#### OpenTelemetry Error Integration
+
+All errors are automatically recorded in distributed traces with:
+
+```python
+# Automatic error attributes in spans
+- error.code: Unique error identifier
+- error.severity: LOW/MEDIUM/HIGH/CRITICAL
+- error.fingerprint: Error grouping identifier
+- error.is_expected: true/false for alert filtering
+```
 
 ### Distributed Tracing
 
@@ -381,6 +441,25 @@ OpenTelemetry integration with:
 - Pluggable exporters (console, GCP, AWS, OTLP)
 - Correlation ID propagation to spans
 - Custom span creation support
+- Error recording with full context in spans
+
+### Security-Focused Error Sanitization
+
+Comprehensive sanitization system that:
+
+- Detects sensitive fields via regex patterns (passwords, tokens, API keys)
+- Recursively sanitizes nested data structures
+- Replaces sensitive values with `[REDACTED]`
+- Hides error details from clients in production
+
+### GCP Error Reporting Integration
+
+When using GCP formatter, errors include:
+
+- Error Reporting metadata for proper grouping
+- Service context with app name and version
+- Report location with file path and line numbers
+- Automatic error fingerprinting for deduplication
 
 ### Metrics Collected
 
@@ -388,6 +467,8 @@ OpenTelemetry integration with:
 - Database query performance
 - Slow request detection
 - System resource usage
+- Error severity distribution
+- Alert trigger rates
 
 ---
 
@@ -481,16 +562,58 @@ The project uses Terraform for infrastructure management with support for multip
 
 The project includes specialized Claude AI commands in `.claude/commands/`:
 
-- **Git & Version Control**: Commit creation, release management
+- **Git & Version Control**: Commit creation, release management, backup operations
 - **Code Quality**: Implementation verification, dependency validation
-- **Testing**: Missing test detection, coverage validation
-- **Project Management**: Task breakdown, project analysis
+- **Testing**: Missing test detection, coverage validation, test refactoring (`refactor-tests`)
+- **Project Management**: Task breakdown, project analysis, review tools
+- **Documentation**: Module docstring updates
 
 ### Automation Scripts
 
 - `check-mock-imports.py`: Enforces pytest-mock usage
 - `check-test-markers.py`: Validates test markers
 - Pre-commit hooks for comprehensive quality checks
+
+---
+
+## 🚀 CI/CD Pipeline
+
+### GitHub Actions Workflow
+
+The project uses GitHub Actions for continuous integration with two main jobs:
+
+#### Code Quality Checks
+
+- **Trigger**: Push/PR to main, master, or develop branches
+- **Python Version**: 3.13
+- **Checks**:
+  - All pre-commit hooks (formatting, linting, type checking)
+  - Security scans (Bandit, pip-audit, Safety, Semgrep)
+  - Code complexity and dead code detection
+  - Docstring validation
+
+#### Test Suite
+
+- **Database**: PostgreSQL 17 via Docker Compose (`docker-compose.test.yml`)
+- **Test Isolation**: Each test worker gets its own database for parallel execution
+- **Coverage**: Enforces 100% code coverage
+- **Parallel Execution**: Tests run with pytest-xdist
+- **Caching**: UV package manager cache for faster builds
+
+### CI Workflow
+
+```mermaid
+graph LR
+    A[Push/PR] --> B[Setup Python 3.13]
+    B --> C[Install Dependencies]
+    C --> D{Two Jobs}
+    D --> E[Code Quality]
+    D --> F[Test Suite]
+    E --> G[Pre-commit Hooks]
+    F --> H[Start PostgreSQL]
+    H --> I[Run Tests]
+    I --> J[Coverage Report]
+```
 
 ---
 
@@ -678,8 +801,8 @@ pre-commit run mypy --all-files
 ---
 
 <!-- README-METADATA
-Last Updated: 2025-07-03T13:32:48Z
-Last Commit: 00f6714
+Last Updated: 2025-07-06T13:56:06Z
+Last Commit: 1fdb28d
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "a1b2c3", "manual": false},
@@ -688,13 +811,14 @@ Sections: {
   "quick-start": {"hash": "j1k2l3", "manual": false},
   "development": {"hash": "m4n5o6", "manual": false},
   "structure": {"hash": "p7q8r9", "manual": false},
-  "security": {"hash": "s1t2u3", "manual": false},
-  "testing": {"hash": "v4w5x6", "manual": false},
-  "monitoring": {"hash": "y7z8a9", "manual": false},
+  "security": {"hash": "cc195f", "manual": false},
+  "testing": {"hash": "baff20", "manual": false},
+  "monitoring": {"hash": "3b7845", "manual": false},
   "configuration": {"hash": "b1c2d3", "manual": false},
   "docker": {"hash": "e4f5g6", "manual": false},
   "infrastructure": {"hash": "h7i8j9", "manual": false},
   "tools": {"hash": "k1l2m3", "manual": false},
+  "cicd": {"hash": "7283c8", "manual": false},
   "commands": {"hash": "n4o5p6", "manual": false},
   "version": {"hash": "q7r8s9", "manual": false},
   "troubleshooting": {"hash": "t1u2v3", "manual": false},

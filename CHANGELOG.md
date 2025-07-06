@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- CI/CD pipeline documentation with GitHub Actions workflow details
 - OpenTelemetry integration in error handlers for distributed tracing and error reporting
 - Error expectedness detection based on severity levels for intelligent alerting
 - Enhanced GCP logging format with Error Reporting integration and service context
@@ -68,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- README documentation with enhanced security patterns, test isolation, error handling, and CI/CD pipeline sections
 - Removed pytest from pre-commit hooks to prevent test execution during commits
 - Enhanced module docstrings across all layers with comprehensive architectural context and implementation details
 - Consolidated module-specific constants directly into their respective modules for better cohesion
