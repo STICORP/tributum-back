@@ -10,6 +10,7 @@ import pytest
 from pytest_mock import MockerFixture, MockType
 
 from src.core.config import Settings, get_settings
+from src.core.context import RequestContext
 
 
 @pytest.fixture
@@ -228,3 +229,17 @@ def thread_sync() -> dict[str, Any]:
         "lock": threading.Lock,
         "create_results": create_results,
     }
+
+
+@pytest.fixture(autouse=True)
+def clean_context() -> Generator[None]:
+    """Clear context before and after each test to ensure isolation.
+
+    This fixture is autouse to ensure all tests start with a clean context
+    and don't interfere with each other.
+    """
+    # Clear context before test
+    RequestContext.clear()
+    yield
+    # Clear context after test
+    RequestContext.clear()
