@@ -325,3 +325,98 @@ def clean_context() -> Generator[None]:
     yield
     # Clear context after test
     RequestContext.clear()
+
+
+@pytest.fixture
+def sample_context_fixture() -> list[dict[str, Any] | None]:
+    """Provide various test contexts for exception testing.
+
+    Returns:
+        list[dict[str, Any] | None]: List of context examples including empty,
+            populated, and None.
+    """
+    return [
+        {},
+        {"key": "value"},
+        {"user_id": 123, "action": "test"},
+        None,
+    ]
+
+
+@pytest.fixture
+def sample_exception_fixture() -> list[Exception]:
+    """Provide different exception instances for testing cause chaining.
+
+    Returns:
+        list[Exception]: Various exception types for testing.
+    """
+    return [
+        ValueError("Test value error"),
+        KeyError("test_key"),
+        RuntimeError("Test runtime error"),
+        ZeroDivisionError("Division by zero"),
+        AttributeError("Test attribute error"),
+    ]
+
+
+@pytest.fixture
+def mock_stack_trace_fixture() -> dict[str, list[str]]:
+    """Provide predictable stack trace examples for testing.
+
+    Returns:
+        dict[str, list[str]]: Dictionary with different stack trace patterns.
+    """
+    return {
+        "normal": [
+            '  File "/app/src/api/routes/user.py", line 45, in get_user\n'
+            "    user = await user_service.get_by_id(user_id)\n",
+            '  File "/app/src/services/user_service.py", line 23, in get_by_id\n'
+            '    raise NotFoundError(f"User {user_id} not found")\n',
+        ],
+        "with_site_packages": [
+            (
+                '  File "/usr/local/lib/python3.13/site-packages/fastapi/'
+                'routing.py", line 273, in app\n'
+            ),
+            "    raw_response = await run_endpoint_function(\n",
+            '  File "/app/src/api/routes/user.py", line 45, in get_user\n'
+            "    user = await user_service.get_by_id(user_id)\n",
+            (
+                '  File "/usr/local/lib/python3.13/site-packages/sqlalchemy/'
+                'async.py", line 123, in execute\n'
+            ),
+            "    return await self._execute()\n",
+            '  File "/app/src/services/user_service.py", line 23, in get_by_id\n'
+            '    raise NotFoundError(f"User {user_id} not found")\n',
+        ],
+        "empty": [],
+        "long": [
+            '  File "/app/src/api/main.py", line 10, in startup\n'
+            "    await initialize_app()\n",
+            '  File "/app/src/core/initialization.py", line 20, in initialize_app\n'
+            "    await setup_database()\n",
+            '  File "/app/src/infrastructure/database.py", line 30, in setup_database\n'
+            "    await check_connection()\n",
+            (
+                '  File "/app/src/infrastructure/connection.py", line 40, '
+                "in check_connection\n"
+            ),
+            "    await ping_database()\n",
+            '  File "/app/src/infrastructure/ping.py", line 50, in ping_database\n'
+            "    await execute_query()\n",
+            '  File "/app/src/infrastructure/query.py", line 60, in execute_query\n'
+            '    raise DatabaseError("Connection failed")\n',
+        ],
+        "no_src": [
+            (
+                '  File "/usr/local/lib/python3.13/asyncio/tasks.py", '
+                "line 123, in create_task\n"
+            ),
+            "    return get_running_loop().create_task(coro)\n",
+            (
+                '  File "/usr/local/lib/python3.13/site-packages/fastapi/'
+                'applications.py", line 456, in __call__\n'
+            ),
+            "    await super().__call__(scope, receive, send)\n",
+        ],
+    }
