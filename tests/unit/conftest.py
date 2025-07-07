@@ -12,6 +12,7 @@ from pytest_mock import MockerFixture, MockType
 from src.core.config import LogConfig, Settings, get_settings
 from src.core.context import RequestContext
 from src.core.error_context import _get_sensitive_fields
+from src.core.logging import _LoggingState, _state
 
 
 @pytest.fixture
@@ -420,3 +421,92 @@ def mock_stack_trace_fixture() -> dict[str, list[str]]:
             "    await super().__call__(scope, receive, send)\n",
         ],
     }
+
+
+# Logging-specific fixtures
+@pytest.fixture
+def mock_loguru_record(mocker: MockerFixture) -> dict[str, Any]:
+    """Provide a mock loguru record with required structure.
+
+    Returns:
+        dict[str, Any]: A complete mock record with all required fields.
+    """
+    mock_time = mocker.Mock()
+    mock_time.strftime.return_value = "2024-01-01 12:00:00.000000"
+    mock_time.isoformat.return_value = "2024-01-01T12:00:00"
+
+    mock_level = mocker.Mock()
+    mock_level.name = "INFO"
+
+    return {
+        "time": mock_time,
+        "level": mock_level,
+        "message": "Test message",
+        "name": "test_module",
+        "function": "test_func",
+        "module": "test_module",
+        "line": 42,
+        "file": mocker.Mock(path="/app/test.py"),
+        "extra": {},
+    }
+
+
+@pytest.fixture
+def isolated_logging_state() -> Generator[_LoggingState]:
+    """Reset the _LoggingState to ensure test isolation.
+
+    This fixture creates a fresh logging state for each test,
+    ensuring no interference between tests.
+
+    Yields:
+        _LoggingState: A fresh logging state instance.
+    """
+    # Save original state
+    original_configured = _state.configured
+
+    # Reset state
+    _state.configured = False
+
+    yield _state
+
+    # Restore original state
+    _state.configured = original_configured
+
+
+@pytest.fixture
+def mock_logger(mocker: MockerFixture) -> MockType:
+    """Mock loguru logger instance with all required methods.
+
+    Returns:
+        MockType: Mock logger with all required methods.
+    """
+    mock_logger = mocker.Mock()
+    mock_logger.remove = mocker.Mock()
+    mock_logger.add = mocker.Mock()
+    mock_logger.configure = mocker.Mock()
+    mock_logger.bind = mocker.Mock(return_value=mock_logger)
+    mock_logger.opt = mocker.Mock(return_value=mock_logger)
+    mock_logger.log = mocker.Mock()
+    mock_logger.info = mocker.Mock()
+    mock_logger.debug = mocker.Mock()
+    mock_logger.warning = mocker.Mock()
+    mock_logger.error = mocker.Mock()
+    mock_logger.critical = mocker.Mock()
+    mock_logger.trace = mocker.Mock()
+
+    return cast("MockType", mock_logger)
+
+
+@pytest.fixture
+def mock_logging_handler(mocker: MockerFixture) -> MockType:
+    """Mock standard library logging handler.
+
+    Returns:
+        MockType: Mock logging handler.
+    """
+    handler = mocker.Mock()
+    handler.emit = mocker.Mock()
+    handler.setLevel = mocker.Mock()
+    handler.addFilter = mocker.Mock()
+
+    return cast("MockType", handler)
