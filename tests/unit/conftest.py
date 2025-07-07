@@ -9,8 +9,9 @@ from typing import Any, cast
 import pytest
 from pytest_mock import MockerFixture, MockType
 
-from src.core.config import Settings, get_settings
+from src.core.config import LogConfig, Settings, get_settings
 from src.core.context import RequestContext
+from src.core.error_context import _get_sensitive_fields
 
 
 @pytest.fixture
@@ -204,6 +205,87 @@ def mock_cloud_env(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         "set_aws": set_aws,
         "set_both": set_both,
         "clear_all": clear_all,
+    }
+
+
+@pytest.fixture
+def mock_get_settings(mocker: MockerFixture) -> MockType:
+    """Mock get_settings function with customizable sensitive_fields.
+
+    This fixture is used for error_context tests to control sensitive field detection.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock get_settings function.
+    """
+    mock_settings = mocker.Mock(spec=Settings)
+    mock_log_config = mocker.Mock(spec=LogConfig)
+    mock_log_config.sensitive_fields = ["custom_secret", "my_password", "api_token"]
+    mock_settings.log_config = mock_log_config
+
+    mock_get_settings_fn = mocker.patch("src.core.error_context.get_settings")
+    mock_get_settings_fn.return_value = mock_settings
+
+    # Clear cache before returning
+    _get_sensitive_fields.cache_clear()
+
+    return mock_get_settings_fn
+
+
+@pytest.fixture
+def sample_sensitive_data() -> dict[str, Any]:
+    """Provide test data structures with sensitive fields for sanitization.
+
+    Returns:
+        dict[str, Any]: Nested data with sensitive fields at various depths.
+    """
+    return {
+        "username": "john_doe",
+        "password": "secret123",
+        "user_data": {
+            "email": "john@example.com",
+            "api_key": "sk-1234567890",
+            "profile": {
+                "name": "John Doe",
+                "secret_token": "bearer-xyz",
+                "preferences": {
+                    "theme": "dark",
+                    "private_key": "rsa_private_key_placeholder",
+                },
+            },
+        },
+        "metadata": {
+            "created_at": "2024-01-01",
+            "session_id": "sess_abc123",
+            "tags": ["user", "premium"],
+            "credentials": {"auth_token": "auth_xyz", "refresh_token": "refresh_abc"},
+        },
+        "items": [
+            {"id": 1, "name": "Item 1", "token": "item_token_1"},
+            {"id": 2, "name": "Item 2", "access_key": "item_key_2"},
+        ],
+        "tuple_data": ("public", "password123", {"secret": "hidden"}),
+    }
+
+
+@pytest.fixture
+def thread_test_context(thread_sync: dict[str, Any]) -> dict[str, Any]:
+    """Extend thread_sync specifically for error_context thread safety tests.
+
+    Provides pre-configured barriers and result collectors for thread safety tests.
+
+    Args:
+        thread_sync: Base thread synchronization fixture.
+
+    Returns:
+        dict[str, Any]: Extended thread test utilities.
+    """
+    return {
+        **thread_sync,
+        "results": thread_sync["create_results"](),
+        "errors": thread_sync["create_results"](),
     }
 
 
