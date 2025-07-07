@@ -112,6 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- CLAUDE.md developer guidance documentation
 - Complex observability infrastructure from initial phase: structured logging (structlog), metrics collection, and advanced error context
 - src/core/error_context.py (complex error context management)
 - Extensive test suites for removed observability features (13,000+ lines of test code)
