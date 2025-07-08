@@ -116,7 +116,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Extract request metadata
         client_ip = self._get_client_ip(request)
         user_agent = self._get_user_agent(request)
-        request_size = int(request.headers.get("content-length", 0))
+        try:
+            request_size = int(request.headers.get("content-length", 0))
+        except (ValueError, TypeError):
+            request_size = 0
 
         # Bind request context for this request
         with logger.contextualize(
@@ -163,7 +166,10 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 # Try to get response size
                 response_size = 0
                 if "content-length" in response.headers:
-                    response_size = int(response.headers["content-length"])
+                    try:
+                        response_size = int(response.headers["content-length"])
+                    except (ValueError, TypeError):
+                        response_size = 0
 
                 # Log completion with metrics
                 logger.info(
@@ -177,7 +183,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 response.headers["X-Request-ID"] = request_id
 
                 # Log slow requests
-                if duration_ms > self.log_config.slow_request_threshold_ms:
+                if duration_ms >= self.log_config.slow_request_threshold_ms:
                     logger.warning(
                         "Slow request detected",
                         duration_ms=round(duration_ms, 2),

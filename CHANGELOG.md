@@ -127,6 +127,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Invalid content-length header parsing in request logging middleware
+- Slow request threshold comparison to use >= instead of > for consistent behavior
 - Test flakiness caused by OpenTelemetry instrumentation state leaking between tests
 - Coverage inconsistencies for console formatter code due to settings cache persistence
 - Database credentials standardized across documentation to match Docker setup (tributum/tributum_pass)
