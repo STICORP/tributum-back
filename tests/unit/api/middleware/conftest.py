@@ -7,7 +7,11 @@ from fastapi import HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from pytest_mock import MockerFixture, MockType
 from starlette.datastructures import URL
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse
 
+from src.api.middleware.request_context import RequestContextMiddleware
 from src.core.config import Settings
 from src.core.exceptions import (
     BusinessRuleError,
@@ -41,6 +45,69 @@ def mock_request(mocker: MockerFixture) -> MockType:
     request.client.port = 50000
 
     return cast("MockType", request)
+
+
+@pytest.fixture
+def mock_starlette_request(mocker: MockerFixture) -> MockType:
+    """Create mock Starlette Request with configurable headers.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock request object.
+    """
+    request = mocker.Mock(spec=StarletteRequest)
+    request.headers = {}
+    return cast("MockType", request)
+
+
+@pytest.fixture
+def mock_starlette_response(mocker: MockerFixture) -> MockType:
+    """Create mock Starlette Response.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock response object.
+    """
+    response = mocker.Mock(spec=StarletteResponse)
+    response.headers = {}
+    return cast("MockType", response)
+
+
+@pytest.fixture
+def mock_starlette_call_next(
+    mocker: MockerFixture, mock_starlette_response: MockType
+) -> MockType:
+    """Create mock RequestResponseEndpoint callable.
+
+    Args:
+        mocker: Pytest mocker fixture.
+        mock_starlette_response: Mock response fixture.
+
+    Returns:
+        MockType: Mock call_next function.
+    """
+    call_next = mocker.AsyncMock(spec=RequestResponseEndpoint)
+    call_next.return_value = mock_starlette_response
+    return cast("MockType", call_next)
+
+
+@pytest.fixture
+def request_context_middleware(mocker: MockerFixture) -> RequestContextMiddleware:
+    """Create RequestContextMiddleware instance.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        RequestContextMiddleware: New middleware instance.
+    """
+    # BaseHTTPMiddleware requires an app parameter
+    mock_app = mocker.Mock()
+    return RequestContextMiddleware(mock_app)
 
 
 @pytest.fixture
