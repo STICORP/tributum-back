@@ -510,3 +510,213 @@ def mock_logging_handler(mocker: MockerFixture) -> MockType:
     handler.addFilter = mocker.Mock()
 
     return cast("MockType", handler)
+
+
+@pytest.fixture
+def mock_span(mocker: MockerFixture) -> MockType:
+    """Create mock ReadableSpan objects with configurable attributes.
+
+    Returns:
+        MockType: Mock span with OpenTelemetry span interface.
+    """
+    # Create mock span context
+    mock_span_context = mocker.Mock()
+    mock_span_context.trace_id = 0x0123456789ABCDEF0123456789ABCDEF
+    mock_span_context.span_id = 0x0123456789ABCDEF
+    mock_span_context.is_valid = True
+    mock_span_context.is_remote = False
+
+    # Create mock status
+    mock_status = mocker.Mock()
+    mock_status.status_code = mocker.Mock()
+    mock_status.status_code.name = "OK"
+
+    # Create mock span
+    span = mocker.Mock()
+    span.name = "test_span"
+    span.get_span_context.return_value = mock_span_context
+    span.start_time = 1000000000  # nanoseconds
+    span.end_time = 2000000000  # nanoseconds (1 second later)
+    span.attributes = {"test_attr": "test_value"}
+    span.status = mock_status
+    span.kind = mocker.Mock()
+    span.kind.name = "INTERNAL"
+    span.is_recording.return_value = True
+    span.set_attribute = mocker.Mock()
+
+    return cast("MockType", span)
+
+
+@pytest.fixture
+def mock_tracer(mocker: MockerFixture, mock_span: MockType) -> MockType:
+    """Create mock Tracer that returns mock spans.
+
+    Returns:
+        MockType: Mock tracer with start_span method.
+    """
+    tracer = mocker.Mock()
+    tracer.start_span.return_value = mock_span
+
+    return cast("MockType", tracer)
+
+
+@pytest.fixture
+def mock_tracer_provider(mocker: MockerFixture) -> MockType:
+    """Create mock TracerProvider.
+
+    Returns:
+        MockType: Mock tracer provider.
+    """
+    provider = mocker.Mock()
+    provider.add_span_processor = mocker.Mock()
+    provider.get_tracer = mocker.Mock()
+
+    return cast("MockType", provider)
+
+
+@pytest.fixture
+def mock_fastapi_app(mocker: MockerFixture) -> MockType:
+    """Create minimal FastAPI app for instrumentation tests.
+
+    Returns:
+        MockType: Mock FastAPI app instance.
+    """
+    app = mocker.Mock()
+    app.title = "Test App"
+    app.version = "1.0.0"
+    app.router = mocker.Mock()
+    app.routes = []
+    app.middleware = []
+    app.exception_handlers = {}
+
+    return cast("MockType", app)
+
+
+@pytest.fixture
+def mock_observability_settings(
+    mocker: MockerFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Settings:
+    """Create Settings with observability config variations.
+
+    Returns:
+        Settings: Settings object with mocked observability config.
+    """
+    # Set minimal required environment variables
+    monkeypatch.setenv("APP_NAME", "TestApp")
+    monkeypatch.setenv("APP_VERSION", "1.0.0")
+    monkeypatch.setenv("ENVIRONMENT", "development")
+
+    # Create real Settings object for type safety
+    settings = Settings()
+
+    # Mock the observability config with defaults that can be overridden
+    mock_obs_config = mocker.Mock()
+    mock_obs_config.enable_tracing = True
+    mock_obs_config.exporter_type = "console"
+    mock_obs_config.exporter_endpoint = None
+    mock_obs_config.gcp_project_id = None
+    mock_obs_config.trace_sample_rate = 1.0
+
+    # Replace the observability_config with our mock
+    settings.observability_config = mock_obs_config
+
+    return settings
+
+
+@pytest.fixture
+def mock_span_context(mocker: MockerFixture) -> MockType:
+    """Create mock SpanContext with trace_id and span_id.
+
+    Returns:
+        MockType: Mock span context.
+    """
+    context = mocker.Mock()
+    context.trace_id = 0x0123456789ABCDEF0123456789ABCDEF
+    context.span_id = 0x0123456789ABCDEF
+    context.is_valid = True
+    context.is_remote = False
+    context.trace_flags = 0x01
+    context.trace_state = None
+
+    return cast("MockType", context)
+
+
+@pytest.fixture
+def mock_asgi_scope() -> dict[str, Any]:
+    """Create realistic ASGI scope dict for request testing.
+
+    Returns:
+        dict[str, Any]: ASGI scope with headers and other request info.
+    """
+    return {
+        "type": "http",
+        "asgi": {
+            "version": "3.0",
+            "spec_version": "2.1",
+        },
+        "http_version": "1.1",
+        "method": "GET",
+        "scheme": "http",
+        "path": "/api/users/123",
+        "query_string": b"",
+        "root_path": "",
+        "headers": [
+            (b"host", b"localhost:8000"),
+            (b"user-agent", b"TestClient/1.0"),
+            (b"accept", b"application/json"),
+            (b"x-request-id", b"req_12345"),
+            (b"x-correlation-id", b"corr_67890"),
+        ],
+        "server": ("127.0.0.1", 8000),
+        "client": ("127.0.0.1", 50000),
+        "state": {},
+    }
+
+
+@pytest.fixture
+def mock_readable_spans(mocker: MockerFixture) -> list[MockType]:
+    """Create a list of mock ReadableSpan objects for testing batches.
+
+    Returns:
+        list[MockType]: List of mock spans with varied attributes.
+    """
+    spans = []
+
+    # Create spans with different characteristics
+    span_configs: list[dict[str, str | int]] = [
+        {"name": "http_request", "duration_ns": 50_000_000},  # 50ms
+        {"name": "db_query", "duration_ns": 100_000_000},  # 100ms
+        {"name": "connect", "duration_ns": 10_000_000},  # 10ms (filtered)
+        {"name": "service_call", "duration_ns": 200_000_000},  # 200ms
+        {"name": "cursor.execute", "duration_ns": 5_000_000},  # 5ms (filtered)
+    ]
+
+    for i, config in enumerate(span_configs):
+        # Create unique span context for each
+        mock_span_context = mocker.Mock()
+        mock_span_context.trace_id = 0x0123456789ABCDEF0123456789ABCDEF + i
+        mock_span_context.span_id = 0x0123456789ABCDEF + i
+
+        # Create mock status
+        mock_status = mocker.Mock()
+        mock_status.status_code = mocker.Mock()
+        mock_status.status_code.name = "OK"
+
+        # Create mock span
+        span = mocker.Mock()
+        span.name = config["name"]
+        span.get_span_context.return_value = mock_span_context
+        span.start_time = 1000000000
+        span.end_time = 1000000000 + int(config["duration_ns"])
+        span.attributes = {
+            "http.method": "GET",
+            "http.url": f"/api/endpoint{i}",
+        }
+        span.status = mock_status
+        span.kind = mocker.Mock()
+        span.kind.name = "SERVER"
+
+        spans.append(span)
+
+    return spans
