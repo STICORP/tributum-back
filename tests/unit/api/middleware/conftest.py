@@ -1,9 +1,10 @@
-"""Fixtures for API middleware error handler tests."""
+"""Fixtures for API middleware tests."""
 
+from collections.abc import Callable
 from typing import Any, cast
 
 import pytest
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from pytest_mock import MockerFixture, MockType
 from starlette.datastructures import URL
@@ -12,7 +13,8 @@ from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response as StarletteResponse
 
 from src.api.middleware.request_context import RequestContextMiddleware
-from src.core.config import Settings
+from src.api.middleware.request_logging import RequestLoggingMiddleware
+from src.core.config import LogConfig, Settings
 from src.core.exceptions import (
     BusinessRuleError,
     ErrorCode,
@@ -429,3 +431,149 @@ def mock_error_handler_dependencies(
     mocks["StatusCode"].ERROR = "ERROR"
 
     return mocks
+
+
+# Request Logging Middleware Fixtures
+
+
+@pytest.fixture
+def mock_request_factory(mocker: MockerFixture) -> Callable[..., MockType]:
+    """Create a factory for mock Request objects with configurable attributes.
+
+    Returns:
+        Callable: Factory function that generates Request mocks.
+    """
+
+    def factory(
+        method: str = "GET",
+        path: str = "/api/test",
+        query: str = "",
+        headers: dict[str, str] | None = None,
+        client_host: str = "127.0.0.1",
+        client_port: int = 50000,
+        query_params: dict[str, str] | None = None,
+    ) -> MockType:
+        """Create a mock request with specified attributes."""
+        request = mocker.Mock(spec=Request)
+        request.method = method
+        request.url = mocker.Mock(spec=URL)
+        request.url.path = path
+        request.url.query = query
+        request.headers = headers or {}
+        request.client = mocker.Mock()
+        request.client.host = client_host
+        request.client.port = client_port
+        request.query_params = query_params or {}
+        return cast("MockType", request)
+
+    return factory
+
+
+@pytest.fixture
+def mock_response_factory(mocker: MockerFixture) -> Callable[..., MockType]:
+    """Create a factory for mock Response objects with configurable attributes.
+
+    Returns:
+        Callable: Factory function that generates Response mocks.
+    """
+
+    def factory(
+        status_code: int = 200,
+        headers: dict[str, str] | None = None,
+    ) -> MockType:
+        """Create a mock response with specified attributes."""
+        response = mocker.Mock(spec=Response)
+        response.status_code = status_code
+        response.headers = headers or {}
+        return cast("MockType", response)
+
+    return factory
+
+
+@pytest.fixture
+def mock_log_config(mocker: MockerFixture) -> MockType:
+    """Create a mock LogConfig object.
+
+    Returns:
+        MockType: Mock LogConfig with default values.
+    """
+    config = mocker.Mock(spec=LogConfig)
+    config.excluded_paths = ["/health", "/metrics"]
+    config.slow_request_threshold_ms = 1000
+    return cast("MockType", config)
+
+
+@pytest.fixture
+def mock_call_next(mocker: MockerFixture) -> MockType:
+    """Create a mock async function that simulates the next middleware.
+
+    Returns:
+        MockType: Async mock that returns a configurable Response.
+    """
+    call_next = mocker.AsyncMock()
+    mock_response = mocker.Mock(spec=Response)
+    mock_response.status_code = 200
+    mock_response.headers = {}
+    call_next.return_value = mock_response
+    return cast("MockType", call_next)
+
+
+@pytest.fixture
+def mock_time(mocker: MockerFixture) -> MockType:
+    """Mock time.perf_counter for controlled timing tests.
+
+    Returns:
+        MockType: Mock with configurable return values for sequential calls.
+    """
+    mock_perf_counter = mocker.patch("time.perf_counter")
+    mock_perf_counter.side_effect = [0.0, 1.0]  # Default: 1 second duration
+    return mock_perf_counter
+
+
+@pytest.fixture
+def mock_asgi_app(mocker: MockerFixture) -> MockType:
+    """Create a mock ASGI app for middleware testing.
+
+    Returns:
+        MockType: Mock ASGI app instance.
+    """
+    return cast("MockType", mocker.Mock())
+
+
+@pytest.fixture
+def mock_get_settings(mocker: MockerFixture, mock_settings: Settings) -> MockType:
+    """Mock get_settings function to return test settings.
+
+    Args:
+        mocker: Pytest mocker fixture.
+        mock_settings: Mock settings fixture.
+
+    Returns:
+        MockType: Mock get_settings function.
+    """
+    return mocker.patch(
+        "src.api.middleware.request_logging.get_settings",
+        return_value=mock_settings,
+    )
+
+
+@pytest.fixture
+def request_logging_middleware(
+    mock_asgi_app: MockType,
+    mock_log_config: MockType,
+    mock_get_settings: MockType,
+) -> RequestLoggingMiddleware:
+    """Create RequestLoggingMiddleware instance with mocked dependencies.
+
+    Args:
+        mock_asgi_app: Mock ASGI app.
+        mock_log_config: Mock log config.
+        mock_get_settings: Mock get_settings function.
+
+    Returns:
+        RequestLoggingMiddleware: Configured middleware instance.
+    """
+    # The middleware will call get_settings internally during initialization,
+    # so we need the mock to be active. We ensure it's used by accessing it.
+    _ = mock_get_settings
+    return RequestLoggingMiddleware(mock_asgi_app, log_config=mock_log_config)
