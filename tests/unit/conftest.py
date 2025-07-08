@@ -2,7 +2,7 @@
 
 import os
 import threading
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
 from typing import Any, cast
 
@@ -720,3 +720,153 @@ def mock_readable_spans(mocker: MockerFixture) -> list[MockType]:
         spans.append(span)
 
     return spans
+
+
+@pytest.fixture
+def mock_database_functions(mocker: MockerFixture) -> dict[str, MockType]:
+    """Mock check_database_connection and close_database functions.
+
+    Returns:
+        dict[str, MockType]: Dictionary with mocked database functions.
+    """
+    return {
+        "check_database_connection": mocker.patch(
+            "src.infrastructure.database.session.check_database_connection",
+            new_callable=mocker.AsyncMock,
+            return_value=(True, None),
+        ),
+        "close_database": mocker.patch(
+            "src.infrastructure.database.session.close_database",
+            new_callable=mocker.AsyncMock,
+        ),
+    }
+
+
+@pytest.fixture
+def mock_setup_functions(mocker: MockerFixture) -> dict[str, MockType]:
+    """Mock setup_logging and setup_tracing functions.
+
+    Returns:
+        dict[str, MockType]: Dictionary with mocked setup functions.
+    """
+    return {
+        "setup_logging": mocker.patch("src.core.logging.setup_logging"),
+        "setup_tracing": mocker.patch("src.core.observability.setup_tracing"),
+    }
+
+
+@pytest.fixture
+def mock_middleware_classes(mocker: MockerFixture) -> dict[str, MockType]:
+    """Mock all middleware classes.
+
+    Returns:
+        dict[str, MockType]: Dictionary with mocked middleware classes.
+    """
+    return {
+        "SecurityHeadersMiddleware": mocker.patch(
+            "src.api.middleware.security_headers.SecurityHeadersMiddleware"
+        ),
+        "RequestContextMiddleware": mocker.patch(
+            "src.api.middleware.request_context.RequestContextMiddleware"
+        ),
+        "RequestLoggingMiddleware": mocker.patch(
+            "src.api.middleware.request_logging.RequestLoggingMiddleware"
+        ),
+    }
+
+
+@pytest.fixture
+def mock_register_exception_handlers(mocker: MockerFixture) -> MockType:
+    """Mock register_exception_handlers function.
+
+    Returns:
+        MockType: Mocked register_exception_handlers function.
+    """
+    return mocker.patch("src.api.middleware.error_handler.register_exception_handlers")
+
+
+@pytest.fixture
+def mock_instrument_app(mocker: MockerFixture) -> MockType:
+    """Mock observability instrumentation function.
+
+    Returns:
+        MockType: Mocked instrument_app function.
+    """
+    return mocker.patch("src.core.observability.instrument_app")
+
+
+@pytest.fixture
+def mock_fastapi_class(mocker: MockerFixture) -> MockType:
+    """Mock FastAPI class constructor to track initialization parameters.
+
+    Returns:
+        MockType: Mocked FastAPI class.
+    """
+    mock_instance = mocker.Mock()
+    mock_instance.add_middleware = mocker.Mock()
+
+    # Type annotation for route decorators
+    def route_decorator(
+        _path: str,
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            return func
+
+        return decorator
+
+    mock_instance.get = mocker.Mock(side_effect=route_decorator)
+    mock_instance.post = mocker.Mock(side_effect=route_decorator)
+    mock_instance.put = mocker.Mock(side_effect=route_decorator)
+    mock_instance.delete = mocker.Mock(side_effect=route_decorator)
+    mock_instance.patch = mocker.Mock(side_effect=route_decorator)
+    mock_instance.routes = []
+    mock_instance.middleware = []
+    mock_instance.exception_handlers = {}
+
+    mock_class = mocker.patch("fastapi.FastAPI", return_value=mock_instance)
+    mock_class.instance = mock_instance  # Store instance for easy access
+
+    return mock_class
+
+
+@pytest.fixture
+def mock_route_decorator() -> dict[str, object]:
+    """Create a mock route decorator that captures registered routes.
+
+    Returns:
+        dict[str, object]: Dictionary with captured routes and decorator function.
+    """
+    captured_routes: dict[str, object] = {}
+
+    def mock_get_decorator(
+        path: str,
+    ) -> Callable[[Callable[..., object]], Callable[..., object]]:
+        def decorator(func: Callable[..., object]) -> Callable[..., object]:
+            captured_routes[path] = func
+            return func
+
+        return decorator
+
+    return {
+        "routes": captured_routes,
+        "decorator": mock_get_decorator,
+    }
+
+
+@pytest.fixture
+def mock_app_with_route_capture(
+    mocker: MockerFixture,
+    mock_route_decorator: dict[str, Any],
+) -> MockType:
+    """Create a mock FastAPI app that captures route registrations.
+
+    Returns:
+        MockType: Mock app with route capturing capability.
+    """
+    mock_app = mocker.Mock()
+    mock_app.add_middleware = mocker.Mock()
+    mock_app.get = mocker.Mock(side_effect=mock_route_decorator["decorator"])
+    # Store reference to captured routes
+    mock_app._captured_routes = mock_route_decorator["routes"]
+
+    return cast("MockType", mock_app)
