@@ -23,6 +23,7 @@ a single engine instance across the application lifecycle, maximizing
 connection pool efficiency.
 """
 
+import threading
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -206,6 +207,7 @@ class _DatabaseManager:
     def __init__(self) -> None:
         self._engine: AsyncEngine | None = None
         self._async_session_factory: async_sessionmaker[AsyncSession] | None = None
+        self._lock = threading.Lock()
 
     def get_engine(self) -> AsyncEngine:
         """Get or create the async engine instance.
@@ -214,7 +216,10 @@ class _DatabaseManager:
             AsyncEngine: The engine instance.
         """
         if self._engine is None:
-            self._engine = create_database_engine()
+            with self._lock:
+                # Double-checked locking pattern
+                if self._engine is None:
+                    self._engine = create_database_engine()
         return self._engine
 
     def get_session_factory(self) -> async_sessionmaker[AsyncSession]:
@@ -224,13 +229,16 @@ class _DatabaseManager:
             async_sessionmaker[AsyncSession]: The session factory.
         """
         if self._async_session_factory is None:
-            engine = self.get_engine()
-            self._async_session_factory = async_sessionmaker(
-                engine,
-                class_=AsyncSession,
-                expire_on_commit=False,  # Don't expire objects after commit
-            )
-            logger.info("Created async session factory")
+            with self._lock:
+                # Double-checked locking pattern
+                if self._async_session_factory is None:
+                    engine = self.get_engine()
+                    self._async_session_factory = async_sessionmaker(
+                        engine,
+                        class_=AsyncSession,
+                        expire_on_commit=False,  # Don't expire objects after commit
+                    )
+                    logger.info("Created async session factory")
         return self._async_session_factory
 
     async def close(self) -> None:
