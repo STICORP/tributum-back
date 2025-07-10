@@ -139,10 +139,17 @@ def _format_extra_field(key: str, value: object) -> str | None:
         str | None: Formatted field or None if formatting fails.
     """
     try:
-        # Limit length of field values to prevent huge logs
+        # Convert value to string
         str_value = str(value)
-        if len(str_value) > MAX_FIELD_VALUE_LENGTH:
+
+        # Check for sensitive fields and redact
+        settings = get_settings()
+        if key in settings.log_config.sensitive_fields:
+            str_value = "[REDACTED]"
+        elif len(str_value) > MAX_FIELD_VALUE_LENGTH:
+            # Limit length of field values to prevent huge logs
             str_value = str_value[: MAX_FIELD_VALUE_LENGTH - 3] + "..."
+
         # Escape braces to prevent format string errors
         str_value = str_value.replace("{", "{{").replace("}", "}}")
         safe_key = str(key).replace("{", "{{").replace("}", "}}")

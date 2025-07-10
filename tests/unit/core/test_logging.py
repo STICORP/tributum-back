@@ -133,6 +133,81 @@ class TestLogging:
         result = _format_extra_field("bad_key", BadObject())
         assert result is None
 
+    @pytest.mark.parametrize(
+        ("key", "value", "sensitive_fields", "expected"),
+        [
+            # Sensitive field redaction
+            ("password", "secret123", ["password"], "password=[REDACTED]"),
+            ("api_key", "abc123", ["api_key"], "api_key=[REDACTED]"),
+            ("token", "xyz789", ["token"], "token=[REDACTED]"),
+            (
+                "authorization",
+                "Bearer xyz",
+                ["authorization"],
+                "authorization=[REDACTED]",
+            ),
+            ("secret", "mysecret", ["secret"], "secret=[REDACTED]"),
+            # Non-sensitive fields
+            ("username", "john", ["password"], "username=john"),
+            ("user_id", 123, ["token"], "user_id=123"),
+            # Case sensitivity - should match exactly
+            ("Password", "secret", ["password"], "Password=secret"),
+            ("API_KEY", "secret", ["api_key"], "API_KEY=secret"),
+            # Mixed sensitive and non-sensitive
+            ("normal_field", "value", ["password", "token"], "normal_field=value"),
+            # Sensitive field with long value - should redact before truncation
+            ("password", "x" * 200, ["password"], "password=[REDACTED]"),
+        ],
+    )
+    def test_format_extra_field_sensitive_redaction(
+        self,
+        mocker: MockerFixture,
+        key: str,
+        value: str | int,
+        sensitive_fields: list[str],
+        expected: str,
+    ) -> None:
+        """Test _format_extra_field redacts sensitive fields correctly."""
+        # Mock get_settings to return our test configuration
+        mock_settings = mocker.Mock()
+        mock_settings.log_config.sensitive_fields = sensitive_fields
+        mocker.patch("src.core.logging.get_settings", return_value=mock_settings)
+
+        result = _format_extra_field(key, value)
+        assert result == expected
+
+    def test_format_extra_field_sensitive_redaction_with_exception(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test sensitive field redaction when get_settings raises exception."""
+        # Mock get_settings to raise ValueError (which is caught by the try/except)
+        mocker.patch(
+            "src.core.logging.get_settings", side_effect=ValueError("Settings error")
+        )
+
+        # Should still work and return None due to exception
+        result = _format_extra_field("password", "secret")
+        assert result is None
+
+    def test_format_extra_field_redaction_preserves_braces_escaping(
+        self,
+        mocker: MockerFixture,
+    ) -> None:
+        """Test that redacted values still escape braces properly."""
+        # Mock get_settings
+        mock_settings = mocker.Mock()
+        mock_settings.log_config.sensitive_fields = ["field_with_braces"]
+        mocker.patch("src.core.logging.get_settings", return_value=mock_settings)
+
+        # Field with braces in name should be escaped
+        result = _format_extra_field("field{with}braces", "secret")
+        assert result == "field{{with}}braces=secret"
+
+        # Sensitive field should be redacted and braces escaped
+        result = _format_extra_field("field_with_braces", "secret{value}")
+        assert result == "field_with_braces=[REDACTED]"
+
     def test_format_timestamp(self, mocker: MockerFixture) -> None:
         """Test timestamp extraction and formatting."""
         # With timestamp
