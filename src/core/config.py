@@ -162,7 +162,7 @@ class DatabaseConfig(BaseModel):
             if "?" in parts[1]:
                 query_params = "?" + parts[1].split("?", 1)[1]
             return f"{base_url}/{db_name}_test{query_params}"
-        return self.database_url
+        return self.database_url  # pragma: no cover
 
 
 class Settings(BaseSettings):

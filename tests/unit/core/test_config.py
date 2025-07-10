@@ -78,31 +78,22 @@ class TestLogConfig:
         config = LogConfig(log_level=log_level_typed)
         assert config.log_level == log_level
 
-    def test_log_level_enum_validation_invalid_trace(self) -> None:
-        """Verify TRACE log level is rejected."""
+    @pytest.mark.parametrize(
+        ("invalid_level", "test_description"),
+        [
+            ("TRACE", "TRACE log level is rejected"),
+            ("info", "log levels are case sensitive"),
+            ("INVALID", "unknown log levels are rejected"),
+            ("", "empty log level is rejected"),
+        ],
+    )
+    def test_log_level_enum_validation_invalid(
+        self, invalid_level: str, test_description: str
+    ) -> None:
+        """Verify invalid log levels are rejected - {test_description}."""
+        _ = test_description  # Used in docstring for test identification
         with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_level": "TRACE"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("log_level",)
-
-    def test_log_level_enum_validation_invalid_case_sensitive(self) -> None:
-        """Verify log levels are case sensitive."""
-        with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_level": "info"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("log_level",)
-
-    def test_log_level_enum_validation_invalid_unknown(self) -> None:
-        """Verify unknown log levels are rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_level": "INVALID"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("log_level",)
-
-    def test_log_level_enum_validation_invalid_empty(self) -> None:
-        """Verify empty log level is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_level": ""})
+            LogConfig.model_validate({"log_level": invalid_level})
         error = exc_info.value.errors()[0]
         assert error["loc"] == ("log_level",)
 
@@ -123,31 +114,22 @@ class TestLogConfig:
         config = LogConfig(log_formatter_type=None)
         assert config.log_formatter_type is None
 
-    def test_formatter_type_enum_validation_invalid_xml(self) -> None:
-        """Verify xml formatter type is rejected."""
+    @pytest.mark.parametrize(
+        ("invalid_formatter", "test_description"),
+        [
+            ("xml", "xml formatter type is rejected"),
+            ("yaml", "yaml formatter type is rejected"),
+            ("CONSOLE", "formatter types are case sensitive"),
+            ("", "empty formatter type is rejected"),
+        ],
+    )
+    def test_formatter_type_enum_validation_invalid(
+        self, invalid_formatter: str, test_description: str
+    ) -> None:
+        """Verify invalid formatter types are rejected - {test_description}."""
+        _ = test_description  # Used in docstring for test identification
         with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_formatter_type": "xml"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("log_formatter_type",)
-
-    def test_formatter_type_enum_validation_invalid_yaml(self) -> None:
-        """Verify yaml formatter type is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_formatter_type": "yaml"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("log_formatter_type",)
-
-    def test_formatter_type_enum_validation_invalid_case_sensitive(self) -> None:
-        """Verify formatter types are case sensitive."""
-        with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_formatter_type": "CONSOLE"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("log_formatter_type",)
-
-    def test_formatter_type_enum_validation_invalid_empty(self) -> None:
-        """Verify empty formatter type is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            LogConfig.model_validate({"log_formatter_type": ""})
+            LogConfig.model_validate({"log_formatter_type": invalid_formatter})
         error = exc_info.value.errors()[0]
         assert error["loc"] == ("log_formatter_type",)
 
@@ -219,31 +201,22 @@ class TestObservabilityConfig:
         config = ObservabilityConfig(exporter_type=exporter_typed)
         assert config.exporter_type == exporter_type
 
-    def test_exporter_type_enum_validation_invalid_jaeger(self) -> None:
-        """Verify jaeger exporter type is rejected."""
+    @pytest.mark.parametrize(
+        ("invalid_exporter", "test_description"),
+        [
+            ("jaeger", "jaeger exporter type is rejected"),
+            ("zipkin", "zipkin exporter type is rejected"),
+            ("CONSOLE", "exporter types are case sensitive"),
+            ("", "empty exporter type is rejected"),
+        ],
+    )
+    def test_exporter_type_enum_validation_invalid(
+        self, invalid_exporter: str, test_description: str
+    ) -> None:
+        """Verify invalid exporter types are rejected - {test_description}."""
+        _ = test_description  # Used in docstring for test identification
         with pytest.raises(ValidationError) as exc_info:
-            ObservabilityConfig.model_validate({"exporter_type": "jaeger"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("exporter_type",)
-
-    def test_exporter_type_enum_validation_invalid_zipkin(self) -> None:
-        """Verify zipkin exporter type is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            ObservabilityConfig.model_validate({"exporter_type": "zipkin"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("exporter_type",)
-
-    def test_exporter_type_enum_validation_invalid_case_sensitive(self) -> None:
-        """Verify exporter types are case sensitive."""
-        with pytest.raises(ValidationError) as exc_info:
-            ObservabilityConfig.model_validate({"exporter_type": "CONSOLE"})
-        error = exc_info.value.errors()[0]
-        assert error["loc"] == ("exporter_type",)
-
-    def test_exporter_type_enum_validation_invalid_empty(self) -> None:
-        """Verify empty exporter type is rejected."""
-        with pytest.raises(ValidationError) as exc_info:
-            ObservabilityConfig.model_validate({"exporter_type": ""})
+            ObservabilityConfig.model_validate({"exporter_type": invalid_exporter})
         error = exc_info.value.errors()[0]
         assert error["loc"] == ("exporter_type",)
 
@@ -362,6 +335,15 @@ class TestDatabaseConfig:
         """Verify test database URL generation."""
         config = DatabaseConfig(database_url=original_url)
         assert config.get_test_database_url() == expected_test_url
+
+    def test_get_test_database_url_with_query_params_custom_db(self) -> None:
+        """Test database URL with query parameters and custom database name."""
+        # This tests line 163 - query parameters extraction for non-standard DB names
+        original_url = "postgresql+asyncpg://user:pass@localhost/customdb?sslmode=require&application_name=myapp"
+        expected_url = "postgresql+asyncpg://user:pass@localhost/customdb_test?sslmode=require&application_name=myapp"
+
+        config = DatabaseConfig(database_url=original_url)
+        assert config.get_test_database_url() == expected_url
 
 
 @pytest.mark.unit

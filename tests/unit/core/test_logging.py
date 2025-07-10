@@ -422,6 +422,46 @@ class TestLogging:
         # Should use depth=1 when _getframe fails
         mock_opt.assert_called_once_with(depth=1, exception=None)
 
+    def test_intercept_handler_frame_traversal_with_none_f_back(
+        self, mocker: MockerFixture
+    ) -> None:
+        """Test InterceptHandler when f_back is None during frame traversal."""
+        # This tests line 300 - the break statement when next_frame is None
+        # Create a frame where f_back is None while still in logging module
+        frame2 = mocker.Mock()
+        frame2.f_code.co_filename = logging.__file__
+        frame2.f_back = None  # This will trigger the break at line 300
+
+        frame1 = mocker.Mock()
+        frame1.f_code.co_filename = logging.__file__
+        frame1.f_back = frame2
+
+        mocker.patch("sys._getframe", return_value=frame1)
+
+        # Mock logger
+        mock_opt = mocker.patch.object(logger, "opt")
+        mock_bind = mocker.Mock()
+        mock_log = mocker.Mock()
+        mock_bind.log = mock_log
+        mock_opt.return_value.bind.return_value = mock_bind
+
+        # Emit log
+        handler = InterceptHandler()
+        record = logging.LogRecord(
+            name="test",
+            level=logging.INFO,
+            pathname="/app/test.py",
+            lineno=10,
+            msg="Test with None f_back",
+            args=(),
+            exc_info=None,
+        )
+
+        handler.emit(record)
+
+        # Should have traversed to depth 7 (6 + 1 before hitting the None)
+        mock_opt.assert_called_once_with(depth=7, exception=None)
+
     def test_intercept_handler_extra_fields(self, mocker: MockerFixture) -> None:
         """Test InterceptHandler with extra fields in LogRecord."""
         # Mock sys._getframe
