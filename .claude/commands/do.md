@@ -1,26 +1,45 @@
 # /do
 
-- Think harder and make a detailed implementation plan for $ARGUMENTS that strictly follows the requirements below
+- You will execute the "Tasks" below IN ORDER. EVERY task is dependent on the successful execution of the previous one
+- You can only begin the next task when you successfully finished ALL the requirements of the previous task
 
-## Pre-Planning Tasks
+## Task 0
 
-- Understand how the requirements in $ARGUMENTS should integrate and properly use the existing codebase
-- You should understand the project patterns used and prioritize proper project patterns over any the example code in $ARGUMENTS
+Execute these analyses in parallel:
 
-## Mandatory Plan Output
+```
+- Fully read and understand pyproject.toml
+- Fully read and understand .pre-commit-config.yaml
+- Fully read and understand .env.example
+- Fully read and understand Makefile
+- Fully read and understand main.py
+```
 
-- Your plan should clearly describe your understanding of the parts of the code needed for successful implementation of $ARGUMENTS
-- Your plan should clearly describe the strategy you will adopt to prioritize existing codebase patterns over code examples in $ARGUMENTS
-- Your plan should clearly describe the strategy you will adopt to properly deal with separation of concerns
-- Your plan should clearly describe the strategy you will adopt to implement proper type hinting and comply with the project strict mypy rules
-- Your plan should clearly describe the strategy you will adopt to discover the proper required types and not use the "Any" type in ANY WAY, as it will be caught by the strict mypy rules
-- Your plan should clearly describe the strategy you will adopt to implement proper code that will comply with the project strict linting rules
-- Your plan should clearly describe the strategy you will adopt to prevent yourself to use noqa and type ignore comments
-- Your plan should clearly describe the strategy you will adopt to avoid the usage of imports inside the code instead of at the top of the file
-- Your plan should clearly describe the strategy you will adopt to make sure to use unittest.mock, we use pytest-mock everywhere in the code
-- Your plan should clearly describe the strategy you will adopt to make sure to properly use test fixtures
-- Your plan should clearly describe the strategy you will adopt to prevent yourself from hallucinating and implementing more than what is described in $ARGUMENTS requirements
+## Task 1
 
-## Plan Validation
+- Investigate src/ directory to understand the project coding patterns that are relevant for the implementation of $ARGUMENTS
+- Output your understanding of the discovered project patterns and how you intend to use them when implementing the code for $ARGUMENTS
+- Output the details on how you are going to use the discovered patterns instead of conflicting code examples found in $ARGUMENTS
 
-- Validate if your output comply with "Mandatory Plan Output"
+## Task 2
+
+- Investigate the tests/unit/ directory to understand the patterns we use when implementing unit tests for our implemented code
+- Output your understanding of the discovered unit testing patterns and how you intend to use them when implementing the unit tests for the implemented $ARGUMENTS code
+
+## Task 3
+
+- Clearly describe your strategy for the separation of concernes of the code that is going to be implemented based on your understanding of the codebase
+- Clearly describe your strategy for properly implementing proper types for type hinting, and prevent "type: ignore" and the usage of the "Any" type, to abide to our strict mypy rules
+- Clearly describe your strategy for understanding and implement code that will perfectly conform to out strict linting rules
+
+## Task 4
+
+- Clearly describe how you will prevent yourself to hallucinate and implement more than what is required by $ARGUMENTS
+
+## Task 5
+
+- Think harder and validate the Tasks 1 through 4, make sure you did not forget anything, is working under false assumptions or wrong information/understanding
+
+## Task 6
+
+- Begin the implementation of $ARGUMENTS making sure you strictly follow everything you output in the previous tasks
