@@ -1,4 +1,4 @@
-# what-to-test
+# t1-what-to-test
 
 You will first execute the "Pre Task" and then the "Main Task", which is dependent of you having completed the "Pre Task".
 After the "Main Task" is completely done, you should execute the "Post Task" based on the "Main Task" output markdown file.
@@ -49,7 +49,7 @@ Then:
 Based on your understanding of $ARGUMENTS, define a reasonable set of unit tests that will completely test all of the intended $ARGUMENTS behavior.
 By "define", you should output IN WORDS, NOT CODE, what the tests should test and if fixtures and mocks are needed, describe them too.
 Each test should follow every best practice outlined in the "Best Practice" section and for eache of them you should plan ahead and output, for each of the tests, how you will implement the best practice.
-Save the output in a markdown file in the .specs/testing-reqs folder with a meningful name based on the codebase structure and following the conventions of other files in .specs/testing-reqs.
+Save the output in a markdown file in the .specs/testing-reqs folder with a meningful name based on the directory structure from the root of the project and the file name ("full-path-and-name-of-the-file.md, e.g. "src-api-error-handler-py.md).
 
 ## Post Task
 
