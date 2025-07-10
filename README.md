@@ -26,6 +26,7 @@
 - [🔧 Configuration Management](#-configuration-management)
 - [🐳 Docker Development](#-docker-development)
 - [🚧 Infrastructure as Code](#-infrastructure-as-code)
+- [📋 Pattern Documentation](#-pattern-documentation)
 - [🎯 Developer Tools & Automation](#-developer-tools--automation)
 - [🚀 CI/CD Pipeline](#-cicd-pipeline)
 - [📋 Command Reference](#-command-reference)
@@ -46,6 +47,7 @@
 - **Type-Safe**: 100% type coverage with MyPy and Pyright in strict mode
 - **Observable**: Comprehensive logging and distributed tracing built-in
 - **Secure by Default**: Multiple security layers and automated scanning
+- **Pattern-Driven**: Consistent code patterns for maintainability
 
 ---
 
@@ -285,6 +287,8 @@ tributum-back/
 │   ├── unit/             # Unit tests
 │   ├── integration/      # Integration tests
 │   └── fixtures/         # Shared fixtures
+├── .specs/               # Development specifications
+│   └── patterns/         # Code and test patterns
 ├── terraform/            # Infrastructure as Code
 ├── docker/               # Docker configuration
 ├── migrations/           # Alembic migrations
@@ -302,10 +306,11 @@ tributum-back/
 3. **Security Headers**: Comprehensive security headers via middleware
 4. **Dependency Scanning**: pip-audit, Safety, and Semgrep
 5. **Code Analysis**: Bandit for security issues
+6. **Credential Protection**: Automatic sensitive field redaction
 
 ### Sensitive Data Handling
 
-The system uses regex pattern matching to detect sensitive fields:
+The system uses advanced regex pattern matching to detect and redact sensitive fields:
 
 ```python
 # Automatically redacted patterns include:
@@ -313,9 +318,11 @@ The system uses regex pattern matching to detect sensitive fields:
 # auth, authorization, credential, private_key, access_key
 # session, ssn, social_security, pin, cvv, cvc, card_number
 # connection_string, and more (case-insensitive)
+
+# Configurable via LOG_CONFIG__SENSITIVE_FIELDS environment variable
 ```
 
-Additional sensitive fields can be configured via `LOG_CONFIG__SENSITIVE_FIELDS`.
+**Deep Nested Sanitization**: The system recursively sanitizes complex data structures, including nested dictionaries, lists, and Pydantic models.
 
 ### Security Headers Applied
 
@@ -333,22 +340,39 @@ Additional sensitive fields can be configured via `LOG_CONFIG__SENSITIVE_FIELDS`
 
 ```
 tests/
-├── unit/           # Fast, isolated tests
-├── integration/    # Component interaction tests
-└── fixtures/       # Shared test fixtures
+├── unit/               # Fast, isolated tests
+│   ├── core/          # Core module tests
+│   ├── api/           # API layer tests
+│   └── infrastructure/ # Infrastructure tests
+├── integration/        # Component interaction tests
+└── fixtures/          # Shared test fixtures
+    ├── conftest.py    # Root fixtures
+    └── database.py    # Database fixtures
 ```
 
 ### Testing Standards
 
-- **100% Coverage**: Required for all code
-- **Parallel Execution**: Tests run with pytest-xdist
+- **100% Coverage**: Required for all code modules
+- **Parallel Execution**: Tests run with pytest-xdist for speed
 - **Isolation**: Each test runs in a transaction that's rolled back
 - **Async Support**: Full async/await test support
 - **Mocking**: pytest-mock only (unittest.mock forbidden)
+- **Thread Safety**: Database manager singleton with thread-safe operations
 
-### Database Integration Test Patterns
+### Enhanced Test Infrastructure
 
-#### Test Isolation with Savepoints
+#### Comprehensive Test Coverage
+
+The project now includes extensive unit tests for:
+
+- **Core Modules**: Logging, observability, types, exceptions, configuration
+- **API Middleware**: Error handling, request logging, security headers, request context
+- **Infrastructure**: Database base models, session management, dependency injection, repositories
+- **Utilities**: ORJSONResponse, response building, API utilities
+
+#### Database Integration Test Patterns
+
+##### Test Isolation with Savepoints
 
 Integration tests use savepoints for complete isolation:
 
@@ -358,14 +382,15 @@ Integration tests use savepoints for complete isolation:
 # Parallel test execution supported with per-worker databases
 ```
 
-#### Shared Test Models
+##### Shared Test Models
 
 The test suite includes shared model patterns in `tests/fixtures/` for:
 
 - Common test data factories
-- Database session management
+- Database session management with thread safety
 - Transaction rollback fixtures
 - Worker-specific database isolation
+- Parametrized test patterns
 
 ### Test Anti-Pattern Detection
 
@@ -398,6 +423,39 @@ make test-coverage
 
 ## 📊 Monitoring & Observability
 
+### Enhanced Observability Features
+
+The system now includes comprehensive observability capabilities:
+
+#### Automatic HTTP Client Instrumentation
+
+- **HTTPX Integration**: Automatic tracing for async HTTP client requests
+- **Requests Integration**: Tracing for sync HTTP client requests
+- **Distributed Context Propagation**: Correlation IDs flow through external API calls
+
+#### Database Pool Monitoring
+
+Health endpoints now expose database pool metrics:
+
+```json
+{
+  "database": {
+    "status": "healthy",
+    "pool_metrics": {
+      "checked_out_connections": 2,
+      "pool_size": 10,
+      "overflow": 20
+    }
+  }
+}
+```
+
+#### Enhanced Query Monitoring
+
+- Row count tracking for all database operations
+- Performance metrics for query execution
+- Automatic slow query detection and logging
+
 ### Structured Logging
 
 All logs include:
@@ -407,6 +465,7 @@ All logs include:
 - Automatic PII sanitization with deep nested data support
 - Performance metrics
 - Severity-based intelligent alerting flags
+- Query performance data with rows affected
 
 ### Enhanced Error Handling with OpenTelemetry
 
@@ -438,6 +497,7 @@ All errors are automatically recorded in distributed traces with:
 OpenTelemetry integration with:
 
 - Automatic instrumentation for FastAPI and SQLAlchemy
+- HTTP client request tracing (HTTPX, Requests)
 - Pluggable exporters (console, GCP, AWS, OTLP)
 - Correlation ID propagation to spans
 - Custom span creation support
@@ -451,6 +511,7 @@ Comprehensive sanitization system that:
 - Recursively sanitizes nested data structures
 - Replaces sensitive values with `[REDACTED]`
 - Hides error details from clients in production
+- Prevents credential exposure in logs and error responses
 
 ### GCP Error Reporting Integration
 
@@ -464,7 +525,8 @@ When using GCP formatter, errors include:
 ### Metrics Collected
 
 - Request rate, error rate, duration (RED metrics)
-- Database query performance
+- Database query performance with row counts
+- Database connection pool utilization
 - Slow request detection
 - System resource usage
 - Error severity distribution
@@ -494,6 +556,7 @@ DATABASE_CONFIG__MAX_OVERFLOW=20
 # Logging
 LOG_CONFIG__LOG_LEVEL=INFO
 LOG_CONFIG__LOG_FORMATTER_TYPE=console  # console|json|gcp|aws
+LOG_CONFIG__SENSITIVE_FIELDS=password,token,secret  # Additional fields to redact
 
 # Observability
 OBSERVABILITY_CONFIG__ENABLE_TRACING=true
@@ -506,6 +569,7 @@ OBSERVABILITY_CONFIG__EXPORTER_TYPE=console  # console|gcp|aws|otlp
 - **Auto-detection**: Cloud environment detection for appropriate defaults
 - **Validation**: All settings validated at startup
 - **Type Safety**: Full type hints with Pydantic
+- **Sensitive Field Configuration**: Customize credential protection
 
 ---
 
@@ -556,11 +620,58 @@ The project uses Terraform for infrastructure management with support for multip
 
 ---
 
+## 📋 Pattern Documentation
+
+### Code Patterns Guide
+
+The project includes comprehensive pattern documentation in `.specs/patterns/`:
+
+#### Code Patterns (`code_patterns.md`)
+
+- **Module Structure**: Consistent organization across all modules
+- **Type Safety**: Strict typing with TypeAlias and proper imports
+- **Error Handling**: Severity-based exceptions with context
+- **Database Patterns**: Repository pattern with async support
+- **API Design**: Request/response schemas with validation
+
+#### Unit Test Patterns (`test_unit_patterns.md`)
+
+- **Test Structure**: Consistent test organization and naming
+- **Fixture Strategies**: Shared fixtures and parametrization
+- **Mocking Approaches**: pytest-mock best practices
+- **Async Testing**: Patterns for testing async code
+- **Assertion Patterns**: Clear and meaningful assertions
+
+### Pattern-Based Development Workflow
+
+1. **Pattern Discovery**: Use `/do-find-patterns` command to identify existing patterns
+2. **Pattern Application**: Use `/do-new` command for fast implementation with patterns
+3. **Pattern Documentation**: Patterns are continuously updated and maintained
+
+---
+
 ## 🎯 Developer Tools & Automation
 
 ### Claude Commands
 
 The project includes specialized Claude AI commands in `.claude/commands/`:
+
+#### Task Execution Commands
+
+- **`/do`**: Systematic task execution with sequential steps and validation
+  - Task-based approach with clear dependencies
+  - Built-in validation to prevent scope creep
+  - Pattern discovery and application
+
+- **`/do-new`**: Fast implementation using documented patterns
+  - Leverages existing code patterns for consistency
+  - Rapid development with pattern compliance
+
+- **`/do-find-patterns`**: Pattern discovery and documentation
+  - Analyzes codebase for consistent patterns
+  - Updates pattern documentation automatically
+
+#### Other Development Commands
 
 - **Git & Version Control**: Commit creation, release management, backup operations
 - **Code Quality**: Implementation verification, dependency validation
@@ -780,29 +891,33 @@ pre-commit run mypy --all-files
 
 - **FastAPI Application**: Core API with health and info endpoints
 - **Exception Framework**: Comprehensive error handling with severity levels
-- **Structured Logging**: JSON logging with multiple formatters
+- **Structured Logging**: JSON logging with multiple formatters and credential protection
 - **Request Context**: Correlation ID tracking across requests
 - **Configuration Management**: Pydantic Settings with validation
 - **Database Layer**: Async SQLAlchemy with repository pattern
 - **Middleware Stack**: Security, logging, and context middleware
-- **Testing Infrastructure**: 100% coverage with parallel execution
+- **Testing Infrastructure**: 100% coverage with parallel execution and comprehensive unit tests
 - **Development Tooling**: Comprehensive Make commands and pre-commit hooks
 - **Docker Support**: Development and production configurations
 - **CI/CD**: GitHub Actions for quality checks
 - **Infrastructure as Code**: Terraform configuration
+- **Pattern Documentation**: Code and test patterns for consistency
+- **Enhanced Observability**: HTTP client tracing, database pool metrics, query monitoring
+- **Security Enhancements**: Automatic credential redaction in logs
 
 ### 🏗️ Architecture Components
 
 - **API Layer**: FastAPI with middleware stack and error handling
-- **Core Layer**: Logging, exceptions, configuration, and observability
-- **Infrastructure Layer**: Database with repository pattern
+- **Core Layer**: Logging, exceptions, configuration, and observability with enhanced features
+- **Infrastructure Layer**: Database with repository pattern and pool monitoring
 - **Domain Layer**: Structure prepared for DDD implementation
+- **Testing Layer**: Comprehensive test suite with 100% coverage
 
 ---
 
 <!-- README-METADATA
-Last Updated: 2025-07-06T13:56:06Z
-Last Commit: 1fdb28d
+Last Updated: 2025-07-10T17:45:00Z
+Last Commit: e0e5e77
 Schema Version: 2.0
 Sections: {
   "overview": {"hash": "a1b2c3", "manual": false},
@@ -811,17 +926,18 @@ Sections: {
   "quick-start": {"hash": "j1k2l3", "manual": false},
   "development": {"hash": "m4n5o6", "manual": false},
   "structure": {"hash": "p7q8r9", "manual": false},
-  "security": {"hash": "cc195f", "manual": false},
-  "testing": {"hash": "baff20", "manual": false},
-  "monitoring": {"hash": "3b7845", "manual": false},
+  "security": {"hash": "f8d3a2", "manual": false},
+  "testing": {"hash": "c9e7f1", "manual": false},
+  "monitoring": {"hash": "a4b8c2", "manual": false},
   "configuration": {"hash": "b1c2d3", "manual": false},
   "docker": {"hash": "e4f5g6", "manual": false},
   "infrastructure": {"hash": "h7i8j9", "manual": false},
-  "tools": {"hash": "k1l2m3", "manual": false},
+  "patterns": {"hash": "d3f4g5", "manual": false},
+  "tools": {"hash": "b7c8d9", "manual": false},
   "cicd": {"hash": "7283c8", "manual": false},
   "commands": {"hash": "n4o5p6", "manual": false},
   "version": {"hash": "q7r8s9", "manual": false},
   "troubleshooting": {"hash": "t1u2v3", "manual": false},
-  "status": {"hash": "w4x5y6", "manual": false}
+  "status": {"hash": "e5f6g7", "manual": false}
 }
 -->
