@@ -38,7 +38,7 @@ class TestObservability:
 
     # LoguruSpanExporter Tests
 
-    async def test_loguru_exporter_export_spans_successfully(
+    def test_loguru_exporter_export_spans_successfully(
         self,
         mocker: MockerFixture,
         mock_readable_spans: list[MockType],
@@ -73,7 +73,7 @@ class TestObservability:
         "span_name",
         ["connect", "http send", "http receive", "cursor.execute"],
     )
-    async def test_loguru_exporter_filters_noisy_spans(
+    def test_loguru_exporter_filters_noisy_spans(
         self,
         mocker: MockerFixture,
         mock_span: MockType,
@@ -94,7 +94,7 @@ class TestObservability:
         assert result == SpanExportResult.SUCCESS
         mock_logger.bind.assert_not_called()
 
-    async def test_loguru_exporter_handles_missing_span_context(
+    def test_loguru_exporter_handles_missing_span_context(
         self,
         mocker: MockerFixture,
         mock_span: MockType,
@@ -123,7 +123,7 @@ class TestObservability:
             (None, 2000000000, None),  # No start time
         ],
     )
-    async def test_loguru_exporter_calculates_duration_correctly(
+    def test_loguru_exporter_calculates_duration_correctly(
         self,
         mocker: MockerFixture,
         mock_span: MockType,
@@ -153,7 +153,7 @@ class TestObservability:
             bind_kwargs = mock_bind.call_args[1]
             assert bind_kwargs["duration_ms"] == expected_duration
 
-    async def test_loguru_exporter_gets_correlation_id_from_context(
+    def test_loguru_exporter_gets_correlation_id_from_context(
         self,
         mocker: MockerFixture,
         mock_span: MockType,
@@ -182,7 +182,7 @@ class TestObservability:
         bind_kwargs = mock_bind.call_args[1]
         assert bind_kwargs["correlation_id"] == test_correlation_id
 
-    async def test_loguru_exporter_handles_large_batch(
+    def test_loguru_exporter_handles_large_batch(
         self,
         mocker: MockerFixture,
         mock_span_context: MockType,
@@ -220,7 +220,7 @@ class TestObservability:
     # get_span_exporter Tests
 
     @pytest.mark.parametrize("exporter_type", ["console", "Console", "CONSOLE"])
-    async def test_get_span_exporter_console(
+    def test_get_span_exporter_console(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -244,7 +244,7 @@ class TestObservability:
             "Using Loguru span exporter for development"
         )
 
-    async def test_get_span_exporter_gcp(
+    def test_get_span_exporter_gcp(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -268,7 +268,7 @@ class TestObservability:
         mock_get_gcp.assert_called_once_with(mock_observability_settings)
 
     @pytest.mark.parametrize("exporter_type", ["aws", "otlp"])
-    async def test_get_span_exporter_aws_otlp(
+    def test_get_span_exporter_aws_otlp(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -296,7 +296,7 @@ class TestObservability:
             mock_observability_settings, exporter_type
         )
 
-    async def test_get_span_exporter_none(
+    def test_get_span_exporter_none(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -315,7 +315,7 @@ class TestObservability:
         assert exporter is None
         mock_logger.info.assert_called_with("Tracing explicitly disabled")
 
-    async def test_get_span_exporter_unknown(
+    def test_get_span_exporter_unknown(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -340,7 +340,7 @@ class TestObservability:
 
     # _get_gcp_exporter Tests
 
-    async def test_get_gcp_exporter_success(
+    def test_get_gcp_exporter_success(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -373,7 +373,7 @@ class TestObservability:
             f"Using GCP Cloud Trace exporter for project {project_id}"
         )
 
-    async def test_get_gcp_exporter_project_id_from_env(
+    def test_get_gcp_exporter_project_id_from_env(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -403,7 +403,7 @@ class TestObservability:
         assert exporter == mock_exporter_instance
         mock_exporter_class.assert_called_once_with(project_id=env_project_id)
 
-    async def test_get_gcp_exporter_missing_project_id(
+    def test_get_gcp_exporter_missing_project_id(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -430,7 +430,7 @@ class TestObservability:
             "GCP project ID not configured, disabling tracing"
         )
 
-    async def test_get_gcp_exporter_import_error(
+    def test_get_gcp_exporter_import_error(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -465,7 +465,7 @@ class TestObservability:
             ("production", False),
         ],
     )
-    async def test_get_otlp_exporter_with_custom_endpoint(
+    def test_get_otlp_exporter_with_custom_endpoint(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -495,7 +495,7 @@ class TestObservability:
             insecure=expected_insecure,
         )
 
-    async def test_get_otlp_exporter_default_endpoint(
+    def test_get_otlp_exporter_default_endpoint(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -517,7 +517,7 @@ class TestObservability:
         )
 
     @pytest.mark.parametrize("exporter_type", ["aws", "otlp"])
-    async def test_get_otlp_exporter_logging(
+    def test_get_otlp_exporter_logging(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -545,7 +545,7 @@ class TestObservability:
 
     # get_tracer Tests
 
-    async def test_get_tracer_creation_and_caching(
+    def test_get_tracer_creation_and_caching(
         self,
         mocker: MockerFixture,
     ) -> None:
@@ -575,7 +575,7 @@ class TestObservability:
             ["api", "database", "cache"],
         ],
     )
-    async def test_get_tracer_different_names(
+    def test_get_tracer_different_names(
         self,
         mocker: MockerFixture,
         component_names: list[str],
@@ -593,7 +593,7 @@ class TestObservability:
         for name in component_names:
             mock_get_tracer.assert_any_call(name)
 
-    async def test_get_tracer_thread_safety(
+    def test_get_tracer_thread_safety(
         self,
         mocker: MockerFixture,
         thread_sync: dict[str, Any],
@@ -635,7 +635,7 @@ class TestObservability:
 
     # setup_tracing Tests
 
-    async def test_setup_tracing_disabled(
+    def test_setup_tracing_disabled(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -657,7 +657,7 @@ class TestObservability:
         mock_logger.info.assert_called_with("Tracing disabled by configuration")
         mock_set_tracer_provider.assert_not_called()
 
-    async def test_setup_tracing_resource_creation(
+    def test_setup_tracing_resource_creation(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -693,7 +693,7 @@ class TestObservability:
         )
 
     @pytest.mark.parametrize("sample_rate", [0.0, 0.5, 1.0])
-    async def test_setup_tracing_provider_configuration(
+    def test_setup_tracing_provider_configuration(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -725,7 +725,7 @@ class TestObservability:
         # Verify sampler and provider
         mock_sampler_class.assert_called_once_with(sample_rate)
 
-    async def test_setup_tracing_span_processor_addition(
+    def test_setup_tracing_span_processor_addition(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -754,7 +754,7 @@ class TestObservability:
         mock_processor_class.assert_called_once_with(mock_exporter)
         mock_provider.add_span_processor.assert_called_once_with(mock_processor)
 
-    async def test_setup_tracing_no_processor_when_no_exporter(
+    def test_setup_tracing_no_processor_when_no_exporter(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -775,7 +775,7 @@ class TestObservability:
         # Verify no processor added
         mock_provider.add_span_processor.assert_not_called()
 
-    async def test_setup_tracing_resource_creation_failure(
+    def test_setup_tracing_resource_creation_failure(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -794,7 +794,7 @@ class TestObservability:
         with pytest.raises(Exception, match="Resource creation failed"):
             setup_tracing(mock_observability_settings)
 
-    async def test_setup_tracing_concurrent_calls(
+    def test_setup_tracing_concurrent_calls(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -839,7 +839,7 @@ class TestObservability:
 
     # instrument_app Tests
 
-    async def test_instrument_app_disabled(
+    def test_instrument_app_disabled(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -860,7 +860,7 @@ class TestObservability:
         # Verify no instrumentation
         mock_fastapi_instrumentor.instrument_app.assert_not_called()
 
-    async def test_instrument_app_fastapi(
+    def test_instrument_app_fastapi(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -884,7 +884,7 @@ class TestObservability:
         )
         mock_logger.info.assert_called_with("Application instrumented for tracing")
 
-    async def test_instrument_app_sqlalchemy(
+    def test_instrument_app_sqlalchemy(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -913,7 +913,7 @@ class TestObservability:
             },
         )
 
-    async def test_instrument_app_no_sqlalchemy_without_database(
+    def test_instrument_app_no_sqlalchemy_without_database(
         self,
         mocker: MockerFixture,
         mock_observability_settings: Settings,
@@ -935,9 +935,180 @@ class TestObservability:
         # Verify no SQLAlchemy instrumentation
         mock_sqlalchemy_instrumentor.assert_not_called()
 
+    def test_instrument_app_httpx_available(
+        self,
+        mocker: MockerFixture,
+        mock_observability_settings: Settings,
+        mock_fastapi_app: MockType,
+    ) -> None:
+        """Test HTTPX instrumentation when library is available."""
+        # Mock logger and instrumentors
+        mock_logger = mocker.patch("src.core.observability.logger")
+        mocker.patch("src.core.observability.FastAPIInstrumentor")
+
+        # Mock importlib to simulate HTTPX availability
+        mock_find_spec = mocker.patch("src.core.observability.importlib.util.find_spec")
+
+        def httpx_spec_side_effect(name: str | None) -> bool:
+            return name in ["httpx", "opentelemetry.instrumentation.httpx"]
+
+        mock_find_spec.side_effect = httpx_spec_side_effect
+
+        # Mock importlib.import_module for HTTPX
+        mock_httpx_module = mocker.Mock()
+        mock_httpx_instrumentor = mocker.Mock()
+        mock_httpx_module.HTTPXClientInstrumentor.return_value = mock_httpx_instrumentor
+
+        mock_import_module = mocker.patch(
+            "src.core.observability.importlib.import_module"
+        )
+        mock_import_module.return_value = mock_httpx_module
+
+        # Instrument app
+        instrument_app(mock_fastapi_app, mock_observability_settings)
+
+        # Verify HTTPX instrumentation
+        mock_import_module.assert_any_call("opentelemetry.instrumentation.httpx")
+        mock_httpx_module.HTTPXClientInstrumentor.assert_called_once()
+        mock_httpx_instrumentor.instrument.assert_called_once()
+        mock_logger.info.assert_any_call("HTTPX client instrumented for tracing")
+
+    def test_instrument_app_requests_available(
+        self,
+        mocker: MockerFixture,
+        mock_observability_settings: Settings,
+        mock_fastapi_app: MockType,
+    ) -> None:
+        """Test Requests instrumentation when library is available."""
+        # Mock logger and instrumentors
+        mock_logger = mocker.patch("src.core.observability.logger")
+        mocker.patch("src.core.observability.FastAPIInstrumentor")
+
+        # Mock importlib to simulate Requests availability
+        mock_find_spec = mocker.patch("src.core.observability.importlib.util.find_spec")
+
+        def requests_spec_side_effect(name: str | None) -> bool:
+            return name in ["requests", "opentelemetry.instrumentation.requests"]
+
+        mock_find_spec.side_effect = requests_spec_side_effect
+
+        # Mock importlib.import_module for Requests
+        mock_requests_module = mocker.Mock()
+        mock_requests_instrumentor = mocker.Mock()
+        mock_requests_module.RequestsInstrumentor.return_value = (
+            mock_requests_instrumentor
+        )
+
+        mock_import_module = mocker.patch(
+            "src.core.observability.importlib.import_module"
+        )
+        mock_import_module.return_value = mock_requests_module
+
+        # Instrument app
+        instrument_app(mock_fastapi_app, mock_observability_settings)
+
+        # Verify Requests instrumentation
+        mock_import_module.assert_any_call("opentelemetry.instrumentation.requests")
+        mock_requests_module.RequestsInstrumentor.assert_called_once()
+        mock_requests_instrumentor.instrument.assert_called_once()
+        mock_logger.info.assert_any_call("Requests client instrumented for tracing")
+
+    def test_instrument_app_http_clients_not_available(
+        self,
+        mocker: MockerFixture,
+        mock_observability_settings: Settings,
+        mock_fastapi_app: MockType,
+    ) -> None:
+        """Test graceful handling when HTTP client libraries are not available."""
+        # Mock logger and instrumentors
+        mock_logger = mocker.patch("src.core.observability.logger")
+        mocker.patch("src.core.observability.FastAPIInstrumentor")
+
+        # Mock importlib to simulate libraries not available
+        mock_find_spec = mocker.patch("src.core.observability.importlib.util.find_spec")
+        mock_find_spec.return_value = None  # Libraries not found
+
+        mock_import_module = mocker.patch(
+            "src.core.observability.importlib.import_module"
+        )
+
+        # Instrument app
+        instrument_app(mock_fastapi_app, mock_observability_settings)
+
+        # Verify no HTTP client instrumentation attempted
+        mock_import_module.assert_not_called()
+        # Should only log the final "Application instrumented" message
+        mock_logger.info.assert_called_with("Application instrumented for tracing")
+
+    def test_instrument_app_http_import_error(
+        self,
+        mocker: MockerFixture,
+        mock_observability_settings: Settings,
+        mock_fastapi_app: MockType,
+    ) -> None:
+        """Test graceful handling when import fails after spec check passes."""
+        # Mock logger and instrumentors
+        mock_logger = mocker.patch("src.core.observability.logger")
+        mocker.patch("src.core.observability.FastAPIInstrumentor")
+
+        # Mock importlib to simulate library available but import fails
+        mock_find_spec = mocker.patch("src.core.observability.importlib.util.find_spec")
+
+        def httpx_import_error_spec_side_effect(name: str | None) -> bool:
+            return name in ["httpx", "opentelemetry.instrumentation.httpx"]
+
+        mock_find_spec.side_effect = httpx_import_error_spec_side_effect
+
+        # Mock import_module to raise ImportError
+        mock_import_module = mocker.patch(
+            "src.core.observability.importlib.import_module"
+        )
+        mock_import_module.side_effect = ImportError("Module not found")
+
+        # Instrument app - should not raise exception
+        instrument_app(mock_fastapi_app, mock_observability_settings)
+
+        # Verify import was attempted but failed gracefully
+        mock_import_module.assert_called_once_with(
+            "opentelemetry.instrumentation.httpx"
+        )
+        # Should still log the final message
+        mock_logger.info.assert_called_with("Application instrumented for tracing")
+
+    def test_instrument_app_requests_import_error(
+        self,
+        mocker: MockerFixture,
+        mock_observability_settings: Settings,
+        mock_fastapi_app: MockType,
+    ) -> None:
+        """Test graceful handling when Requests import fails after spec check passes."""
+        # Mock logger and instrumentors
+        mock_logger = mocker.patch("src.core.observability.logger")
+        mocker.patch("src.core.observability.FastAPIInstrumentor")
+        # Mock importlib to simulate Requests library available but import fails
+        mock_find_spec = mocker.patch("src.core.observability.importlib.util.find_spec")
+
+        def requests_import_error_spec_side_effect(name: str | None) -> bool:
+            return name in ["requests", "opentelemetry.instrumentation.requests"]
+
+        mock_find_spec.side_effect = requests_import_error_spec_side_effect
+        # Mock import_module to raise ImportError only for Requests
+        mock_import_module = mocker.patch(
+            "src.core.observability.importlib.import_module"
+        )
+        mock_import_module.side_effect = ImportError("Requests module not found")
+        # Instrument app - should not raise exception
+        instrument_app(mock_fastapi_app, mock_observability_settings)
+        # Verify import was attempted but failed gracefully
+        mock_import_module.assert_called_once_with(
+            "opentelemetry.instrumentation.requests"
+        )
+        # Should still log the final message
+        mock_logger.info.assert_called_with("Application instrumented for tracing")
+
     # add_correlation_id_to_span Tests
 
-    async def test_add_correlation_id_from_context(
+    def test_add_correlation_id_from_context(
         self,
         mock_span: MockType,
         mock_asgi_scope: dict[str, Any],
@@ -953,7 +1124,7 @@ class TestObservability:
         # Verify
         mock_span.set_attribute.assert_any_call("correlation_id", test_correlation_id)
 
-    async def test_add_request_id_from_headers(
+    def test_add_request_id_from_headers(
         self,
         mock_span: MockType,
         mock_asgi_scope: dict[str, Any],
@@ -965,7 +1136,7 @@ class TestObservability:
         # Verify request ID from headers
         mock_span.set_attribute.assert_any_call("request_id", "req_12345")
 
-    async def test_add_correlation_id_handles_missing_values(
+    def test_add_correlation_id_handles_missing_values(
         self,
         mock_span: MockType,
     ) -> None:
@@ -994,7 +1165,7 @@ class TestObservability:
             {"rate": 0.95, "enabled": True},
         ],
     )
-    async def test_add_span_attributes_recording_span(
+    def test_add_span_attributes_recording_span(
         self,
         mocker: MockerFixture,
         mock_span: MockType,
@@ -1013,7 +1184,7 @@ class TestObservability:
         for key, value in attributes.items():
             mock_span.set_attribute.assert_any_call(key, str(value))
 
-    async def test_add_span_attributes_non_recording_span(
+    def test_add_span_attributes_non_recording_span(
         self,
         mocker: MockerFixture,
         mock_span: MockType,
@@ -1033,7 +1204,7 @@ class TestObservability:
         # Verify no attributes added
         mock_span.set_attribute.assert_not_called()
 
-    async def test_add_span_attributes_no_current_span(
+    def test_add_span_attributes_no_current_span(
         self,
         mocker: MockerFixture,
     ) -> None:
@@ -1046,7 +1217,7 @@ class TestObservability:
 
     # trace_operation Context Manager Tests
 
-    async def test_trace_operation_basic_span_creation(
+    def test_trace_operation_basic_span_creation(
         self,
         mocker: MockerFixture,
         mock_tracer: MockType,
@@ -1073,7 +1244,7 @@ class TestObservability:
             {"count": 42, "success": True},
         ],
     )
-    async def test_trace_operation_initial_attributes(
+    def test_trace_operation_initial_attributes(
         self,
         mocker: MockerFixture,
         mock_tracer: MockType,
@@ -1093,7 +1264,7 @@ class TestObservability:
         for key, value in attributes.items():
             mock_span.set_attribute.assert_any_call(key, str(value))
 
-    async def test_trace_operation_correlation_id_addition(
+    def test_trace_operation_correlation_id_addition(
         self,
         mocker: MockerFixture,
         mock_tracer: MockType,
@@ -1115,7 +1286,7 @@ class TestObservability:
         # Verify correlation ID added
         mock_span.set_attribute.assert_any_call("correlation_id", test_correlation_id)
 
-    async def test_trace_operation_exception_propagation(
+    def test_trace_operation_exception_propagation(
         self,
         mocker: MockerFixture,
         mock_tracer: MockType,
@@ -1138,7 +1309,7 @@ class TestObservability:
 
     # Edge Case Tests
 
-    async def test_span_attribute_type_handling(
+    def test_span_attribute_type_handling(
         self,
         mocker: MockerFixture,
         mock_span_context: MockType,

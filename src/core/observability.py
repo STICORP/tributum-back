@@ -25,6 +25,7 @@ maximum compatibility across observability platforms.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import os
 from contextlib import contextmanager
 from functools import lru_cache
@@ -265,6 +266,33 @@ def instrument_app(app: FastAPI, settings: Settings) -> None:
                 "opentelemetry_values": True,
             },
         )
+
+    # Instrument HTTP clients if libraries are available
+    if importlib.util.find_spec("httpx") and importlib.util.find_spec(
+        "opentelemetry.instrumentation.httpx"
+    ):
+        try:
+            httpx_module = importlib.import_module(
+                "opentelemetry.instrumentation.httpx"
+            )
+            httpx_instrumentor = httpx_module.HTTPXClientInstrumentor()
+            httpx_instrumentor.instrument()
+            logger.info("HTTPX client instrumented for tracing")
+        except ImportError:
+            pass  # Instrumentation not available
+
+    if importlib.util.find_spec("requests") and importlib.util.find_spec(
+        "opentelemetry.instrumentation.requests"
+    ):
+        try:
+            requests_module = importlib.import_module(
+                "opentelemetry.instrumentation.requests"
+            )
+            requests_instrumentor = requests_module.RequestsInstrumentor()
+            requests_instrumentor.instrument()
+            logger.info("Requests client instrumented for tracing")
+        except ImportError:
+            pass  # Instrumentation not available
 
     logger.info("Application instrumented for tracing")
 
