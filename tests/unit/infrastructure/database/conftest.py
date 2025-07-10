@@ -10,6 +10,7 @@ from sqlalchemy import String
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.core.config import DatabaseConfig, LogConfig, Settings
 from src.infrastructure.database.base import BaseModel
 from src.infrastructure.database.repository import BaseRepository
 from src.infrastructure.database.session import _DatabaseManager
@@ -528,3 +529,90 @@ def mock_get_async_session_context(
         "src.infrastructure.database.dependencies.get_async_session",
         return_value=mock_context_manager(),
     )
+
+
+@pytest.fixture
+def mock_log_config_enabled(mocker: MockerFixture) -> MockType:
+    """Mock LogConfig with SQL logging enabled.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock LogConfig with SQL logging enabled and 100ms threshold.
+    """
+    mock_log_config = mocker.Mock(spec=LogConfig)
+    mock_log_config.enable_sql_logging = True
+    mock_log_config.slow_query_threshold_ms = 100
+    return cast("MockType", mock_log_config)
+
+
+@pytest.fixture
+def mock_log_config_disabled(mocker: MockerFixture) -> MockType:
+    """Mock LogConfig with SQL logging disabled.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock LogConfig with SQL logging disabled.
+    """
+    mock_log_config = mocker.Mock(spec=LogConfig)
+    mock_log_config.enable_sql_logging = False
+    return cast("MockType", mock_log_config)
+
+
+@pytest.fixture
+def mock_settings_with_sql_logging(
+    mocker: MockerFixture, mock_log_config_enabled: MockType
+) -> MockType:
+    """Mock Settings with SQL logging enabled.
+
+    Args:
+        mocker: Pytest mocker fixture.
+        mock_log_config_enabled: Mock LogConfig with SQL logging enabled.
+
+    Returns:
+        MockType: Mock Settings with SQL logging enabled.
+    """
+    mock_settings = mocker.Mock(spec=Settings)
+    mock_settings.log_config = mock_log_config_enabled
+    return cast("MockType", mock_settings)
+
+
+@pytest.fixture
+def mock_settings_without_sql_logging(
+    mocker: MockerFixture, mock_log_config_disabled: MockType
+) -> MockType:
+    """Mock Settings with SQL logging disabled.
+
+    Args:
+        mocker: Pytest mocker fixture.
+        mock_log_config_disabled: Mock LogConfig with SQL logging disabled.
+
+    Returns:
+        MockType: Mock Settings with SQL logging disabled.
+    """
+    mock_settings = mocker.Mock(spec=Settings)
+    mock_settings.log_config = mock_log_config_disabled
+    return cast("MockType", mock_settings)
+
+
+@pytest.fixture
+def mock_database_config(mocker: MockerFixture) -> MockType:
+    """Mock DatabaseConfig with standard test values.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock DatabaseConfig with test configuration.
+    """
+    mock_db_config = mocker.Mock(spec=DatabaseConfig)
+    mock_db_config.database_url = "postgresql+asyncpg://test:test@localhost/test"
+    mock_db_config.pool_size = 10
+    mock_db_config.max_overflow = 5
+    mock_db_config.pool_timeout = 30.0
+    mock_db_config.pool_pre_ping = True
+    mock_db_config.echo = False
+    return cast("MockType", mock_db_config)

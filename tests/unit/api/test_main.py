@@ -754,3 +754,54 @@ class TestEdgeCases:
         # All calls should return same result
         expected = {"status": "healthy", "database": True}
         assert all(result == expected for result in results)
+
+    @pytest.mark.timeout(1)
+    @pytest.mark.asyncio
+    async def test_health_endpoint_logs_pool_metrics_when_healthy(
+        self,
+        mocker: MockerFixture,
+        mock_settings: Settings,
+        mock_app_with_route_capture: MockType,
+    ) -> None:
+        """Test health endpoint logs pool metrics when database is healthy."""
+        # Configure mocks
+        mocker.patch(
+            "src.api.main.check_database_connection",
+            new_callable=mocker.AsyncMock,
+            return_value=(True, None),
+        )
+
+        # Mock the engine and pool
+        mock_pool = mocker.Mock()
+        mock_pool.checkedout.return_value = 3
+        mock_pool.size.return_value = 10
+        mock_pool.overflow.return_value = 2
+
+        mock_engine = mocker.Mock()
+        mock_engine.pool = mock_pool
+
+        mocker.patch("src.api.main.get_engine", return_value=mock_engine)
+        mock_logger = mocker.patch("src.api.main.logger")
+        mocker.patch("src.api.main.get_settings", return_value=mock_settings)
+        mocker.patch("src.api.main.FastAPI", return_value=mock_app_with_route_capture)
+
+        # Get create_app function
+        main = get_main_module()
+        create_app = main.create_app
+        create_app()
+
+        # Get and call the health handler
+        health_handler = mock_app_with_route_capture._captured_routes["/health"]
+        result = await health_handler()
+
+        # Verify result
+        assert result == {"status": "healthy", "database": True}
+
+        # Verify logger.bind was called with pool metrics
+        mock_logger.bind.assert_called_once_with(
+            metric_type="db.pool.health", checked_out=3, size=10, overflow=2
+        )
+        # Verify info was called on the bound logger
+        mock_logger.bind.return_value.info.assert_called_once_with(
+            "Database pool health check"
+        )

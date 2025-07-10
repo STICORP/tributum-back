@@ -127,20 +127,15 @@ class TestQueryPerformanceMonitoring:
         mock_time: MockType,
         mock_logger: MockType,
         mock_sanitize_sql_params: MockType,
+        mock_settings_with_sql_logging: MockType,
         mocker: MockerFixture,
     ) -> None:
         """Verify slow query logging when threshold is exceeded."""
         del mock_logger  # Unused but required for fixture
         # Setup
-        mock_settings = mocker.Mock(spec=Settings)
-        mock_log_config = mocker.Mock(spec=LogConfig)
-        mock_log_config.enable_sql_logging = True
-        mock_log_config.slow_query_threshold_ms = 100
-        mock_settings.log_config = mock_log_config
-
         mocker.patch(
             "src.infrastructure.database.session.get_settings",
-            return_value=mock_settings,
+            return_value=mock_settings_with_sql_logging,
         )
         mocker.patch(
             "src.infrastructure.database.session.RequestContext.get_correlation_id",
@@ -188,18 +183,14 @@ class TestQueryPerformanceMonitoring:
         self,
         mock_execution_context: MockType,
         mock_time: MockType,
+        mock_settings_without_sql_logging: MockType,
         mocker: MockerFixture,
     ) -> None:
         """Verify no slow query logging when SQL logging is disabled."""
         # Setup
-        mock_settings = mocker.Mock(spec=Settings)
-        mock_log_config = mocker.Mock(spec=LogConfig)
-        mock_log_config.enable_sql_logging = False
-        mock_settings.log_config = mock_log_config
-
         mocker.patch(
             "src.infrastructure.database.session.get_settings",
-            return_value=mock_settings,
+            return_value=mock_settings_without_sql_logging,
         )
         mocker.patch(
             "src.infrastructure.database.session.RequestContext.get_correlation_id",
@@ -519,6 +510,173 @@ class TestQueryPerformanceMonitoring:
 
         # Verify entry is automatically removed
         assert len(_query_start_times) == 0
+
+        # Cleanup
+        _query_start_times.clear()
+
+    def test_after_cursor_execute_includes_rows_affected(
+        self,
+        mock_execution_context: MockType,
+        mock_time: MockType,
+        mocker: MockerFixture,
+    ) -> None:
+        """Verify rows_affected is captured and logged in slow queries."""
+        # Setup
+        mock_settings = mocker.Mock(spec=Settings)
+        mock_log_config = mocker.Mock(spec=LogConfig)
+        mock_log_config.enable_sql_logging = True
+        mock_log_config.slow_query_threshold_ms = 100
+        mock_settings.log_config = mock_log_config
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+        mocker.patch(
+            "src.infrastructure.database.session.RequestContext.get_correlation_id",
+            return_value="test-correlation-id",
+        )
+        mock_logger = mocker.patch("src.infrastructure.database.session.logger")
+
+        # Pre-store start time for duration calculation
+        _query_start_times[mock_execution_context] = 100.0
+        mock_time.return_value = 100.2  # 200ms later
+
+        # Mock cursor with rowcount
+        mock_cursor = mocker.Mock()
+        mock_cursor.rowcount = 42
+
+        # Execute
+        _after_cursor_execute(
+            mocker.Mock(),  # connection
+            mock_cursor,
+            "UPDATE users SET status = 'active'",
+            None,  # parameters
+            mock_execution_context,
+            executemany=False,
+        )
+
+        # Assert
+        mock_logger.warning.assert_called_once()
+        warning_call = mock_logger.warning.call_args
+
+        # Check the message format includes rows affected placeholder
+        assert "Rows: {}" in warning_call[0][0]
+        # Check that 42 is passed as a parameter
+        assert 42 in warning_call[0]
+
+        # Check extra parameters include rows_affected
+        extra_params = warning_call[1]
+        assert extra_params["rows_affected"] == 42
+        assert extra_params["duration_ms"] == 200.0
+        assert extra_params["correlation_id"] == "test-correlation-id"
+
+        # Cleanup
+        _query_start_times.clear()
+
+    def test_after_cursor_execute_handles_missing_rowcount(
+        self,
+        mock_execution_context: MockType,
+        mock_time: MockType,
+        mocker: MockerFixture,
+    ) -> None:
+        """Verify graceful handling when cursor has no rowcount attribute."""
+        # Setup
+        mock_settings = mocker.Mock(spec=Settings)
+        mock_log_config = mocker.Mock(spec=LogConfig)
+        mock_log_config.enable_sql_logging = True
+        mock_log_config.slow_query_threshold_ms = 50
+        mock_settings.log_config = mock_log_config
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+        mocker.patch(
+            "src.infrastructure.database.session.RequestContext.get_correlation_id",
+            return_value="test-id",
+        )
+        mock_logger = mocker.patch("src.infrastructure.database.session.logger")
+
+        # Pre-store start time
+        _query_start_times[mock_execution_context] = 100.0
+        mock_time.return_value = 100.1  # 100ms later
+
+        # Mock cursor without rowcount attribute
+        mock_cursor = mocker.Mock()
+        delattr(mock_cursor, "rowcount")  # Ensure no rowcount attribute
+
+        # Execute
+        _after_cursor_execute(
+            mocker.Mock(),  # connection
+            mock_cursor,
+            "SELECT * FROM users",
+            None,  # parameters
+            mock_execution_context,
+            executemany=False,
+        )
+
+        # Assert
+        mock_logger.warning.assert_called_once()
+        extra_params = mock_logger.warning.call_args[1]
+        assert extra_params["rows_affected"] == -1  # Default value
+
+        # Cleanup
+        _query_start_times.clear()
+
+    @pytest.mark.parametrize(
+        "rowcount_value",
+        [0, 1, 100, 1000, -1, None],
+    )
+    def test_after_cursor_execute_various_rowcount_values(
+        self,
+        rowcount_value: int | None,
+        mock_execution_context: MockType,
+        mock_time: MockType,
+        mocker: MockerFixture,
+    ) -> None:
+        """Verify correct handling of various rowcount values."""
+        # Setup
+        mock_settings = mocker.Mock(spec=Settings)
+        mock_log_config = mocker.Mock(spec=LogConfig)
+        mock_log_config.enable_sql_logging = True
+        mock_log_config.slow_query_threshold_ms = 50
+        mock_settings.log_config = mock_log_config
+
+        mocker.patch(
+            "src.infrastructure.database.session.get_settings",
+            return_value=mock_settings,
+        )
+        mocker.patch(
+            "src.infrastructure.database.session.RequestContext.get_correlation_id",
+            return_value="test-id",
+        )
+        mock_logger = mocker.patch("src.infrastructure.database.session.logger")
+
+        # Pre-store start time
+        _query_start_times[mock_execution_context] = 100.0
+        mock_time.return_value = 100.1  # 100ms later
+
+        # Mock cursor with specific rowcount
+        mock_cursor = mocker.Mock()
+        mock_cursor.rowcount = rowcount_value
+
+        # Execute
+        _after_cursor_execute(
+            mocker.Mock(),  # connection
+            mock_cursor,
+            "DELETE FROM logs WHERE created_at < ?",
+            None,  # parameters
+            mock_execution_context,
+            executemany=False,
+        )
+
+        # Assert
+        mock_logger.warning.assert_called_once()
+        extra_params = mock_logger.warning.call_args[1]
+        # None should be converted to -1 by getattr default
+        expected_value = -1 if rowcount_value is None else rowcount_value
+        assert extra_params["rows_affected"] == expected_value
 
         # Cleanup
         _query_start_times.clear()
