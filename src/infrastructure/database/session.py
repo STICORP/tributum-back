@@ -103,6 +103,11 @@ def _after_cursor_execute(
         # Clean up the entry
         _query_start_times.pop(context, None)
 
+    # Get rows affected
+    rows_affected: int | None = getattr(_cursor, "rowcount", -1)
+    if rows_affected is None:
+        rows_affected = -1
+
     # Get current correlation ID for request tracking
     correlation_id = RequestContext.get_correlation_id()
 
@@ -118,11 +123,13 @@ def _after_cursor_execute(
         clean_statement = " ".join(statement.split())[:500]  # Limit length
 
         logger.warning(
-            "Slow query detected: {}... Duration: {:.2f}ms",
+            "Slow query detected: {}... Duration: {:.2f}ms Rows: {}",
             clean_statement[:100],
             round(duration_ms, 2),
+            rows_affected,
             query=clean_statement,
             duration_ms=round(duration_ms, 2),
+            rows_affected=rows_affected,
             parameters=sanitized_params,
             correlation_id=correlation_id,
             executemany=executemany,
