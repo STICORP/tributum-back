@@ -16,7 +16,7 @@ processing flow.
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import Depends, FastAPI
 from loguru import logger
@@ -32,6 +32,7 @@ from src.core.observability import instrument_app, setup_tracing
 from src.infrastructure.database.session import (
     check_database_connection,
     close_database,
+    get_engine,
 )
 
 
@@ -147,6 +148,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         is_healthy, error_msg = await check_database_connection()
 
         health_status["database"] = is_healthy
+
+        # Log pool metrics if database is healthy
+        if is_healthy:
+            engine = get_engine()
+            pool = engine.pool
+            logger.bind(
+                metric_type="db.pool.health",
+                checked_out=cast("Any", pool).checkedout(),
+                size=cast("Any", pool).size(),
+                overflow=cast("Any", pool).overflow(),
+            ).info("Database pool health check")
 
         if not is_healthy:
             # Log error but don't fail the health check entirely
