@@ -1,6 +1,7 @@
 """Fixtures for database infrastructure unit tests."""
 
-from collections.abc import Generator
+from collections.abc import AsyncGenerator, Generator
+from contextlib import asynccontextmanager
 from typing import cast
 
 import pytest
@@ -308,3 +309,134 @@ def mock_database_manager(mocker: MockerFixture) -> MockType:
         "src.infrastructure.database.session._db_manager", manager
     )
     return result
+
+
+@pytest.fixture
+def mock_async_session_for_dependencies(mocker: MockerFixture) -> MockType:
+    """Mock AsyncSession for dependency injection tests.
+
+    Provides a mock AsyncSession object that mimics SQLAlchemy's AsyncSession
+    behavior specifically for testing FastAPI dependency injection.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock AsyncSession with proper type annotations.
+    """
+    session = mocker.AsyncMock(spec=AsyncSession)
+    session.commit = mocker.AsyncMock()
+    session.rollback = mocker.AsyncMock()
+    session.close = mocker.AsyncMock()
+    session.execute = mocker.AsyncMock()
+    session.scalar = mocker.AsyncMock()
+    session.scalars = mocker.AsyncMock()
+    session.get = mocker.AsyncMock()
+    session.merge = mocker.AsyncMock()
+    session.flush = mocker.AsyncMock()
+    session.refresh = mocker.AsyncMock()
+    session.expunge = mocker.AsyncMock()
+    session.is_active = True
+    session.info = {}
+
+    return cast("MockType", session)
+
+
+@pytest.fixture
+def mock_get_async_session_for_tests(
+    mock_async_session_for_dependencies: MockType,
+) -> MockType:
+    """Create a mock get_async_session function that returns an async context manager.
+
+    This fixture provides a reusable mock for the get_async_session function
+    that properly yields a mock session through an async context manager.
+
+    Args:
+        mocker: Pytest mocker fixture.
+        mock_async_session_for_dependencies: Mock async session for dependencies.
+
+    Returns:
+        MockType: A function that returns an async context manager yielding a session.
+    """
+
+    @asynccontextmanager
+    async def mock_get_async_session() -> AsyncGenerator[AsyncSession]:
+        yield mock_async_session_for_dependencies
+
+    return cast("MockType", mock_get_async_session)
+
+
+@pytest.fixture
+def create_mock_get_async_session_factory(
+    mocker: MockerFixture,
+) -> MockType:
+    """Factory for creating mock get_async_session functions with different behaviors.
+
+    This fixture provides a factory function that can create mock get_async_session
+    functions with custom behavior for testing different scenarios.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: A factory function for creating mock get_async_session functions.
+    """
+
+    def factory(
+        session: MockType | None = None,
+        raise_on_enter: type[Exception] | None = None,
+        raise_on_exit: type[Exception] | None = None,
+        raise_message: str = "Test error",
+    ) -> MockType:
+        """Create a mock get_async_session with custom behavior.
+
+        Args:
+            session: The session to yield (if None, creates a mock).
+            raise_on_enter: Exception type to raise on __aenter__.
+            raise_on_exit: Exception type to raise on __aexit__.
+            raise_message: Message for the raised exception.
+
+        Returns:
+            Mock async context manager.
+        """
+        if session is None:
+            session = mocker.AsyncMock(spec=AsyncSession)
+
+        @asynccontextmanager
+        async def mock_get_async_session() -> AsyncGenerator[AsyncSession]:
+            if raise_on_enter:
+                raise raise_on_enter(raise_message)
+            yield session
+            if raise_on_exit:
+                raise raise_on_exit(raise_message)
+
+        return cast("MockType", mock_get_async_session)
+
+    return cast("MockType", factory)
+
+
+@pytest.fixture
+def mock_get_async_session_context(
+    mocker: MockerFixture, mock_async_session_for_dependencies: MockType
+) -> MockType:
+    """Mock the get_async_session context manager from session module.
+
+    Creates an async context manager that yields the mock_async_session,
+    supporting async with syntax for dependency injection tests.
+
+    Args:
+        mocker: Pytest mocker fixture.
+        mock_async_session_for_dependencies: Mock async session for dependencies.
+
+    Returns:
+        MockType: Mock that can be used with pytest_mock's patch.
+    """
+
+    async def mock_context_manager() -> AsyncGenerator[AsyncSession]:
+        """Mock async context manager for get_async_session."""
+        yield mock_async_session_for_dependencies
+
+    return mocker.patch(
+        "src.infrastructure.database.dependencies.get_async_session",
+        return_value=mock_context_manager(),
+    )
