@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Code patterns documentation for consistent module structure, type safety, and API design
+- Unit test patterns documentation for comprehensive testing strategies and best practices
 - CI/CD pipeline documentation with GitHub Actions workflow details
 - OpenTelemetry integration in error handlers for distributed tracing and error reporting
 - Error expectedness detection based on severity levels for intelligent alerting
