@@ -6,9 +6,12 @@ from typing import cast
 
 import pytest
 from pytest_mock import MockerFixture, MockType
+from sqlalchemy import String
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from sqlalchemy.orm import Mapped, mapped_column
 
 from src.infrastructure.database.base import BaseModel
+from src.infrastructure.database.repository import BaseRepository
 from src.infrastructure.database.session import _DatabaseManager
 
 
@@ -364,6 +367,91 @@ def mock_get_async_session_for_tests(
         yield mock_async_session_for_dependencies
 
     return cast("MockType", mock_get_async_session)
+
+
+@pytest.fixture(scope="session")
+def mock_model_class() -> type[BaseModel]:
+    """Create a concrete test model class for repository testing.
+
+    Returns:
+        type[BaseModel]: A concrete model class with test attributes.
+    """
+
+    class TestRepositoryModel(BaseModel):
+        """Concrete test model for repository testing."""
+
+        __tablename__ = "test_repo_model"
+
+        name: Mapped[str] = mapped_column(String, nullable=True)
+        status: Mapped[str] = mapped_column(String, nullable=True)
+        email: Mapped[str] = mapped_column(String, nullable=True)
+
+    # Set the __name__ attribute to match expected logging
+    TestRepositoryModel.__name__ = "TestModel"
+
+    return TestRepositoryModel
+
+
+@pytest.fixture
+def mock_repository_query_result(mocker: MockerFixture) -> MockType:
+    """Mock query execution results for repository test scenarios.
+
+    Args:
+        mocker: Pytest mocker fixture.
+
+    Returns:
+        MockType: Mock with scalar_one_or_none, scalars, scalar methods.
+    """
+    result = mocker.Mock()
+    result.scalar_one_or_none = mocker.Mock(return_value=None)
+    result.scalar = mocker.Mock(return_value=0)
+    result.scalars = mocker.Mock()
+    result.scalars.return_value.all = mocker.Mock(return_value=[])
+
+    return cast("MockType", result)
+
+
+@pytest.fixture
+def sample_model_instances(mock_model_class: type[BaseModel]) -> list[BaseModel]:
+    """Provide test model instances with various configurations.
+
+    Args:
+        mock_model_class: Concrete model class fixture.
+
+    Returns:
+        list[BaseModel]: List of model instances with different id values
+            and attributes.
+    """
+    instances = []
+    for i in range(1, 6):
+        instance = mock_model_class()
+        instance.id = i
+        if hasattr(instance, "name"):
+            instance.name = f"Test{i}"
+        if hasattr(instance, "status"):
+            instance.status = "active" if i % 2 == 0 else "inactive"
+        if hasattr(instance, "email"):
+            instance.email = f"test{i}@example.com"
+        instances.append(instance)
+
+    return instances
+
+
+@pytest.fixture
+def repository_factory() -> MockType:
+    """Factory fixture to create BaseRepository instances with mocked dependencies.
+
+    Returns:
+        MockType: Function that creates repositories with specified model class.
+    """
+
+    def _create_repository(
+        session: MockType, model_class: type[BaseModel]
+    ) -> BaseRepository[BaseModel]:
+        """Create a repository instance with given session and model class."""
+        return BaseRepository(session, model_class)
+
+    return cast("MockType", _create_repository)
 
 
 @pytest.fixture
