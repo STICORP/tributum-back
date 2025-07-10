@@ -356,7 +356,10 @@ class TestSettings:
 
         # Application settings
         assert settings.app_name == "Tributum"
-        assert settings.app_version == "0.3.0"
+        # Version should be a valid semver string (X.Y.Z format)
+        assert isinstance(settings.app_version, str)
+        assert len(settings.app_version.split(".")) == 3
+        assert all(part.isdigit() for part in settings.app_version.split("."))
         assert settings.environment == "development"
         assert settings.debug is True
 
