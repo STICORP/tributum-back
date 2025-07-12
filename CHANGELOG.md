@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Version check test to validate format instead of hardcoded value
+- Thread safety issue in database session factory initialization
 
 ## [0.4.0] - 2025-07-10
 

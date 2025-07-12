@@ -236,10 +236,12 @@ class _DatabaseManager:
             async_sessionmaker[AsyncSession]: The session factory.
         """
         if self._async_session_factory is None:
+            # Get engine first (it has its own locking)
+            engine = self.get_engine()
+
             with self._lock:
                 # Double-checked locking pattern
                 if self._async_session_factory is None:
-                    engine = self.get_engine()
                     self._async_session_factory = async_sessionmaker(
                         engine,
                         class_=AsyncSession,
@@ -258,8 +260,9 @@ class _DatabaseManager:
 
     def reset(self) -> None:
         """Reset the manager state. Used primarily for testing."""
-        self._engine = None
-        self._async_session_factory = None
+        with self._lock:
+            self._engine = None
+            self._async_session_factory = None
 
 
 # Singleton instance
