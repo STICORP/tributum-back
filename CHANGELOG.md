@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive Makefile targets for separate unit and integration test execution
 - Separate CI jobs for unit and integration tests to improve pipeline performance
 
+### Changed
+
+- Simplified pyproject.toml security rules for integration tests using wildcard patterns
+
 ### Fixed
 
 - Version check test to validate format instead of hardcoded value

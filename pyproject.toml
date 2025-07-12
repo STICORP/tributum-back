@@ -181,14 +181,9 @@ max-complexity = 10
     "FAST001",  # FastAPI redundant response_model OK in tests for explicitness
     "FAST002",  # FastAPI non-Annotated dependencies OK in tests for simplicity
 ]
-"tests/integration/test_docker_compose.py" = [
-    "S603",     # Subprocess calls are controlled and required for Docker testing
-]
-"tests/fixtures/test_docker_fixtures.py" = [
+"tests/integration/*.py*" = [
     "S603",     # Subprocess calls are controlled and required for Docker testing
     "S607",     # Starting docker process with partial path is safe in tests
-]
-"tests/integration/test_database_example.py" = [
     "S608",     # SQL injection not a concern in test code with controlled inputs
 ]
 "scripts/**/*.py" = [
