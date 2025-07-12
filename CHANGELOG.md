@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Comprehensive Makefile targets for separate unit and integration test execution
+- Separate CI jobs for unit and integration tests to improve pipeline performance
 
 ### Fixed
 
