@@ -1,4 +1,22 @@
-.PHONY: help install run dev lint lint-fix format format-check type-check pyright complexity-check security security-bandit security-deps security-safety security-pip-audit security-semgrep pre-commit pre-commit-ci test test-unit test-integration test-coverage test-fast test-verbose test-failed test-precommit test-ci migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset clean dead-code dead-code-report docstring-check docstring-missing docstring-quality pylint-check shellcheck shellcheck-fix all-checks all-fixes mock-check markers-check docker-build docker-up docker-up-dev docker-down docker-clean docker-logs docker-shell docker-psql docker-test docker-migrate docker-build-production docker-build-dev test-random test-seed test-no-random
+.PHONY: help install run dev \
+	lint lint-fix format format-check type-check pyright complexity-check \
+	security security-bandit security-deps security-safety security-pip-audit security-semgrep \
+	pre-commit pre-commit-ci \
+	test test-unit test-integration \
+	test-coverage test-coverage-unit test-coverage-integration \
+	test-fast test-fast-unit test-fast-integration \
+	test-verbose test-verbose-unit test-verbose-integration \
+	test-failed test-failed-unit test-failed-integration \
+	test-precommit test-precommit-unit test-precommit-integration \
+	test-ci test-ci-unit test-ci-integration \
+	test-random test-random-unit test-random-integration \
+	test-seed test-seed-unit test-seed-integration \
+	test-no-random test-no-random-unit test-no-random-integration \
+	migrate-create migrate-up migrate-down migrate-history migrate-current migrate-check migrate-init migrate-reset \
+	clean dead-code dead-code-report docstring-check docstring-missing docstring-quality \
+	pylint-check shellcheck shellcheck-fix all-checks all-fixes \
+	mock-check markers-check \
+	docker-build docker-up docker-up-dev docker-down docker-clean docker-logs docker-shell docker-psql docker-test docker-migrate docker-build-production docker-build-dev
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -63,42 +81,128 @@ pre-commit:  ## Run all pre-commit hooks
 pre-commit-ci:  ## Run pre-commit hooks for CI (with diff on failure)
 	uv run pre-commit run --all-files --show-diff-on-failure
 
-test:  ## Run all tests
-	uv run pytest
+test:  ## Run all tests (unit then integration)
+	@echo "Running unit tests..."
+	@$(MAKE) test-unit
+	@echo "\nRunning integration tests..."
+	@$(MAKE) test-integration
 
 test-unit:  ## Run unit tests only
-	uv run pytest -m unit
+	uv run pytest -m unit --ignore=tests/integration
 
 test-integration:  ## Run integration tests only
-	uv run pytest -m integration
+	uv run pytest -m integration --ignore=tests/unit
 
-test-coverage:  ## Run tests with coverage report
-	uv run pytest --cov-report=html
+test-coverage:  ## Run all tests with coverage report
+	@echo "Running unit tests with coverage..."
+	@$(MAKE) test-coverage-unit
+	@echo "\nRunning integration tests with coverage..."
+	@$(MAKE) test-coverage-integration
+	@echo "Combined coverage report generated in htmlcov/index.html"
+
+test-coverage-unit:  ## Run unit tests with coverage report
+	uv run pytest -m unit --ignore=tests/integration --cov-report=html
 	@echo "Coverage report generated in htmlcov/index.html"
 
-test-fast:  ## Run tests in parallel
-	uv run pytest -n auto
+test-coverage-integration:  ## Run integration tests with coverage report
+	uv run pytest -m integration --ignore=tests/unit --cov-report=html
+	@echo "Coverage report generated in htmlcov/index.html"
 
-test-verbose:  ## Run tests with verbose output
-	uv run pytest -vv
+test-fast:  ## Run all tests in parallel
+	@echo "Running unit tests in parallel..."
+	@$(MAKE) test-fast-unit
+	@echo "\nRunning integration tests in parallel..."
+	@$(MAKE) test-fast-integration
+
+test-fast-unit:  ## Run unit tests in parallel
+	uv run pytest -m unit --ignore=tests/integration -n auto
+
+test-fast-integration:  ## Run integration tests in parallel
+	uv run pytest -m integration --ignore=tests/unit -n auto
+
+test-verbose:  ## Run all tests with verbose output
+	@echo "Running unit tests with verbose output..."
+	@$(MAKE) test-verbose-unit
+	@echo "\nRunning integration tests with verbose output..."
+	@$(MAKE) test-verbose-integration
+
+test-verbose-unit:  ## Run unit tests with verbose output
+	uv run pytest -m unit --ignore=tests/integration -vv
+
+test-verbose-integration:  ## Run integration tests with verbose output
+	uv run pytest -m integration --ignore=tests/unit -vv
 
 test-failed:  ## Re-run only failed tests
-	uv run pytest --lf
+	@echo "Re-running failed unit tests..."
+	@$(MAKE) test-failed-unit
+	@echo "\nRe-running failed integration tests..."
+	@$(MAKE) test-failed-integration
+
+test-failed-unit:  ## Re-run only failed unit tests
+	uv run pytest -m unit --ignore=tests/integration --lf
+
+test-failed-integration:  ## Re-run only failed integration tests
+	uv run pytest -m integration --ignore=tests/unit --lf
 
 test-precommit:  ## Run tests for pre-commit (fast, no coverage)
-	uv run pytest -x --tb=short --no-cov
+	@echo "Running unit tests for pre-commit..."
+	@$(MAKE) test-precommit-unit
+	@echo "\nRunning integration tests for pre-commit..."
+	@$(MAKE) test-precommit-integration
 
-test-ci:  ## Run tests for CI (stop on first failure)
-	uv run pytest -x --tb=short
+test-precommit-unit:  ## Run unit tests for pre-commit (fast, no coverage)
+	uv run pytest -m unit --ignore=tests/integration -x --tb=short --no-cov
 
-test-random:  ## Run tests with random ordering (shows seed in output)
-	uv run pytest --randomly-dont-reorganize
+test-precommit-integration:  ## Run integration tests for pre-commit (fast, no coverage)
+	uv run pytest -m integration --ignore=tests/unit -x --tb=short --no-cov
 
-test-seed:  ## Run tests with specific seed (usage: make test-seed SEED=12345)
-	uv run pytest --randomly-seed=$(SEED)
+test-ci:  ## Run all tests for CI (stop on first failure)
+	@echo "Running unit tests for CI..."
+	@$(MAKE) test-ci-unit
+	@echo "\nRunning integration tests for CI..."
+	@$(MAKE) test-ci-integration
 
-test-no-random:  ## Run tests without randomization (for debugging)
-	uv run pytest -p no:randomly
+test-ci-unit:  ## Run unit tests for CI
+	uv run pytest -m unit --ignore=tests/integration -x --tb=short
+
+test-ci-integration:  ## Run integration tests for CI
+	uv run pytest -m integration --ignore=tests/unit -x --tb=short
+
+test-random:  ## Run all tests with random ordering (shows seed in output)
+	@echo "Running unit tests with random ordering..."
+	@$(MAKE) test-random-unit
+	@echo "\nRunning integration tests with random ordering..."
+	@$(MAKE) test-random-integration
+
+test-random-unit:  ## Run unit tests with random ordering
+	uv run pytest -m unit --ignore=tests/integration --randomly-dont-reorganize
+
+test-random-integration:  ## Run integration tests with random ordering
+	uv run pytest -m integration --ignore=tests/unit --randomly-dont-reorganize
+
+test-seed:  ## Run all tests with specific seed (usage: make test-seed SEED=12345)
+	@echo "Running unit tests with seed $(SEED)..."
+	@$(MAKE) test-seed-unit SEED=$(SEED)
+	@echo "\nRunning integration tests with seed $(SEED)..."
+	@$(MAKE) test-seed-integration SEED=$(SEED)
+
+test-seed-unit:  ## Run unit tests with specific seed (usage: make test-seed-unit SEED=12345)
+	uv run pytest -m unit --ignore=tests/integration --randomly-seed=$(SEED)
+
+test-seed-integration:  ## Run integration tests with specific seed (usage: make test-seed-integration SEED=12345)
+	uv run pytest -m integration --ignore=tests/unit --randomly-seed=$(SEED)
+
+test-no-random:  ## Run all tests without randomization (for debugging)
+	@echo "Running unit tests without randomization..."
+	@$(MAKE) test-no-random-unit
+	@echo "\nRunning integration tests without randomization..."
+	@$(MAKE) test-no-random-integration
+
+test-no-random-unit:  ## Run unit tests without randomization
+	uv run pytest -m unit --ignore=tests/integration -p no:randomly
+
+test-no-random-integration:  ## Run integration tests without randomization
+	uv run pytest -m integration --ignore=tests/unit -p no:randomly
 
 mock-check:  ## Check for forbidden unittest.mock imports in test files
 	uv run python scripts/check-mock-imports.py

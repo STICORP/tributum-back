@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Comprehensive Makefile targets for separate unit and integration test execution
+
 ### Fixed
 
 - Version check test to validate format instead of hardcoded value
